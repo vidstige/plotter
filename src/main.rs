@@ -61,6 +61,16 @@ impl Vector2 {
     fn cross(&self) -> Vector2 {
         Vector2 { x: -self.y, y: self.x }
     }
+    fn norm2(&self) -> f32 {
+        self.x * self.x + self.y * self.y
+    }
+    fn norm(&self) -> f32 {
+        self.norm2().sqrt()
+    }
+
+    fn scale(&self, k: f32) -> Vector2 {
+        Vector2 { x: self.x * k, y: self.y * k }
+    }
 }
 
 struct Spiral {
@@ -93,14 +103,17 @@ fn main() {
     
     //let polyline = Polyline::new().set("points", "10,10, 20,30, 40,30");
     let mut rng = rand::thread_rng();
+    let max_step = 4.0;
     for _ in 0..100 {
         let mut polyline = Polyline::new();
         let mut point = random_in(&mut rng, &A4_PORTRAIT);
-        while polyline.length() < 5.0 {
+        while polyline.length() < 100.0 {
             polyline.add(point);
             let delta = field.at(point);
+            let norm = delta.norm();
+            let step = norm.min(max_step);
+            point = point.add(delta.scale(step / norm));
             
-            point = point.add(delta);
         }
         group.append(svg::node::element::Polyline::new().set("points", as_node(&polyline)));
     }
