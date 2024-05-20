@@ -3,8 +3,14 @@ use rand::rngs::ThreadRng;
 use svg::{Document, Node};
 use svg::node::element::Group;
 
-const A4_PORTRAIT: (i32, i32, i32, i32) = (0, 0, 210, 297);
+type ViewBox = (i32, i32, i32, i32);
+const A4_PORTRAIT: ViewBox = (0, 0, 210, 297);
 
+
+fn pad(view_box: ViewBox, pad: i32) -> ViewBox {
+    let (x, y, w, h) = view_box;
+    (x + pad, y + pad, w - 2 * pad, h - 2 * pad)
+}
 
 struct Polyline {
     points: Vec<Point2>,
@@ -93,6 +99,11 @@ fn random_in(rng: &mut ThreadRng, view_box: &(i32, i32, i32, i32)) -> Point2 {
     )
 }
 
+fn contains(view_box: &ViewBox, point: &Point2) -> bool {
+    let (x, y, w, h) = view_box;
+    point.x > *x as f32 && point.y > *y as f32 && point.x < (x + w) as f32 && point.y < (y + h) as f32
+}
+
 fn main() {
     let field = Spiral::new(Point2::new(0.5 * 210.0, 0.5 * 297.0));
 
@@ -101,13 +112,17 @@ fn main() {
         .set("stroke", "black")
         .set("stroke-width", 1);
     
-    //let polyline = Polyline::new().set("points", "10,10, 20,30, 40,30");
+    // compute drawing area
+    let area = pad(A4_PORTRAIT, 20);
     let mut rng = rand::thread_rng();
     let max_step = 4.0;
     for _ in 0..100 {
         let mut polyline = Polyline::new();
-        let mut point = random_in(&mut rng, &A4_PORTRAIT);
+        let mut point = random_in(&mut rng, &area);
         while polyline.length() < 100.0 {
+            if !contains(&area, &point) {
+                break;
+            }
             polyline.add(point);
             let delta = field.at(point);
             let norm = delta.norm();
