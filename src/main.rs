@@ -77,6 +77,10 @@ impl Vector2 {
     fn scale(&self, k: f32) -> Vector2 {
         Vector2 { x: self.x * k, y: self.y * k }
     }
+
+    fn add(&self, vector: Vector2) -> Vector2 {
+        Vector2 { x: self.x + vector.x, y: self.y + vector.y }
+    }
 }
 
 struct Spiral {
@@ -88,7 +92,7 @@ impl Spiral {
         Spiral { center }
     }
     fn at(&self, p: Point2) -> Vector2 {
-        p.minus(&self.center).cross()
+        p.minus(&self.center).cross().scale(3.14).add(p.minus(&self.center))
     }
 }
 
@@ -115,11 +119,11 @@ fn main() {
     // compute drawing area
     let area = pad(A4_PORTRAIT, 20);
     let mut rng = rand::thread_rng();
-    let max_step = 4.0;
-    for _ in 0..100 {
+    let max_step = 2.0;
+    for _ in 0..256 {
         let mut polyline = Polyline::new();
         let mut point = random_in(&mut rng, &area);
-        while polyline.length() < 100.0 {
+        while polyline.length() < 64.0 {
             if !contains(&area, &point) {
                 break;
             }
