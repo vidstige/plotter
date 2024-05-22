@@ -1,10 +1,10 @@
+use paper::{ViewBox, A4_PORTRAIT};
 use rand::Rng;
 use rand::rngs::ThreadRng;
 use svg::{Document, Node};
 use svg::node::element::Group;
 
-type ViewBox = (i32, i32, i32, i32);
-const A4_PORTRAIT: ViewBox = (0, 0, 210, 297);
+mod paper;
 
 
 fn pad(view_box: ViewBox, pad: i32) -> ViewBox {
