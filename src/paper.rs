@@ -1,2 +1,38 @@
+use svg::node::element::Group;
+use svg::{Document, Node};
+
+use crate::polyline::Polyline;
+
 pub type ViewBox = (i32, i32, i32, i32);
 pub const A4_PORTRAIT: ViewBox = (0, 0, 210, 297);
+
+pub struct Paper {
+    group: Group,
+}
+
+fn as_node(polyline: &Polyline) -> String {
+    let points: Vec<_> = polyline.points.iter().map(|p| (p.x, p.y)).map(|(x, y)| format!("{x} {y}")).collect();
+    points.join(" ")
+}
+
+impl Paper {
+    pub fn new() -> Paper {
+        let group = Group::new()
+            .set("fill", "none")
+            .set("stroke", "black")
+            .set("stroke-width", 1);
+        Paper { group }
+    }
+
+    pub(crate) fn add(&mut self, polyline: &crate::Polyline) {
+        self.group.append(svg::node::element::Polyline::new().set("points", as_node(&polyline)))
+    }
+
+    pub(crate) fn save(self, filename: &str) {
+        let document = Document::new()
+        .set("viewBox", A4_PORTRAIT)
+        .add(self.group);
+
+        svg::save(filename, &document).unwrap();
+    }
+}
