@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 svg = "0.17.0"
+nalgebra-glm = "0.18.0"
 rand = "0.8.5"
