@@ -7,6 +7,11 @@ pub type ViewBox = (i32, i32, i32, i32);
 pub const A4_PORTRAIT: ViewBox = (0, 0, 210, 297);
 pub const A4_LANDSCAPE: ViewBox = (0, 0, 297, 210);
 
+pub fn viewbox_aspect(view_box: ViewBox) -> f32 {
+    view_box.2 as f32 / view_box.3 as f32
+}
+
+
 pub struct Paper {
     pub view_box: ViewBox,
     group: Group,
@@ -32,6 +37,8 @@ impl Paper {
 
     pub(crate) fn save(self, filename: &str) {
         let document = Document::new()
+            .set("width", format!("{}mm", self.view_box.2))
+            .set("height", format!("{}mm", self.view_box.3))
             .set("viewBox", self.view_box)
             .add(self.group);
 
