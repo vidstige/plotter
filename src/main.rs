@@ -48,6 +48,32 @@ fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec4) -
     Ray{ origin: eye, direction }
 }
 
+trait Surface {
+    fn at(&self, position: &Vec3) -> f32;
+}
+
+struct Hole {
+}
+
+impl Hole {
+    fn new() -> Hole {
+        Hole {}        
+    }
+    fn z(&self, p: &Vec2) -> f32 {
+        1.0 / (p.x*p.x + p.y*p.y)
+    }
+}
+
+impl Surface for Hole {
+    fn at(&self, position: &Vec3) -> f32 {
+        0.0
+    }
+}
+
+fn trace<S: Surface>(ray: &Ray, surface: &S) -> Option<Ray> {
+    None
+}
+
 fn main() {
     let mut paper = Paper::new(A4_LANDSCAPE);
     // compute drawing area
@@ -59,17 +85,21 @@ fn main() {
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
     let projection = perspective(viewbox_aspect(paper.view_box), 90.0_f32.to_radians(), 0.1, 10.0);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
+    let hole = Hole::new();
     for _ in 0..256 {
         let mut polyline = Polyline::new();
         let mut p = Vec2::new((rng.gen::<f32>() - 0.5) * 4.0, (rng.gen::<f32>() - 0.5) * 4.0);
         for _ in 0..10 {
             // evaluate surface at x, y
-            let z = 1.0 / (p.x*p.x + p.y*p.y);
+            let z = hole.z(&p);
             let world = Vec3::new(p.x, p.y, z);
             // project world cordinate into screen cordinate
             let screen = project(&world, &model, &projection, viewport).xy();
             // back project and ray trace to find occlusions
             let ray = backproject(&screen, &model, &projection, viewport);
+            if let Some(ray) = trace(&ray, &hole) {
+
+            }
 
             // discard z and clip against drawing area
             if contains(&area, &screen) {
