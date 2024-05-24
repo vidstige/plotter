@@ -11,7 +11,7 @@ fn pad(view_box: ViewBox, pad: i32) -> ViewBox {
     (x + pad, y + pad, w - 2 * pad, h - 2 * pad)
 }
 
-fn random_in(rng: &mut ThreadRng, view_box: &(i32, i32, i32, i32)) -> Point2 {
+fn random_in(rng: &mut ThreadRng, view_box: &ViewBox) -> Point2 {
     Point2::new(
         rng.gen::<f32>() * (view_box.2 - view_box.0) as f32 + view_box.0 as f32,
         rng.gen::<f32>() * (view_box.3 - view_box.1) as f32 + view_box.1 as f32,
