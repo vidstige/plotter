@@ -5,8 +5,10 @@ use crate::polyline::Polyline;
 
 pub type ViewBox = (i32, i32, i32, i32);
 pub const A4_PORTRAIT: ViewBox = (0, 0, 210, 297);
+pub const A4_LANDSCAPE: ViewBox = (0, 0, 297, 210);
 
 pub struct Paper {
+    pub view_box: ViewBox,
     group: Group,
 }
 
@@ -16,12 +18,12 @@ fn as_node(polyline: &Polyline) -> String {
 }
 
 impl Paper {
-    pub fn new() -> Paper {
+    pub fn new(view_box: ViewBox) -> Paper {
         let group = Group::new()
             .set("fill", "none")
             .set("stroke", "black")
             .set("stroke-width", 1);
-        Paper { group }
+        Paper { view_box, group }
     }
 
     pub(crate) fn add(&mut self, polyline: &crate::Polyline) {
@@ -30,8 +32,8 @@ impl Paper {
 
     pub(crate) fn save(self, filename: &str) {
         let document = Document::new()
-        .set("viewBox", A4_PORTRAIT)
-        .add(self.group);
+            .set("viewBox", self.view_box)
+            .add(self.group);
 
         svg::save(filename, &document).unwrap();
     }

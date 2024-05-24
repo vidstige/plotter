@@ -1,7 +1,7 @@
 use std::ops::{Sub, AddAssign};
 
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, Mat4};
-use paper::{ViewBox, A4_PORTRAIT, Paper};
+use paper::{ViewBox, Paper, A4_LANDSCAPE};
 use polyline::Polyline;
 use rand::Rng;
 
@@ -35,13 +35,12 @@ impl Spiral {
 }
     
 fn main() {
-    let mut paper = Paper::new();
+    let mut paper = Paper::new(A4_LANDSCAPE);
     // compute drawing area
-    let area = pad(A4_PORTRAIT, 20);
+    let area = pad(paper.view_box, 20);
 
     let mut rng = rand::thread_rng();
     let field = Spiral::new(Vec2::zeros());
-    let max_step = 0.05;
     let projection = look_at(&Vec3::new(-0.8, -0.8, 0.0), &Vec3::zeros(), &Vec3::new(0.0, 0.0, 1.0));
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     for _ in 0..256 {
@@ -59,7 +58,7 @@ fn main() {
 
             let delta = field.at(p);
             let norm = delta.norm();
-            let step = norm.min(max_step);
+            let step = 0.05;
             p.add_assign(delta.scale(step / norm));
             
         }
