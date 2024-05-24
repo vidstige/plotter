@@ -60,7 +60,7 @@ impl Hole {
         Hole {}        
     }
     fn z(&self, p: &Vec2) -> f32 {
-        1.0 / (p.x*p.x + p.y*p.y)
+        -1.0 / (p.x*p.x + p.y*p.y)
     }
 }
 
@@ -81,8 +81,8 @@ fn main() {
 
     let mut rng = rand::thread_rng();
     let field = Spiral::new(Vec2::zeros());
-    let eye = Vec3::new(-1.2, -1.2, -0.3);
-    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
+    let eye = Vec3::new(-1.2, -1.2, 0.3);
+    let model = look_at(&eye, &Vec3::new(0.0, 0.0, -0.8), &Vec3::new(0.0, 0.0, -1.0));
     let projection = perspective(viewbox_aspect(paper.view_box), 90.0_f32.to_radians(), 0.1, 10.0);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let hole = Hole::new();
