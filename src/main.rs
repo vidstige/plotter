@@ -114,15 +114,16 @@ fn linesearch<F: Fn(f32) -> f32>(f: F, lo: f32, hi: f32, steps: usize) -> Option
     None
 }
 
-fn trace<S: Surface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<f32> {
+fn trace<S: Surface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
     // first linesearch to find rough estimate
     let f = |t| surface.at(&ray.at(t));
     if let Some((lo, hi)) = linesearch(f, lo, hi, 10) {
         // fine tune with newton_raphson
-        newton_raphson(f, 0.5 * (hi + lo))
-    } else {
-        None
+        if let Some(t) = newton_raphson(f, 0.5 * (hi + lo)) {
+            return Some(ray.at(t));
+        }
     }
+    None
 }
 
 type Resolution = (i32, i32);
@@ -171,13 +172,14 @@ fn render(target: &mut Buffer) {
         for x in 0..width {
             let screen = Vec2::new(x as f32, y as f32);
             let ray = backproject(&screen, &model, &projection, viewport);
-            if let Some(t) = trace(&ray, &hole, 0.1, 10.0) {
-                pixel(target, x, y, &gray(t / 10.0));
+            if let Some(p) = trace(&ray, &hole, 0.1, 10.0) {
+                pixel(target, x, y, &gray(p.z / 10.0));
             }
         }
     }
 }
 
+/*
 fn main() -> io::Result<()>{
     let resolution = (297, 210);
     let mut buffer = Buffer::new(resolution);
@@ -186,8 +188,9 @@ fn main() -> io::Result<()>{
     //std::io::stdout().write_all(&buffer.pixels)?;
     Ok(())
 }
+*/
 
-/*fn main() {
+fn main() {
     let mut paper = Paper::new(A4_LANDSCAPE);
     // compute drawing area
     let area = pad(paper.view_box, 20);
@@ -210,9 +213,9 @@ fn main() -> io::Result<()>{
             let screen = project(&world, &model, &projection, viewport).xy();
             // back project and ray trace to find occlusions
             let ray = backproject(&screen, &model, &projection, viewport);
-            let intersection = trace(&ray, &hole).unwrap_or(Vec3::new(10000.0, 10000.0, 10000.0));
+            let intersection = trace(&ray, &hole, 0.1, 10.0).unwrap_or(Vec3::new(-1000.0, -1000.0, -1000.0));
             // threshold related to step in trace function
-            let threshold = INFINITY;
+            let threshold = 1.1;
             // clip against drawing area
             if contains(&area, &screen) {
                 // handle occlusions
@@ -233,4 +236,3 @@ fn main() -> io::Result<()>{
     
     paper.save("image.svg");
 }
-*/
