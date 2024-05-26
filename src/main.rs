@@ -1,4 +1,4 @@
-use std::{ops::{Sub, AddAssign, Add}, f32::INFINITY};
+use std::{ops::{Sub, AddAssign, Add}, f32::INFINITY, io::{self, Write}, fs};
 
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
 use paper::{ViewBox, Paper, A4_LANDSCAPE, viewbox_aspect};
@@ -76,20 +76,118 @@ impl Surface for Hole {
     }
 }
 
-fn trace<S: Surface>(ray: &Ray, surface: &S) -> Option<Vec3> {
-    let step = 0.05;
-    for i in 0..64 {
-        let t = i as f32 * step;
-        let p = ray.at(t);
-        if surface.at(&p) < 0.0 {
-            // we've entered the surface
-            return Some(p);
+fn newton_raphson<F: Fn(f32) -> f32>(f: F, x0: f32) -> Option<f32> {
+    let epsilon = 0.01; // for numerical diffrentiation
+    let tol = 0.01; // for considering roots
+    let mut x = x0; 
+    
+    for _ in 0..10 {
+        // compute df/dt using forward diffrentiation
+        let dfdt = (f(x + epsilon) - f(x)) / epsilon;
+        if dfdt.abs() < 0.001 {
+            break;
         }
+        x = x - f(x) / dfdt;
+        // exit early if root found
+        if f(x).abs() < tol {
+            break;
+        }
+    }
+    // if we're close enough a root was found
+    (f(x).abs() < tol).then_some(x)
+}
+
+fn linesearch<F: Fn(f32) -> f32>(f: F, lo: f32, hi: f32, steps: usize) -> Option<(f32, f32)> {
+    let step_length = (hi - lo) / steps as f32;
+    let mut x0 = lo;
+    let mut f0 = f(x0);
+    for step in 0..steps {
+        let x = step as f32 * step_length;
+        let fx = f(x);
+        if (f0 < 0.0) != (fx < 0.0) {
+            // root range found!
+            return Some((x0, x));
+        }
+        x0 = x;
+        f0 = fx;
     }
     None
 }
 
-fn main() {
+fn trace<S: Surface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<f32> {
+    // first linesearch to find rough estimate
+    let f = |t| surface.at(&ray.at(t));
+    if let Some((lo, hi)) = linesearch(f, lo, hi, 10) {
+        // fine tune with newton_raphson
+        newton_raphson(f, 0.5 * (hi + lo))
+    } else {
+        None
+    }
+}
+
+type Resolution = (i32, i32);
+
+fn aspect_ratio(resolution: Resolution) -> f32 {
+    resolution.0 as f32 / resolution.1 as f32
+}
+fn area(resolution: Resolution) -> usize {
+    let (width, height) = resolution;
+    (width * height) as usize
+}
+
+struct Buffer {
+    resolution: Resolution,
+    pixels: Vec<u8>,
+}
+
+impl Buffer {
+    fn new(resolution: Resolution) -> Buffer {
+        Buffer { resolution, pixels: vec![0; area(resolution) * 4]}
+    }
+}
+
+type Color = [u8; 4];
+
+fn pixel(target: &mut Buffer, x: i32, y: i32, color: &Color) {
+    let (stride, _) = target.resolution;
+    let index = ((x + y * stride) * 4) as usize;
+    target.pixels[index..index + color.len()].copy_from_slice(color);
+}
+
+fn gray(intensity: f32) -> Color {
+    let gray = (intensity.clamp(0.0, 1.0) * 255.0) as u8;
+    [gray, gray, gray, 0xff]
+}
+
+fn render(target: &mut Buffer) {
+    let eye = Vec3::new(-1.2, -1.2, -0.3);
+    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
+    let projection = perspective(aspect_ratio(target.resolution), 90.0_f32.to_radians(), 0.1, 10.0);
+    let viewport = Vec4::new(0.0, 0.0, target.resolution.0 as f32, target.resolution.1 as f32);
+    let hole = Hole::new();
+
+    let (width, height) = target.resolution;
+    for y in 0..height {
+        for x in 0..width {
+            let screen = Vec2::new(x as f32, y as f32);
+            let ray = backproject(&screen, &model, &projection, viewport);
+            if let Some(t) = trace(&ray, &hole, 0.1, 10.0) {
+                pixel(target, x, y, &gray(t / 10.0));
+            }
+        }
+    }
+}
+
+fn main() -> io::Result<()>{
+    let resolution = (297, 210);
+    let mut buffer = Buffer::new(resolution);
+    render(&mut buffer);
+    fs::write("output.raw", &buffer.pixels)?;
+    //std::io::stdout().write_all(&buffer.pixels)?;
+    Ok(())
+}
+
+/*fn main() {
     let mut paper = Paper::new(A4_LANDSCAPE);
     // compute drawing area
     let area = pad(paper.view_box, 20);
@@ -135,3 +233,4 @@ fn main() {
     
     paper.save("image.svg");
 }
+*/
