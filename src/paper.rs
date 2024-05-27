@@ -45,6 +45,19 @@ impl Paper {
         }
     }
 
+    // total travel length for pen
+    pub fn length(&self) -> f32 {
+        let mut len = 0.0;
+        let mut pen = Vec2::new(0.0, self.view_box.2 as f32);
+        for polyline in &self.polylines {
+            // distance from pen to first point
+            len += pen.sub(polyline.points.first().unwrap_or(&pen)).norm();
+            len += polyline.length();
+            pen = *polyline.points.last().unwrap_or(&pen);
+        }
+        len
+    }
+
     // re-orders poly-lines for faster plotting
     pub(crate) fn optimize(&mut self) {
         // Simple greedy algorithm for the travelling salesmen

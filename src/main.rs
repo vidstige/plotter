@@ -97,7 +97,7 @@ fn trace<S: Surface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
 }
 
 fn render(target: &mut Buffer) {
-    let eye = Vec3::new(-1.2, -1.2, -0.3);
+    let eye = Vec3::new(-1.6, -1.6, -0.3);
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
     let projection = perspective(aspect_ratio(target.resolution), 90.0_f32.to_radians(), 0.1, 10.0);
     let viewport = Vec4::new(0.0, 0.0, target.resolution.0 as f32, target.resolution.1 as f32);
@@ -135,7 +135,7 @@ fn main() -> io::Result<()> {
     let mut rng = rand::thread_rng();
     let distribution = Normal::new(0.0, 1.0).unwrap();
     let field = Spiral::new(Vec2::zeros());
-    let eye = Vec3::new(-1.8, -1.8, -0.8);
+    let eye = Vec3::new(-2.5, -2.5, -1.5);
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
     let near = 0.1;
     let far = 10.0;
@@ -178,7 +178,10 @@ fn main() -> io::Result<()> {
         paper.add(polyline);
     }
     
+    let before = paper.length();
     paper.optimize();
+    let after = paper.length();
+    println!("saved {} mm of pen distance", before - after);
     paper.save("image.svg")?;
     Ok(())
 }
