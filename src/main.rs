@@ -46,8 +46,7 @@ impl Ray {
 }
 
 fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec4) -> Ray {
-    let direction = Vec3::new(screen.x, screen.y, 1.0);
-    let direction = unproject(&direction, &model, &projection, viewport).normalize();
+    let direction = unproject(&Vec3::new(screen.x, screen.y, 1.0), &model, &projection, viewport).normalize();
     // recover eye position
     let model_inverse = model.try_inverse().unwrap();
     let eye = model_inverse.column(3).xyz();
@@ -214,12 +213,10 @@ fn main() {
             // back project and ray trace to find occlusions
             let ray = backproject(&screen, &model, &projection, viewport);
             let intersection = trace(&ray, &hole, 0.1, 10.0).unwrap_or(Vec3::new(-1000.0, -1000.0, -1000.0));
-            // threshold related to step in trace function
-            let threshold = 1.1;
             // clip against drawing area
             if contains(&area, &screen) {
                 // handle occlusions
-                if intersection.sub(&world).magnitude() < threshold {
+                if intersection.sub(&world).norm() < 2.0 {
                     polyline.add(screen);
                 }
             }
