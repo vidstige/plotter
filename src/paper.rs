@@ -1,6 +1,9 @@
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::io;
+use std::ops::Sub;
 
+use nalgebra_glm::Vec2;
 use svg::node::element::Group;
 use svg::{Document, Node};
 
@@ -26,18 +29,6 @@ fn as_node(polyline: &Polyline) -> String {
     points.join(" ")
 }
 
-fn compare_polylines(a: &Polyline, b: &Polyline) -> Ordering {
-    if a.points.len() == 0 {
-        return Ordering::Less;
-    }
-    if b.points.len() == 0 {
-        return Ordering::Greater;
-    }
-    let a0 = a.points.first().unwrap();
-    let b0 = b.points.first().unwrap();
-    (a0.x, a0.y).partial_cmp(&(b0.x, b0.y)).unwrap()
-}
-
 impl Paper {
     pub fn new(view_box: ViewBox, pen: f32) -> Paper {
         Paper { view_box, pen, polylines: Vec::new() }
@@ -47,9 +38,40 @@ impl Paper {
         self.polylines.push(polyline);
     }
 
+    fn distance_to(&self, point: Vec2, index: usize) -> f32 {
+        if let Some(start) = self.polylines[index].points.first() {
+            point.sub(start).norm()
+        } else {
+            f32::INFINITY
+        }
+    }
+
     // re-orders poly-lines for faster plotting
     pub(crate) fn optimize(&mut self) {
-        self.polylines.sort_by(compare_polylines);
+        // Simple greedy algorithm for the travelling salesmen
+
+        // start at idrawpenplotter home (top right)
+        let mut current = Vec2::new(0.0, self.view_box.2 as f32);
+        let mut unvisited: HashSet<usize> = HashSet::from_iter(0..self.polylines.len());
+        let mut path = Vec::new();
+        while !unvisited.is_empty() {
+            // find shortest distance to polyline start
+            let distances: Vec<_> = unvisited
+                .iter()
+                .map(|index| (self.distance_to(current, *index), *index))
+                .collect();
+            let (_, index) = distances.iter().min_by(|(a, _), (b, _)| a.total_cmp(b)).unwrap();
+            unvisited.remove(index);
+            // update path
+            path.push(*index);
+            // move current point to end (or do nothing for empty polylines)
+            current = *self.polylines[*index].points.last().unwrap_or(&current);
+        }
+
+        self.polylines = path
+            .iter()
+            .map(|index| self.polylines[*index].clone())
+            .collect();
     }
 
     pub(crate) fn save(self, filename: &str) -> io::Result<()> {

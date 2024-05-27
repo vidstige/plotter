@@ -1,8 +1,10 @@
 use nalgebra_glm::Vec2;
 
+#[derive(Clone)]
 pub struct Polyline {
     pub points: Vec<Vec2>,
 }
+
 impl Polyline {
     pub fn new() -> Polyline {
         Polyline { points: Vec::new() }
