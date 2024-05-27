@@ -149,6 +149,9 @@ impl Buffer {
 type Color = [u8; 4];
 
 fn pixel(target: &mut Buffer, x: i32, y: i32, color: &Color) {
+    if x < 0 || x >= target.resolution.0 || y < 0 || y >= target.resolution.1 {
+        return;
+    }
     let (stride, _) = target.resolution;
     let index = ((x + y * stride) * 4) as usize;
     target.pixels[index..index + color.len()].copy_from_slice(color);
@@ -191,6 +194,11 @@ fn main() -> io::Result<()>{
 
 fn main() -> io::Result<()> {
     let mut paper = Paper::new(A4_LANDSCAPE);
+
+    // debug buffer
+    let resolution = (297, 210);
+    let mut buffer = Buffer::new(resolution);
+
     // compute drawing area
     let area = pad(paper.view_box, 20);
 
@@ -212,13 +220,14 @@ fn main() -> io::Result<()> {
             let world = Vec3::new(p.x, p.y, z);
             // project world cordinate into screen cordinate
             let screen = project(&world, &model, &projection, viewport);
-            // flip-y (why is this needed?)            
-            // back project and ray trace to find occlusions
-            let ray = backproject(&screen.xy(), &model, &projection, viewport);
-            if let Some(intersection) = trace(&ray, &hole, near, far) {
-                let traced_screen = project(&intersection, &model, &projection, viewport);
-                // clip against drawing area
-                if contains(&area, &screen.xy()) {
+            // clip against drawing area
+            if contains(&area, &screen.xy()) {
+                // back project and ray trace to find occlusions
+                let ray = backproject(&screen.xy(), &model, &projection, viewport);
+                if let Some(intersection) = trace(&ray, &hole, near, far) {
+                    let traced_screen = project(&intersection, &model, &projection, viewport);
+                    println!("{:?} {:?}", screen, traced_screen);
+                    pixel(&mut buffer, traced_screen.x as i32, traced_screen.y as i32, &gray((traced_screen.z - 0.7) / 0.1));
                     // handle occlusions
                     if traced_screen.z < screen.z {
                         polyline.add(screen.xy());
@@ -236,6 +245,8 @@ fn main() -> io::Result<()> {
         paper.add(&polyline);
     }
     
+    // dump debug image
+    fs::write("output.raw", &buffer.pixels)?;
     paper.save("image.svg")?;
     Ok(())
 }
