@@ -7,6 +7,7 @@ use polyline::Polyline;
 use rand::Rng;
 
 mod buffer;
+mod netbm;
 mod paper;
 mod polyline;
 

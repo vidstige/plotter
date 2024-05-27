@@ -1,5 +1,3 @@
-use std::{fs::File, io::{Write, self}};
-
 pub type Resolution = (i32, i32);
 
 pub fn aspect_ratio(resolution: Resolution) -> f32 {
@@ -19,12 +17,6 @@ impl Buffer {
     fn new(resolution: Resolution) -> Buffer {
         Buffer { resolution, pixels: vec![0; area(resolution)]}
     }
-}
-
-fn save_pgm(filename: &str, buffer: &Buffer) -> io::Result<()> {
-    let mut w = File::create(filename)?;
-    writeln!(&mut w, "P5 {} {} {}", buffer.resolution.0, buffer.resolution.1, 255)?;
-    w.write_all(&buffer.pixels)
 }
 
 pub fn pixel(target: &mut Buffer, x: i32, y: i32, gray: u8) {
