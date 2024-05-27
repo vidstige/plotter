@@ -211,7 +211,7 @@ fn main() -> io::Result<()> {
             p.add_assign(delta.scale(step / norm));
             
         }
-        paper.add(&polyline);
+        paper.add(polyline);
     }
     
     paper.save("image.svg")?;

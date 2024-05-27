@@ -16,7 +16,7 @@ pub fn viewbox_aspect(view_box: ViewBox) -> f32 {
 
 pub struct Paper {
     pub view_box: ViewBox,
-    group: Group,
+    polylines: Vec<crate::Polyline>,
 }
 
 fn as_node(polyline: &Polyline) -> String {
@@ -30,19 +30,23 @@ impl Paper {
             .set("fill", "none")
             .set("stroke", "black")
             .set("stroke-width", 1);
-        Paper { view_box, group }
+        Paper { view_box, polylines: Vec::new() }
     }
 
-    pub(crate) fn add(&mut self, polyline: &crate::Polyline) {
-        self.group.append(svg::node::element::Polyline::new().set("points", as_node(&polyline)))
+    pub(crate) fn add(&mut self, polyline: crate::Polyline) {
+        self.polylines.push(polyline);
     }
 
     pub(crate) fn save(self, filename: &str) -> io::Result<()> {
+        let mut group = Group::new();
+        for polyline in self.polylines {
+            group.append(svg::node::element::Polyline::new().set("points", as_node(&polyline)));
+        }
         let document = Document::new()
             .set("width", format!("{}mm", self.view_box.2))
             .set("height", format!("{}mm", self.view_box.3))
             .set("viewBox", self.view_box)
-            .add(self.group);
+            .add(group);
 
         svg::save(filename, &document)
     }
