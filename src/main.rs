@@ -167,16 +167,16 @@ fn main() -> io::Result<()> {
 
     let mut rng = rand::thread_rng();
     let field = Spiral::new(Vec2::zeros());
-    let eye = Vec3::new(-1.2, -1.2, -0.3);
+    let eye = Vec3::new(-1.8, -1.8, -0.8);
+    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
     let near = 0.1;
     let far = 10.0;
-    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
-    let projection = perspective(viewbox_aspect(paper.view_box), 90.0_f32.to_radians(), near, far);
+    let projection = perspective(viewbox_aspect(paper.view_box), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let hole = Hole::new();
-    for _ in 0..1024 {
+    for _ in 0..2*1024 {
         let mut polyline = Polyline::new();
-        let mut p = Vec2::new((rng.gen::<f32>() - 0.5) * 4.0, (rng.gen::<f32>() - 0.5) * 4.0);
+        let mut p = Vec2::new((rng.gen::<f32>() - 0.5) * 8.0, (rng.gen::<f32>() - 0.5) * 8.0);
         for _ in 0..5 {
             // evaluate surface at x, y
             let z = hole.z(&p);
