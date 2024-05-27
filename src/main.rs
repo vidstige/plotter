@@ -198,9 +198,10 @@ fn main() -> io::Result<()>{
 fn main() -> io::Result<()> {
     let mut paper = Paper::new(A4_LANDSCAPE);
 
-    // debug buffer
+    // debug buffers
     let resolution = (297, 210);
-    let mut buffer = Buffer::new(resolution);
+    let mut debug0 = Buffer::new(resolution);
+    let mut debug1 = Buffer::new(resolution);
 
     // compute drawing area
     let area = pad(paper.view_box, 20);
@@ -225,12 +226,14 @@ fn main() -> io::Result<()> {
             let screen = project(&world, &model, &projection, viewport);
             // clip against drawing area
             if contains(&area, &screen.xy()) {
+                pixel(&mut debug0, screen.x as i32, screen.y as i32, gray((screen.z - 0.8) / 0.18));
+
                 // back project and ray trace to find occlusions
                 let ray = backproject(&screen.xy(), &model, &projection, viewport);
                 if let Some(intersection) = trace(&ray, &hole, near, far) {
                     let traced_screen = project(&intersection, &model, &projection, viewport);
-                    println!("{:?} {:?}", screen, traced_screen);
-                    pixel(&mut buffer, traced_screen.x as i32, traced_screen.y as i32, gray((traced_screen.z - 0.7) / 0.1));
+                    //println!("{:?} {:?}", screen, traced_screen);
+                    pixel(&mut debug1, traced_screen.x as i32, traced_screen.y as i32, gray((traced_screen.z - 0.8) / 0.18));
                     // handle occlusions
                     if traced_screen.z < screen.z {
                         polyline.add(screen.xy());
@@ -249,7 +252,8 @@ fn main() -> io::Result<()> {
     }
     
     // dump debug image
-    save_pgm("debug.pgm", &buffer)?;
+    save_pgm("debug0.pgm", &debug0)?;
+    save_pgm("debug1.pgm", &debug1)?;
     paper.save("image.svg")?;
     Ok(())
 }
