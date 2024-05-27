@@ -46,11 +46,12 @@ impl Ray {
 }
 
 fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec4) -> Ray {
-    let direction = unproject(&Vec3::new(screen.x, screen.y, 1.0), &model, &projection, viewport).normalize();
+    let world = unproject(&Vec3::new(screen.x, screen.y, 1.0), &model, &projection, viewport);
     // recover eye position
     let model_inverse = model.try_inverse().unwrap();
     let eye = model_inverse.column(3).xyz();
-    Ray{ origin: eye, direction }
+
+    Ray{ origin: eye, direction: world.sub(eye).normalize() }
 }
 
 trait Surface {
@@ -198,11 +199,6 @@ fn main() -> io::Result<()>{
 fn main() -> io::Result<()> {
     let mut paper = Paper::new(A4_LANDSCAPE);
 
-    // debug buffers
-    let resolution = (297, 210);
-    let mut debug0 = Buffer::new(resolution);
-    let mut debug1 = Buffer::new(resolution);
-
     // compute drawing area
     let area = pad(paper.view_box, 20);
 
@@ -226,16 +222,12 @@ fn main() -> io::Result<()> {
             let screen = project(&world, &model, &projection, viewport);
             // clip against drawing area
             if contains(&area, &screen.xy()) {
-                pixel(&mut debug0, screen.x as i32, screen.y as i32, gray((screen.z - 0.8) / 0.18));
-
                 // back project and ray trace to find occlusions
                 let ray = backproject(&screen.xy(), &model, &projection, viewport);
                 if let Some(intersection) = trace(&ray, &hole, near, far) {
                     let traced_screen = project(&intersection, &model, &projection, viewport);
-                    //println!("{:?} {:?}", screen, traced_screen);
-                    pixel(&mut debug1, traced_screen.x as i32, traced_screen.y as i32, gray((traced_screen.z - 0.8) / 0.18));
                     // handle occlusions
-                    if traced_screen.z < screen.z {
+                    if (traced_screen.z - screen.z).abs() < 0.001 {
                         polyline.add(screen.xy());
                     }
                 }
@@ -251,9 +243,6 @@ fn main() -> io::Result<()> {
         paper.add(&polyline);
     }
     
-    // dump debug image
-    save_pgm("debug0.pgm", &debug0)?;
-    save_pgm("debug1.pgm", &debug1)?;
     paper.save("image.svg")?;
     Ok(())
 }
