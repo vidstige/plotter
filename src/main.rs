@@ -143,7 +143,7 @@ struct Buffer {
 
 impl Buffer {
     fn new(resolution: Resolution) -> Buffer {
-        Buffer { resolution, pixels: vec![0; area(resolution) * 4]}
+        Buffer { resolution, pixels: vec![0; area(resolution)]}
     }
 }
 
