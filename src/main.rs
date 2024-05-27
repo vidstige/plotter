@@ -163,7 +163,7 @@ fn main() -> io::Result<()>{
 */
 
 fn main() -> io::Result<()> {
-    let mut paper = Paper::new(A4_LANDSCAPE);
+    let mut paper = Paper::new(A4_LANDSCAPE, 0.5);
 
     // compute drawing area
     let area = pad(paper.view_box, 20);

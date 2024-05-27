@@ -17,6 +17,7 @@ pub fn viewbox_aspect(view_box: ViewBox) -> f32 {
 
 pub struct Paper {
     pub view_box: ViewBox,
+    pub pen: f32,
     polylines: Vec<crate::Polyline>,
 }
 
@@ -38,8 +39,8 @@ fn compare_polylines(a: &Polyline, b: &Polyline) -> Ordering {
 }
 
 impl Paper {
-    pub fn new(view_box: ViewBox) -> Paper {
-        Paper { view_box, polylines: Vec::new() }
+    pub fn new(view_box: ViewBox, pen: f32) -> Paper {
+        Paper { view_box, pen, polylines: Vec::new() }
     }
 
     pub(crate) fn add(&mut self, polyline: crate::Polyline) {
@@ -55,7 +56,7 @@ impl Paper {
         let mut group = Group::new()
             .set("fill", "none")
             .set("stroke", "black")
-            .set("stroke-width", 0.5);
+            .set("stroke-width", self.pen);
         for polyline in self.polylines {
             group.append(svg::node::element::Polyline::new().set("points", as_node(&polyline)));
         }
