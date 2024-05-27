@@ -1,3 +1,5 @@
+use std::io;
+
 use svg::node::element::Group;
 use svg::{Document, Node};
 
@@ -35,13 +37,13 @@ impl Paper {
         self.group.append(svg::node::element::Polyline::new().set("points", as_node(&polyline)))
     }
 
-    pub(crate) fn save(self, filename: &str) {
+    pub(crate) fn save(self, filename: &str) -> io::Result<()> {
         let document = Document::new()
             .set("width", format!("{}mm", self.view_box.2))
             .set("height", format!("{}mm", self.view_box.3))
             .set("viewBox", self.view_box)
             .add(self.group);
 
-        svg::save(filename, &document).unwrap();
+        svg::save(filename, &document)
     }
 }

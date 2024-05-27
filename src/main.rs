@@ -189,7 +189,7 @@ fn main() -> io::Result<()>{
 }
 */
 
-fn main() {
+fn main() -> io::Result<()> {
     let mut paper = Paper::new(A4_LANDSCAPE);
     // compute drawing area
     let area = pad(paper.view_box, 20);
@@ -212,15 +212,17 @@ fn main() {
             let world = Vec3::new(p.x, p.y, z);
             // project world cordinate into screen cordinate
             let screen = project(&world, &model, &projection, viewport);
+            // flip-y (why is this needed?)            
             // back project and ray trace to find occlusions
             let ray = backproject(&screen.xy(), &model, &projection, viewport);
-            let intersection = trace(&ray, &hole, near, far).unwrap_or(Vec3::new(-1000.0, -1000.0, -1000.0));
-            let traced_screen = project(&intersection, &model, &projection, viewport);
-            // clip against drawing area
-            if contains(&area, &screen.xy()) {
-                // handle occlusions
-                if traced_screen.z < screen.z {
-                    polyline.add(screen.xy());
+            if let Some(intersection) = trace(&ray, &hole, near, far) {
+                let traced_screen = project(&intersection, &model, &projection, viewport);
+                // clip against drawing area
+                if contains(&area, &screen.xy()) {
+                    // handle occlusions
+                    if traced_screen.z < screen.z {
+                        polyline.add(screen.xy());
+                    }
                 }
             }
 
@@ -234,5 +236,6 @@ fn main() {
         paper.add(&polyline);
     }
     
-    paper.save("image.svg");
+    paper.save("image.svg")?;
+    Ok(())
 }
