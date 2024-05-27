@@ -209,15 +209,16 @@ fn main() {
             let z = hole.z(&p);
             let world = Vec3::new(p.x, p.y, z);
             // project world cordinate into screen cordinate
-            let screen = project(&world, &model, &projection, viewport).xy();
+            let screen = project(&world, &model, &projection, viewport);
             // back project and ray trace to find occlusions
-            let ray = backproject(&screen, &model, &projection, viewport);
+            let ray = backproject(&screen.xy(), &model, &projection, viewport);
             let intersection = trace(&ray, &hole, 0.1, 10.0).unwrap_or(Vec3::new(-1000.0, -1000.0, -1000.0));
+            let traced_screen = project(&intersection, &model, &projection, viewport);
             // clip against drawing area
-            if contains(&area, &screen) {
+            if contains(&area, &screen.xy()) {
                 // handle occlusions
-                if intersection.sub(&world).norm() < 2.0 {
-                    polyline.add(screen);
+                if traced_screen.z < screen.z {
+                    polyline.add(screen.xy());
                 }
             }
 
