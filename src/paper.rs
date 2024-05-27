@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::io;
 
 use svg::node::element::Group;
@@ -24,12 +25,20 @@ fn as_node(polyline: &Polyline) -> String {
     points.join(" ")
 }
 
+fn compare_polylines(a: &Polyline, b: &Polyline) -> Ordering {
+    if a.points.len() == 0 {
+        return Ordering::Less;
+    }
+    if b.points.len() == 0 {
+        return Ordering::Greater;
+    }
+    let a0 = a.points.first().unwrap();
+    let b0 = a.points.first().unwrap();
+    (a0.x, a0.y).partial_cmp(&(b0.x, b0.y)).unwrap()
+}
+
 impl Paper {
     pub fn new(view_box: ViewBox) -> Paper {
-        let group = Group::new()
-            .set("fill", "none")
-            .set("stroke", "black")
-            .set("stroke-width", 1);
         Paper { view_box, polylines: Vec::new() }
     }
 
@@ -37,8 +46,16 @@ impl Paper {
         self.polylines.push(polyline);
     }
 
+    // re-orders poly-lines for faster plotting
+    pub(crate) fn optimize(&mut self) {
+        self.polylines.sort_by(compare_polylines);
+    }
+
     pub(crate) fn save(self, filename: &str) -> io::Result<()> {
-        let mut group = Group::new();
+        let mut group = Group::new()
+            .set("fill", "none")
+            .set("stroke", "black")
+            .set("stroke-width", 1);
         for polyline in self.polylines {
             group.append(svg::node::element::Polyline::new().set("points", as_node(&polyline)));
         }

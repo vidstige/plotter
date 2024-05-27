@@ -214,6 +214,7 @@ fn main() -> io::Result<()> {
         paper.add(polyline);
     }
     
+    paper.optimize();
     paper.save("image.svg")?;
     Ok(())
 }
