@@ -55,7 +55,7 @@ impl Paper {
         let mut group = Group::new()
             .set("fill", "none")
             .set("stroke", "black")
-            .set("stroke-width", 1);
+            .set("stroke-width", 0.5);
         for polyline in self.polylines {
             group.append(svg::node::element::Polyline::new().set("points", as_node(&polyline)));
         }
