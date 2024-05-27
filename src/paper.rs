@@ -33,7 +33,7 @@ fn compare_polylines(a: &Polyline, b: &Polyline) -> Ordering {
         return Ordering::Greater;
     }
     let a0 = a.points.first().unwrap();
-    let b0 = a.points.first().unwrap();
+    let b0 = b.points.first().unwrap();
     (a0.x, a0.y).partial_cmp(&(b0.x, b0.y)).unwrap()
 }
 
