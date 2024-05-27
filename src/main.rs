@@ -1,10 +1,13 @@
 use std::{ops::{Sub, AddAssign, Add}, io::{self}};
 
-use buffer::{Buffer, aspect_ratio, gray, pixel};
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
+
+use buffer::{Buffer, aspect_ratio, gray, pixel};
 use paper::{ViewBox, Paper, A4_LANDSCAPE, viewbox_aspect};
 use polyline::Polyline;
-use rand::Rng;
+
+use rand::distributions::Distribution;
+use statrs::distribution::Normal;
 
 mod buffer;
 mod netbm;
@@ -166,6 +169,7 @@ fn main() -> io::Result<()> {
     let area = pad(paper.view_box, 20);
 
     let mut rng = rand::thread_rng();
+    let distribution = Normal::new(0.0, 1.0).unwrap();
     let field = Spiral::new(Vec2::zeros());
     let eye = Vec3::new(-1.8, -1.8, -0.8);
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
@@ -174,9 +178,13 @@ fn main() -> io::Result<()> {
     let projection = perspective(viewbox_aspect(paper.view_box), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let hole = Hole::new();
-    for _ in 0..2*1024 {
+    for _ in 0..1024 {
         let mut polyline = Polyline::new();
-        let mut p = Vec2::new((rng.gen::<f32>() - 0.5) * 8.0, (rng.gen::<f32>() - 0.5) * 8.0);
+
+        let mut p = Vec2::new(
+            distribution.sample(&mut rng) as f32,
+            distribution.sample(&mut rng) as f32,
+        );
         for _ in 0..5 {
             // evaluate surface at x, y
             let z = hole.z(&p);
