@@ -197,8 +197,10 @@ fn main() {
     let mut rng = rand::thread_rng();
     let field = Spiral::new(Vec2::zeros());
     let eye = Vec3::new(-1.2, -1.2, -0.3);
+    let near = 0.1;
+    let far = 10.0;
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
-    let projection = perspective(viewbox_aspect(paper.view_box), 90.0_f32.to_radians(), 0.1, 10.0);
+    let projection = perspective(viewbox_aspect(paper.view_box), 90.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let hole = Hole::new();
     for _ in 0..1024 {
@@ -212,7 +214,7 @@ fn main() {
             let screen = project(&world, &model, &projection, viewport);
             // back project and ray trace to find occlusions
             let ray = backproject(&screen.xy(), &model, &projection, viewport);
-            let intersection = trace(&ray, &hole, 0.1, 10.0).unwrap_or(Vec3::new(-1000.0, -1000.0, -1000.0));
+            let intersection = trace(&ray, &hole, near, far).unwrap_or(Vec3::new(-1000.0, -1000.0, -1000.0));
             let traced_screen = project(&intersection, &model, &projection, viewport);
             // clip against drawing area
             if contains(&area, &screen.xy()) {
