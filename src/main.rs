@@ -1,4 +1,4 @@
-use std::{ops::{Sub, AddAssign, Add}, f32::INFINITY, io::{self, Write}, fs};
+use std::{ops::{Sub, AddAssign, Add}, f32::INFINITY, io::{self, Write}, fs::{self, File}};
 
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
 use paper::{ViewBox, Paper, A4_LANDSCAPE, viewbox_aspect};
@@ -146,20 +146,23 @@ impl Buffer {
     }
 }
 
-type Color = [u8; 4];
+fn save_pgm(filename: &str, buffer: &Buffer) -> io::Result<()> {
+    let mut w = File::create(filename)?;
+    writeln!(&mut w, "P5 {} {} {}", buffer.resolution.0, buffer.resolution.1, 255)?;
+    w.write_all(&buffer.pixels)
+}
 
-fn pixel(target: &mut Buffer, x: i32, y: i32, color: &Color) {
+fn pixel(target: &mut Buffer, x: i32, y: i32, gray: u8) {
     if x < 0 || x >= target.resolution.0 || y < 0 || y >= target.resolution.1 {
         return;
     }
-    let (stride, _) = target.resolution;
-    let index = ((x + y * stride) * 4) as usize;
-    target.pixels[index..index + color.len()].copy_from_slice(color);
+    let stride = target.resolution.0;
+    let index = (x + y * stride) as usize;
+    target.pixels[index] = gray;
 }
 
-fn gray(intensity: f32) -> Color {
-    let gray = (intensity.clamp(0.0, 1.0) * 255.0) as u8;
-    [gray, gray, gray, 0xff]
+fn gray(intensity: f32) -> u8 {
+    (intensity.clamp(0.0, 1.0) * 255.0) as u8
 }
 
 fn render(target: &mut Buffer) {
@@ -175,7 +178,7 @@ fn render(target: &mut Buffer) {
             let screen = Vec2::new(x as f32, y as f32);
             let ray = backproject(&screen, &model, &projection, viewport);
             if let Some(p) = trace(&ray, &hole, 0.1, 10.0) {
-                pixel(target, x, y, &gray(p.z / 10.0));
+                pixel(target, x, y, gray(p.z / 10.0));
             }
         }
     }
@@ -227,7 +230,7 @@ fn main() -> io::Result<()> {
                 if let Some(intersection) = trace(&ray, &hole, near, far) {
                     let traced_screen = project(&intersection, &model, &projection, viewport);
                     println!("{:?} {:?}", screen, traced_screen);
-                    pixel(&mut buffer, traced_screen.x as i32, traced_screen.y as i32, &gray((traced_screen.z - 0.7) / 0.1));
+                    pixel(&mut buffer, traced_screen.x as i32, traced_screen.y as i32, gray((traced_screen.z - 0.7) / 0.1));
                     // handle occlusions
                     if traced_screen.z < screen.z {
                         polyline.add(screen.xy());
@@ -246,7 +249,7 @@ fn main() -> io::Result<()> {
     }
     
     // dump debug image
-    fs::write("output.raw", &buffer.pixels)?;
+    save_pgm("debug.pgm", &buffer)?;
     paper.save("image.svg")?;
     Ok(())
 }
