@@ -162,7 +162,7 @@ fn main() -> io::Result<()> {
                 if let Some(intersection) = trace(&ray, &hole, near, far) {
                     let traced_screen = project(&intersection, &model, &projection, viewport);
                     // handle occlusions
-                    if (traced_screen.z - screen.z).abs() < 0.001 {
+                    if screen.z - traced_screen.z < 0.001 {
                         polyline.add(screen.xy());
                     }
                 }
