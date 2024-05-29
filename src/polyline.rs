@@ -1,13 +1,15 @@
+use std::ops::Sub;
+
 use nalgebra_glm::Vec2;
 
 #[derive(Clone)]
-pub struct Polyline {
+pub struct Polyline2 {
     pub points: Vec<Vec2>,
 }
 
-impl Polyline {
-    pub fn new() -> Polyline {
-        Polyline { points: Vec::new() }
+impl Polyline2 {
+    pub fn new() -> Polyline2 {
+        Polyline2 { points: Vec::new() }
     }
     pub fn add(&mut self, point: Vec2) {
         self.points.push(point);
@@ -15,9 +17,9 @@ impl Polyline {
     pub fn length(&self) -> f32 {
         let mut length = 0.0;
         for i in 1..self.points.len() + 1 {
-            let dx = self.points[i % self.points.len()].x - self.points[i - 1].x;
-            let dy = self.points[i % self.points.len()].y - self.points[i - 1].y;
-            length += (dx * dx + dy * dy).sqrt();
+            let pi = self.points[i % self.points.len()];
+            let pj = self.points[i - 1];
+            length += pi.sub(&pj).norm();
         }
         length
     }

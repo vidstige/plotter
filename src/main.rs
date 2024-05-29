@@ -5,7 +5,7 @@ use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, M
 
 use buffer::{Buffer, aspect_ratio, gray, pixel};
 use paper::{ViewBox, Paper, A4_LANDSCAPE, viewbox_aspect};
-use polyline::Polyline;
+use polyline::Polyline2;
 
 use rand::distributions::Distribution;
 use statrs::distribution::Normal;
@@ -143,7 +143,7 @@ fn main() -> io::Result<()> {
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let hole = Hole::new();
     for _ in 0..1024 {
-        let mut polyline = Polyline::new();
+        let mut polyline = Polyline2::new();
 
         let mut p = Vec2::new(
             distribution.sample(&mut rng) as f32,
@@ -155,6 +155,7 @@ fn main() -> io::Result<()> {
             let world = Vec3::new(p.x, p.y, z);
             // project world cordinate into screen cordinate
             let screen = project(&world, &model, &projection, viewport);
+            
             // clip against drawing area
             if contains(&area, &screen.xy()) {
                 // back project and ray trace to find occlusions
@@ -162,7 +163,7 @@ fn main() -> io::Result<()> {
                 if let Some(intersection) = trace(&ray, &hole, near, far) {
                     let traced_screen = project(&intersection, &model, &projection, viewport);
                     // handle occlusions
-                    if screen.z - traced_screen.z < 0.001 {
+                    if screen.z - traced_screen.z < 0.0001 {
                         polyline.add(screen.xy());
                     }
                 }

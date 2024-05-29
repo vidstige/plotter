@@ -6,7 +6,7 @@ use nalgebra_glm::Vec2;
 use svg::node::element::Group;
 use svg::{Document, Node};
 
-use crate::polyline::Polyline;
+use crate::polyline::Polyline2;
 
 pub type ViewBox = (i32, i32, i32, i32);
 pub const A4_PORTRAIT: ViewBox = (0, 0, 210, 297);
@@ -20,10 +20,10 @@ pub fn viewbox_aspect(view_box: ViewBox) -> f32 {
 pub struct Paper {
     pub view_box: ViewBox,
     pub pen: f32,
-    polylines: Vec<crate::Polyline>,
+    polylines: Vec<crate::Polyline2>,
 }
 
-fn as_node(polyline: &Polyline) -> String {
+fn as_node(polyline: &Polyline2) -> String {
     let points: Vec<_> = polyline.points.iter().map(|p| (p.x, p.y)).map(|(x, y)| format!("{x} {y}")).collect();
     points.join(" ")
 }
@@ -33,7 +33,7 @@ impl Paper {
         Paper { view_box, pen, polylines: Vec::new() }
     }
 
-    pub(crate) fn add(&mut self, polyline: crate::Polyline) {
+    pub(crate) fn add(&mut self, polyline: crate::Polyline2) {
         self.polylines.push(polyline);
     }
 
