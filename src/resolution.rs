@@ -8,10 +8,10 @@ impl Resolution {
         Resolution { width, height }
     }
 
-    pub fn aspect_ratio(self) -> f32 {
+    pub fn aspect_ratio(&self) -> f32 {
         self.width as f32 / self.height as f32
     }
-    pub fn area(self) -> usize {
+    pub fn area(&self) -> usize {
         (self.width * self.height) as usize
     }
 }

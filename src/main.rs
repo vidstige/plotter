@@ -3,28 +3,19 @@ use std::{ops::{Sub, AddAssign, Add}, io::{self}};
 use eq::{linesearch, newton_raphson};
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
 
-use buffer::{Buffer, aspect_ratio, gray, pixel};
-use paper::{ViewBox, Paper, A4_LANDSCAPE, viewbox_aspect};
 use polyline::Polyline2;
 
 use rand::distributions::Distribution;
+use resolution::Resolution;
 use statrs::distribution::Normal;
+use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform};
 
+mod resolution;
 mod eq;
 mod buffer;
 mod netbm;
 mod paper;
 mod polyline;
-
-fn pad(view_box: ViewBox, pad: i32) -> ViewBox {
-    let (x, y, w, h) = view_box;
-    (x + pad, y + pad, w - 2 * pad, h - 2 * pad)
-}
-
-fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
-    let (x, y, w, h) = view_box;
-    point.x > *x as f32 && point.y > *y as f32 && point.x < (x + w) as f32 && point.y < (y + h) as f32
-}
 
 fn cross2(vector: Vec2) -> Vec2 {
     Vec2::new(-vector.y, vector.x)
@@ -96,41 +87,12 @@ fn trace<S: Surface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
     None
 }
 
-fn render(target: &mut Buffer) {
-    let eye = Vec3::new(-1.6, -1.6, -0.3);
-    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
-    let projection = perspective(aspect_ratio(target.resolution), 90.0_f32.to_radians(), 0.1, 10.0);
-    let viewport = Vec4::new(0.0, 0.0, target.resolution.0 as f32, target.resolution.1 as f32);
-    let hole = Hole::new();
-
-    let (width, height) = target.resolution;
-    for y in 0..height {
-        for x in 0..width {
-            let screen = Vec2::new(x as f32, y as f32);
-            let ray = backproject(&screen, &model, &projection, viewport);
-            if let Some(p) = trace(&ray, &hole, 0.1, 10.0) {
-                pixel(target, x, y, gray(p.z / 10.0));
-            }
-        }
-    }
+fn contains(resolution: &Resolution, point: &Vec2) -> bool {
+    point.x >= 0.0 && point.x < resolution.width as f32 && point.y >= 0.0 && point.y < resolution.height as f32
 }
-
-/*
-fn main() -> io::Result<()>{
-    let resolution = (297, 210);
-    let mut buffer = Buffer::new(resolution);
-    render(&mut buffer);
-    fs::write("output.raw", &buffer.pixels)?;
-    //std::io::stdout().write_all(&buffer.pixels)?;
-    Ok(())
-}
-*/
 
 fn main() -> io::Result<()> {
-    let mut paper = Paper::new(A4_LANDSCAPE, 0.5);
-
-    // compute drawing area
-    let area = pad(paper.view_box, 20);
+    let resolution = Resolution::new(320, 200);
 
     let mut rng = rand::thread_rng();
     let distribution = Normal::new(0.0, 1.0).unwrap();
@@ -139,9 +101,10 @@ fn main() -> io::Result<()> {
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
     let near = 0.1;
     let far = 10.0;
-    let projection = perspective(viewbox_aspect(paper.view_box), 45.0_f32.to_radians(), near, far);
-    let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
+    let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
+    let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
     let hole = Hole::new();
+    let mut polylines = Vec::new();
     for _ in 0..1024 {
         let mut polyline = Polyline2::new();
 
@@ -156,8 +119,7 @@ fn main() -> io::Result<()> {
             // project world cordinate into screen cordinate
             let screen = project(&world, &model, &projection, viewport);
             
-            // clip against drawing area
-            if contains(&area, &screen.xy()) {
+            if contains(&resolution, &screen.xy()) {
                 // back project and ray trace to find occlusions
                 let ray = backproject(&screen.xy(), &model, &projection, viewport);
                 if let Some(intersection) = trace(&ray, &hole, near, far) {
@@ -174,15 +136,35 @@ fn main() -> io::Result<()> {
             let norm = delta.norm();
             let step = 0.1;
             p.add_assign(delta.scale(step / norm));
+        }
+        polylines.push(polyline);
+    }
+
+    // render to pixmap
+    let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
+    
+    let mut paint = Paint::default();
+    paint.set_color_rgba8(210, 2, 180, 0xff);
+    paint.anti_alias = true;
+
+    let mut stroke = Stroke::default();
+    stroke.width = 1.0;
+
+    for polyline in polylines {
+        let mut pb = PathBuilder::new();
+        for (index, point) in polyline.points.iter().enumerate() {
+            if index == 0 {
+                pb.move_to(point.x, point.y);
+            } else {
+                pb.line_to(point.x, point.y);
+            }
             
         }
-        paper.add(polyline);
+        if let Some(path) = pb.finish() {
+            pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+        }
     }
-    
-    let before = paper.length();
-    paper.optimize();
-    let after = paper.length();
-    println!("saved {} mm of pen distance", before - after);
-    paper.save("image.svg")?;
+    pixmap.save_png("image.png")?;
+
     Ok(())
 }
