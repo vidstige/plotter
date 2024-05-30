@@ -16,6 +16,17 @@ pub fn viewbox_aspect(view_box: ViewBox) -> f32 {
     view_box.2 as f32 / view_box.3 as f32
 }
 
+pub fn pad(view_box: ViewBox, pad: i32) -> ViewBox {
+    let (x, y, w, h) = view_box;
+    (x + pad, y + pad, w - 2 * pad, h - 2 * pad)
+}
+
+pub fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
+    let (x, y, w, h) = view_box;
+    point.x > *x as f32 && point.y > *y as f32 && point.x < (x + w) as f32 && point.y < (y + h) as f32
+}
+
+
 
 pub struct Paper {
     pub view_box: ViewBox,
