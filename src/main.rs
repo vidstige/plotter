@@ -1,4 +1,4 @@
-use std::{ops::{Sub, AddAssign, Add}, io::{self}};
+use std::{ops::{Sub, AddAssign, Add}, io::{self, Write}, fs::File};
 
 use eq::{linesearch, newton_raphson};
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
@@ -8,7 +8,7 @@ use polyline::Polyline2;
 use rand::distributions::Distribution;
 use resolution::Resolution;
 use statrs::distribution::Normal;
-use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform};
+use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
 
 mod resolution;
 mod eq;
@@ -92,7 +92,7 @@ fn contains(resolution: &Resolution, point: &Vec2) -> bool {
 }
 
 fn main() -> io::Result<()> {
-    let resolution = Resolution::new(320, 200);
+    let resolution = Resolution::new(506, 253);
 
     let mut rng = rand::thread_rng();
     let distribution = Normal::new(0.0, 1.0).unwrap();
@@ -104,67 +104,74 @@ fn main() -> io::Result<()> {
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
     let hole = Hole::new();
-    let mut polylines = Vec::new();
-    for _ in 0..1024 {
-        let mut polyline = Polyline2::new();
 
-        let mut p = Vec2::new(
-            distribution.sample(&mut rng) as f32,
-            distribution.sample(&mut rng) as f32,
-        );
-        for _ in 0..5 {
-            // evaluate surface at x, y
-            let z = hole.z(&p);
-            let world = Vec3::new(p.x, p.y, z);
-            // project world cordinate into screen cordinate
-            let screen = project(&world, &model, &projection, viewport);
-            
-            if contains(&resolution, &screen.xy()) {
-                // back project and ray trace to find occlusions
-                let ray = backproject(&screen.xy(), &model, &projection, viewport);
-                if let Some(intersection) = trace(&ray, &hole, near, far) {
-                    let traced_screen = project(&intersection, &model, &projection, viewport);
-                    // handle occlusions
-                    if screen.z - traced_screen.z < 0.0001 {
-                        polyline.add(screen.xy());
+    let mut output = File::create(std::path::Path::new("output.raw"))?;
+    for frame in 0..100 {
+        let mut polylines = Vec::new();
+        for _ in 0..1024 {
+            let mut polyline = Polyline2::new();
+
+            let mut p = Vec2::new(
+                distribution.sample(&mut rng) as f32,
+                distribution.sample(&mut rng) as f32,
+            );
+            for _ in 0..5 {
+                // evaluate surface at x, y
+                let z = hole.z(&p);
+                let world = Vec3::new(p.x, p.y, z);
+                // project world cordinate into screen cordinate
+                let screen = project(&world, &model, &projection, viewport);
+                
+                if contains(&resolution, &screen.xy()) {
+                    // back project and ray trace to find occlusions
+                    let ray = backproject(&screen.xy(), &model, &projection, viewport);
+                    if let Some(intersection) = trace(&ray, &hole, near, far) {
+                        let traced_screen = project(&intersection, &model, &projection, viewport);
+                        // handle occlusions
+                        if screen.z - traced_screen.z < 0.0001 {
+                            polyline.add(screen.xy());
+                        }
                     }
                 }
+
+                // step forward
+                let delta = field.at(p);
+                let norm = delta.norm();
+                let step = 0.1;
+                p.add_assign(delta.scale(step / norm));
             }
-
-            // step forward
-            let delta = field.at(p);
-            let norm = delta.norm();
-            let step = 0.1;
-            p.add_assign(delta.scale(step / norm));
+            polylines.push(polyline);
         }
-        polylines.push(polyline);
-    }
 
-    // render to pixmap
-    let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
-    
-    let mut paint = Paint::default();
-    paint.set_color_rgba8(210, 2, 180, 0xff);
-    paint.anti_alias = true;
+        // render to pixmap
+        let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
+        
+        
+        let color = Color::from_rgba8(210, 2, 180, 0xff);
+        let mut paint = Paint::default();
+        paint.set_color(color);
+        paint.anti_alias = true;
 
-    let mut stroke = Stroke::default();
-    stroke.width = 1.0;
+        let mut stroke = Stroke::default();
+        stroke.width = 1.0;
 
-    for polyline in polylines {
-        let mut pb = PathBuilder::new();
-        for (index, point) in polyline.points.iter().enumerate() {
-            if index == 0 {
-                pb.move_to(point.x, point.y);
-            } else {
-                pb.line_to(point.x, point.y);
+        for polyline in polylines {
+            let mut pb = PathBuilder::new();
+            for (index, point) in polyline.points.iter().enumerate() {
+                if index == 0 {
+                    pb.move_to(point.x, point.y);
+                } else {
+                    pb.line_to(point.x, point.y);
+                }
+                
             }
-            
+            if let Some(path) = pb.finish() {
+                pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+            }
         }
-        if let Some(path) = pb.finish() {
-            pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
-        }
+        //pixmap.save_png("image.png")?;
+        output.write_all(pixmap.data())?;
     }
-    pixmap.save_png("image.png")?;
 
     Ok(())
 }
