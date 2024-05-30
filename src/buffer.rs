@@ -1,12 +1,4 @@
-pub type Resolution = (i32, i32);
-
-pub fn aspect_ratio(resolution: Resolution) -> f32 {
-    resolution.0 as f32 / resolution.1 as f32
-}
-fn area(resolution: Resolution) -> usize {
-    let (width, height) = resolution;
-    (width * height) as usize
-}
+use crate::resolution::Resolution;
 
 pub struct Buffer {
     pub resolution: Resolution,
@@ -15,15 +7,15 @@ pub struct Buffer {
 
 impl Buffer {
     fn new(resolution: Resolution) -> Buffer {
-        Buffer { resolution, pixels: vec![0; area(resolution)]}
+        Buffer { resolution, pixels: vec![0; resolution.area()]}
     }
 }
 
 pub fn pixel(target: &mut Buffer, x: i32, y: i32, gray: u8) {
-    if x < 0 || x >= target.resolution.0 || y < 0 || y >= target.resolution.1 {
+    if x < 0 || x >= target.resolution.width || y < 0 || y >= target.resolution.height {
         return;
     }
-    let stride = target.resolution.0;
+    let stride = target.resolution.width;
     let index = (x + y * stride) as usize;
     target.pixels[index] = gray;
 }
