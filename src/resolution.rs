@@ -1,10 +1,10 @@
 pub struct Resolution {
-    pub width: i32,
-    pub height: i32,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl Resolution {
-    pub fn new(width: i32, height: i32) -> Resolution {
+    pub fn new(width: u32, height: u32) -> Resolution {
         Resolution { width, height }
     }
 
