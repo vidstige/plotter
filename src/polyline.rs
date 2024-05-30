@@ -27,3 +27,4 @@ impl<const N: usize> Polyline<N> {
 }
 
 pub type Polyline2 = Polyline<2>;
+pub type Polyline3 = Polyline<3>;
