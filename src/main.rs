@@ -1,4 +1,4 @@
-use std::{ops::{Sub, AddAssign, Add}, io::{self, Write}, fs::File};
+use std::{ops::{Sub, AddAssign, Add}, io::{self, Write}, fs::File, collections::VecDeque};
 
 use eq::{linesearch, newton_raphson};
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
@@ -116,19 +116,33 @@ fn main() -> io::Result<()> {
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
     let mut particles: Vec<_> = (0..1024).map(|_| sample_vec2(&distribution, &mut rng)).collect();
-
+    let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     for frame in 0..100 {
         let mut polylines = Vec::new();
-        for p in &mut particles {
-            let mut polyline = Polyline2::new();
+        for (index, p) in particles.iter_mut().enumerate() {
+            // move
+            let delta = field.at(&p);
+            let norm = delta.norm();
+            let step = 0.1;
+            p.add_assign(delta.scale(step / norm));
 
-            for _ in 0..5 {
-                // evaluate surface at x, y
-                let z = hole.z(&p);
-                let world = Vec3::new(p.x, p.y, z);
-                // project world cordinate into screen cordinate
-                let screen = project(&world, &model, &projection, viewport);
-                
+            // evaluate surface at x, y
+            let z = hole.z(&p);
+            let world = Vec3::new(p.x, p.y, z);
+            
+            // project world cordinate into screen cordinate
+            let screen = project(&world, &model, &projection, viewport);
+
+            traces[index].push_back(screen);
+            if traces[index].len() > 6 {
+                traces[index].pop_front();
+            }
+        }
+
+        // draw traces
+        for particle_trace in &traces {
+            let mut polyline = Polyline2::new();
+            for screen in particle_trace {
                 if contains(&resolution, &screen.xy()) {
                     // back project and ray trace to find occlusions
                     let ray = backproject(&screen.xy(), &model, &projection, viewport);
@@ -140,12 +154,6 @@ fn main() -> io::Result<()> {
                         }
                     }
                 }
-
-                // step forward
-                let delta = field.at(p);
-                let norm = delta.norm();
-                let step = 0.1;
-                p.add_assign(delta.scale(step / norm));
             }
             polylines.push(polyline);
         }
