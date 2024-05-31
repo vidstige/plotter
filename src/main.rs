@@ -5,7 +5,7 @@ use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, M
 
 use polyline::Polyline2;
 
-use rand::distributions::Distribution;
+use rand::{distributions::Distribution, rngs::ThreadRng};
 use resolution::Resolution;
 use statrs::distribution::Normal;
 use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
@@ -91,6 +91,13 @@ fn contains(resolution: &Resolution, point: &Vec2) -> bool {
     point.x >= 0.0 && point.x < resolution.width as f32 && point.y >= 0.0 && point.y < resolution.height as f32
 }
 
+fn sample_vec2<D: Distribution<f64>>(distribution: &D, rng: &mut ThreadRng) -> Vec2 {
+    Vec2::new(
+        distribution.sample(rng) as f32,
+        distribution.sample(rng) as f32,
+    )
+}
+
 fn main() -> io::Result<()> {
     let resolution = Resolution::new(506, 253);
 
@@ -113,10 +120,7 @@ fn main() -> io::Result<()> {
         for _ in 0..1024 {
             let mut polyline = Polyline2::new();
 
-            let mut p = Vec2::new(
-                distribution.sample(&mut rng) as f32,
-                distribution.sample(&mut rng) as f32,
-            );
+            let mut p = sample_vec2(&distribution, &mut rng);
             for _ in 0..5 {
                 // evaluate surface at x, y
                 let z = hole.z(&p);
