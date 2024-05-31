@@ -97,12 +97,14 @@ fn main() -> io::Result<()> {
     let mut rng = rand::thread_rng();
     let distribution = Normal::new(0.0, 1.0).unwrap();
     let field = Spiral::new(Vec2::zeros());
+
     let eye = Vec3::new(-2.5, -2.5, -1.5);
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
     let near = 0.1;
     let far = 10.0;
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
+
     let hole = Hole::new();
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
@@ -163,7 +165,6 @@ fn main() -> io::Result<()> {
                 } else {
                     pb.line_to(point.x, point.y);
                 }
-                
             }
             if let Some(path) = pb.finish() {
                 pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
