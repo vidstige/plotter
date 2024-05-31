@@ -67,6 +67,15 @@ impl Hole {
     fn z(&self, p: &Vec2) -> f32 {
         1.0 / (p.x*p.x + p.y*p.y)
     }
+
+    fn nabla(&self, p: &Vec2) -> Vec3 {
+        let denominator = p.norm_squared().powi(2);
+        Vec3::new(
+            -2.0 * p.x / denominator,
+            -2.0 * p.y / denominator,
+            -1.0,
+        )
+    }
 }
 
 impl Surface for Hole {
@@ -120,11 +129,15 @@ fn main() -> io::Result<()> {
     for frame in 0..100 {
         let mut polylines = Vec::new();
         for (index, p) in particles.iter_mut().enumerate() {
-            // move
-            let delta = field.at(&p);
-            let norm = delta.norm();
-            let step = 0.1;
-            p.add_assign(delta.scale(step / norm));
+            // move according to field
+            /*let nabla = field.at(p);
+            let norm = nabla.norm();
+            let step = 0.01;
+            p.add_assign(nabla.scale(step / norm));*/
+            let nabla = hole.nabla(p);
+            // compute nabla cross direction to get step
+            let step = 0.01;
+            p.add_assign(nabla.xy().normalize().scale(step));
 
             // evaluate surface at x, y
             let z = hole.z(&p);
@@ -134,7 +147,7 @@ fn main() -> io::Result<()> {
             let screen = project(&world, &model, &projection, viewport);
 
             traces[index].push_back(screen);
-            if traces[index].len() > 6 {
+            if traces[index].len() > 60 {
                 traces[index].pop_front();
             }
         }
