@@ -28,7 +28,7 @@ impl Spiral {
     fn new(center: Vec2) -> Spiral {
         Spiral { center }
     }
-    fn at(&self, p: Vec2) -> Vec2 {
+    fn at(&self, p: &Vec2) -> Vec2 {
         cross2(p.sub(&self.center))
     }
 }
@@ -115,12 +115,13 @@ fn main() -> io::Result<()> {
     let hole = Hole::new();
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
+    let mut particles: Vec<_> = (0..1024).map(|_| sample_vec2(&distribution, &mut rng)).collect();
+
     for frame in 0..100 {
         let mut polylines = Vec::new();
-        for _ in 0..1024 {
+        for p in &mut particles {
             let mut polyline = Polyline2::new();
 
-            let mut p = sample_vec2(&distribution, &mut rng);
             for _ in 0..5 {
                 // evaluate surface at x, y
                 let z = hole.z(&p);
