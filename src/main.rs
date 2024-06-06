@@ -53,8 +53,8 @@ fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec4) -
     Ray{ origin: eye, direction: world.sub(eye).normalize() }
 }
 
-trait Surface {
-    fn at(&self, position: &Vec3) -> f32;
+trait IsoSurface {
+    fn iso_level(&self, position: &Vec3) -> f32;
 }
 
 trait Geometry {
@@ -95,15 +95,15 @@ impl Hole {
     }
 }
 
-impl Surface for Hole {
-    fn at(&self, position: &Vec3) -> f32 {
+impl IsoSurface for Hole {
+    fn iso_level(&self, position: &Vec3) -> f32 {
         self.z(&position.xy()) - position.z
     }
 }
 
-fn trace<S: Surface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
+fn trace<S: IsoSurface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
     // first linesearch to find rough estimate
-    let f = |t| surface.at(&ray.at(t));
+    let f = |t| surface.iso_level(&ray.at(t));
     if let Some((lo, hi)) = linesearch(f, lo, hi, 10) {
         // fine tune with newton_raphson
         if let Some(t) = newton_raphson(f, 0.5 * (hi + lo)) {
