@@ -152,7 +152,7 @@ fn main() -> io::Result<()> {
             //let world = Vec3::new(p.x, p.y, z);
             
             // project world cordinate into screen cordinate
-            let world = Vec3::new(particle.position.x, particle.position.y, geometry.z(&particle.position));
+            let world = geometry.surface(&particle.position);
             let screen = project(&world, &model, &projection, viewport);
 
             traces[index].push_back(screen);
