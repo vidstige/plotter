@@ -128,7 +128,7 @@ fn main() -> io::Result<()> {
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
 
-    let hole = Hole::new();
+    let geometry = Hole::new();
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
     let positions: Vec<_> = (0..1024).map(|_| sample_vec2(&distribution, &mut rng)).collect();
@@ -152,7 +152,7 @@ fn main() -> io::Result<()> {
             //let world = Vec3::new(p.x, p.y, z);
             
             // project world cordinate into screen cordinate
-            let world = Vec3::new(particle.position.x, particle.position.y, hole.z(&particle.position));
+            let world = Vec3::new(particle.position.x, particle.position.y, geometry.z(&particle.position));
             let screen = project(&world, &model, &projection, viewport);
 
             traces[index].push_back(screen);
@@ -169,7 +169,7 @@ fn main() -> io::Result<()> {
                     if contains(&resolution, &screen.xy()) {
                         // back project and ray trace to find occlusions
                         let ray = backproject(&screen.xy(), &model, &projection, viewport);
-                        if let Some(intersection) = trace(&ray, &hole, near, far) {
+                        if let Some(intersection) = trace(&ray, &geometry, near, far) {
                             let traced_screen = project(&intersection, &model, &projection, viewport);
                             // handle occlusions
                             if screen.z - traced_screen.z < 0.0001 {
