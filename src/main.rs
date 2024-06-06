@@ -1,4 +1,4 @@
-use std::{ops::{Sub, AddAssign, Add}, io::{self, Write}, fs::File, collections::VecDeque};
+use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque};
 
 use eq::{linesearch, newton_raphson};
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
@@ -57,7 +57,15 @@ trait Surface {
     fn at(&self, position: &Vec3) -> f32;
 }
 
+trait Geometry {
+
+}
+
 struct Hole {
+}
+
+impl Geometry for Hole {
+
 }
 
 impl Hole {
@@ -68,12 +76,21 @@ impl Hole {
         1.0 / p.norm_squared()
     }
 
-    fn nabla(&self, p: &Vec2) -> Vec3 {
+    // evaluate derivative (dR/rp) at point p
+    fn derivative(&self, p: &Vec2) -> Vec3 {
         let denominator = p.norm_squared().powi(2);
         Vec3::new(
             -2.0 * p.x / denominator,
             -2.0 * p.y / denominator,
-            -1.0,
+            1.0,
+        )
+    }
+    // evaluate second order derivative (d^2R/dp^2) at point p
+    fn derivative2(&self, p: &Vec2) -> Vec3 {
+        Vec3::new(
+            0.0,
+            0.0,
+            0.0,
         )
     }
 }
@@ -160,27 +177,28 @@ fn main() -> io::Result<()> {
         }
 
         // draw traces
-        for particle_trace in &traces {
-            let mut polyline = Polyline2::new();
-            for screen in particle_trace {
-                if contains(&resolution, &screen.xy()) {
-                    // back project and ray trace to find occlusions
-                    let ray = backproject(&screen.xy(), &model, &projection, viewport);
-                    if let Some(intersection) = trace(&ray, &hole, near, far) {
-                        let traced_screen = project(&intersection, &model, &projection, viewport);
-                        // handle occlusions
-                        if screen.z - traced_screen.z < 0.0001 {
-                            polyline.add(screen.xy());
+        if frame > 10 {
+            for particle_trace in &traces {
+                let mut polyline = Polyline2::new();
+                for screen in particle_trace {
+                    if contains(&resolution, &screen.xy()) {
+                        // back project and ray trace to find occlusions
+                        let ray = backproject(&screen.xy(), &model, &projection, viewport);
+                        if let Some(intersection) = trace(&ray, &hole, near, far) {
+                            let traced_screen = project(&intersection, &model, &projection, viewport);
+                            // handle occlusions
+                            if screen.z - traced_screen.z < 0.0001 {
+                                polyline.add(screen.xy());
+                            }
                         }
                     }
                 }
+                polylines.push(polyline);
             }
-            polylines.push(polyline);
         }
 
         // render to pixmap
         let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
-        
         
         let color = Color::from_rgba8(210, 2, 180, 0xff);
         let mut paint = Paint::default();
