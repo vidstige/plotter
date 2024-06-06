@@ -58,14 +58,17 @@ trait IsoSurface {
 }
 
 trait Geometry {
-
+    // maps a point on the surface p=(u,v) to a point in space (x, y, z)
+    fn surface(&self, p: &Vec2) -> Vec3;
 }
 
 struct Hole {
 }
 
 impl Geometry for Hole {
-
+    fn surface(&self, p: &Vec2) -> Vec3 {
+        Vec3::new(p.x, p.y, self.z(p))
+    }
 }
 
 impl Hole {
@@ -74,24 +77,6 @@ impl Hole {
     }
     fn z(&self, p: &Vec2) -> f32 {
         1.0 / p.norm_squared()
-    }
-
-    // evaluate derivative (dR/rp) at point p
-    fn derivative(&self, p: &Vec2) -> Vec3 {
-        let denominator = p.norm_squared().powi(2);
-        Vec3::new(
-            -2.0 * p.x / denominator,
-            -2.0 * p.y / denominator,
-            1.0,
-        )
-    }
-    // evaluate second order derivative (d^2R/dp^2) at point p
-    fn derivative2(&self, p: &Vec2) -> Vec3 {
-        Vec3::new(
-            0.0,
-            0.0,
-            0.0,
-        )
     }
 }
 
