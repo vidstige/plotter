@@ -86,6 +86,32 @@ impl IsoSurface for Hole {
     }
 }
 
+struct Sphere {
+
+}
+impl Sphere {
+    fn new() -> Sphere {
+        Sphere { }
+    }
+}
+
+impl Geometry for Sphere {
+    fn surface(&self, p: &Vec2) -> Vec3 {
+        let (u, v) = (p.x, p.y);
+        Vec3::new(
+            v.cos() * u.sin(),
+            v.sin() * u.sin(),
+            u.cos(),
+        )
+    }
+}
+
+impl IsoSurface for Sphere {
+    fn iso_level(&self, position: &Vec3) -> f32 {
+        position.norm() - 1.0
+    }
+}
+
 fn trace<S: IsoSurface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
     // first linesearch to find rough estimate
     let f = |t| surface.iso_level(&ray.at(t));
@@ -128,7 +154,8 @@ fn main() -> io::Result<()> {
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
 
-    let geometry = Hole::new();
+    //let geometry = Hole::new();
+    let geometry = Sphere::new();
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
     let positions: Vec<_> = (0..1024).map(|_| sample_vec2(&distribution, &mut rng)).collect();
