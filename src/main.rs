@@ -65,7 +65,7 @@ impl Hole {
         Hole {}        
     }
     fn z(&self, p: &Vec2) -> f32 {
-        1.0 / (p.x*p.x + p.y*p.y)
+        1.0 / p.norm_squared()
     }
 
     fn nabla(&self, p: &Vec2) -> Vec3 {
@@ -107,6 +107,11 @@ fn sample_vec2<D: Distribution<f64>>(distribution: &D, rng: &mut ThreadRng) -> V
     )
 }
 
+struct Particle {
+    position: Vec2,
+    velocity: Vec2,
+}
+
 fn main() -> io::Result<()> {
     let resolution = Resolution::new(506, 253);
 
@@ -124,30 +129,32 @@ fn main() -> io::Result<()> {
     let hole = Hole::new();
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
-    let mut particles: Vec<_> = (0..1024).map(|_| sample_vec2(&distribution, &mut rng)).collect();
+    let positions: Vec<_> = (0..1024).map(|_| sample_vec2(&distribution, &mut rng)).collect();
+    let mut particles: Vec<_> = positions.iter().map(|p| Particle {
+        position: Vec2::new(p.x, p.y),
+        velocity: 0.01 * field.at(p),
+    }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
-    for frame in 0..100 {
+    for frame in 0..256 {
         let mut polylines = Vec::new();
-        for (index, p) in particles.iter_mut().enumerate() {
+        for (index, particle) in particles.iter_mut().enumerate() {
             // move according to field
             /*let nabla = field.at(p);
             let norm = nabla.norm();
             let step = 0.01;
             p.add_assign(nabla.scale(step / norm));*/
-            let nabla = hole.nabla(p);
-            // compute nabla cross direction to get step
-            let step = 0.01;
-            p.add_assign(nabla.xy().normalize().scale(step));
+            particle.position += particle.velocity;
 
             // evaluate surface at x, y
-            let z = hole.z(&p);
-            let world = Vec3::new(p.x, p.y, z);
+            //let z = hole.z(&p);
+            //let world = Vec3::new(p.x, p.y, z);
             
             // project world cordinate into screen cordinate
+            let world = Vec3::new(particle.position.x, particle.position.y, hole.z(&particle.position));
             let screen = project(&world, &model, &projection, viewport);
 
             traces[index].push_back(screen);
-            if traces[index].len() > 60 {
+            if traces[index].len() > 10 {
                 traces[index].pop_front();
             }
         }
