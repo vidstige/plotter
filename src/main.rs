@@ -1,7 +1,7 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque};
 
 use eq::{linesearch, newton_raphson};
-use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4, Mat2x3};
+use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4, Mat2x2};
 
 use polyline::Polyline2;
 
@@ -65,6 +65,17 @@ trait Geometry {
     fn du(&self) -> impl Geometry;
     // returns the partial derivative (d/dv) for the geometry
     fn dv(&self) -> impl Geometry;
+
+    // evaluates metric tensor at p using derivatives dot product
+    // can be overriden with analytic expression
+    fn metric(&self, p: &Vec2) -> Mat2x2 {
+        let du = self.du().evaluate(p);
+        let dv = self.dv().evaluate(p);
+        Mat2x2::new(
+            du.dot(&du), du.dot(&dv),
+            du.dot(&dv), dv.dot(&dv),
+        )
+    }
 }
 
 struct DerivativeNotImplemented {
@@ -227,6 +238,13 @@ impl Geometry for Sphere {
     }
     fn dv(&self) -> impl Geometry {
         SphereDv {}
+    }
+    fn metric(&self, p: &Vec2) -> Mat2x2 {
+        // override metric tensor with analytical expression
+        return Mat2x2::new(
+            1.0, 0.0,
+            0.0, p.y.sin().powi(2)
+        )
     }
 }
 
