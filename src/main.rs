@@ -212,7 +212,7 @@ fn main() -> io::Result<()> {
         // render to pixmap
         let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
         
-        let color = Color::from_rgba8(210, 2, 180, 0xff);
+        let color = Color::from_rgba8(255, 180, 220, 0xff);
         let mut paint = Paint::default();
         paint.set_color(color);
         paint.anti_alias = true;
