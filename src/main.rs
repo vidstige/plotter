@@ -1,7 +1,7 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque};
 
 use eq::{linesearch, newton_raphson};
-use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
+use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4, Mat2x3};
 
 use polyline::Polyline2;
 
@@ -59,14 +59,14 @@ trait IsoSurface {
 
 trait Geometry {
     // maps a point on the surface p=(u,v) to a point in space (x, y, z)
-    fn surface(&self, p: &Vec2) -> Vec3;
+    fn evaluate(&self, p: &Vec2) -> Vec3;
 }
 
 struct Hole {
 }
 
 impl Geometry for Hole {
-    fn surface(&self, p: &Vec2) -> Vec3 {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
         Vec3::new(p.x, p.y, self.z(p))
     }
 }
@@ -96,7 +96,7 @@ impl Sphere {
 }
 
 impl Geometry for Sphere {
-    fn surface(&self, p: &Vec2) -> Vec3 {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
         Vec3::new(
             v.cos() * u.sin(),
@@ -179,7 +179,7 @@ fn main() -> io::Result<()> {
             //let world = Vec3::new(p.x, p.y, z);
             
             // project world cordinate into screen cordinate
-            let world = geometry.surface(&particle.position);
+            let world = geometry.evaluate(&particle.position);
             let screen = project(&world, &model, &projection, viewport);
 
             traces[index].push_back(screen);
