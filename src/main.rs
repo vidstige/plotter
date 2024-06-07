@@ -271,6 +271,11 @@ fn sample_vec2<D: Distribution<f64>>(distribution: &D, rng: &mut ThreadRng) -> V
     )
 }
 
+// return Christoffel symbols with index k, i, j
+fn gamma(geometry: &impl Geometry, k: usize, i: usize, j: usize) -> f32 {
+    0.0
+}
+
 struct Particle {
     position: Vec2,
     velocity: Vec2,
@@ -297,9 +302,11 @@ fn main() -> io::Result<()> {
     let positions: Vec<_> = (0..1024).map(|_| sample_vec2(&distribution, &mut rng)).collect();
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
-        velocity: 0.01 * field.at(p),
+        velocity: 0.5 * field.at(p),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
+    let fps = 25.0;
+    let dt = 1.0 / fps;
     for frame in 0..256 {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
@@ -308,7 +315,21 @@ fn main() -> io::Result<()> {
             let norm = nabla.norm();
             let step = 0.01;
             p.add_assign(nabla.scale(step / norm));*/
-            particle.position += particle.velocity;
+
+            // integrate geodesic equation (d²u/dt²) + gamma^k_ij * (du^i/dt) * (du^j/dt) = 0
+            particle.position += particle.velocity * dt;
+
+            // tensor sum
+            let mut a = Vec2::zeros();
+            let u = particle.velocity.as_slice();
+            for k in 0..1 {
+                for i in 0..1 {
+                    for j in 0..1 {
+                        a.as_mut_slice()[k] += -gamma(&geometry, k, i, j) * u[i] * u[j];
+                    }
+                }
+            }
+            particle.velocity += a * dt;
 
             // evaluate surface at x, y
             //let z = hole.z(&p);
