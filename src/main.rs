@@ -61,6 +61,7 @@ trait Geometry {
     // maps a point on the surface p=(u,v) to a point in space (x, y, z)
     fn evaluate(&self, p: &Vec2) -> Vec3;
     fn du(&self) -> impl Geometry;
+    fn dv(&self) -> impl Geometry;
 }
 
 struct DerivativeNotImplemented {
@@ -70,9 +71,8 @@ impl Geometry for DerivativeNotImplemented {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         todo!()
     }
-    fn du(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
-    }
+    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
+    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
 }
 
 struct Hole {
@@ -83,6 +83,9 @@ impl Geometry for Hole {
         Vec3::new(p.x, p.y, self.z(p))
     }
     fn du(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
+    fn dv(&self) -> impl Geometry {
         DerivativeNotImplemented {}
     }
 }
@@ -121,6 +124,9 @@ impl Geometry for Sphere {
         )
     }
     fn du(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
+    fn dv(&self) -> impl Geometry {
         DerivativeNotImplemented {}
     }
 }
