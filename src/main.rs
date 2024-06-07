@@ -60,6 +60,19 @@ trait IsoSurface {
 trait Geometry {
     // maps a point on the surface p=(u,v) to a point in space (x, y, z)
     fn evaluate(&self, p: &Vec2) -> Vec3;
+    fn du(&self) -> impl Geometry;
+}
+
+struct DerivativeNotImplemented {
+
+}
+impl Geometry for DerivativeNotImplemented {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
+        todo!()
+    }
+    fn du(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
 }
 
 struct Hole {
@@ -68,6 +81,9 @@ struct Hole {
 impl Geometry for Hole {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         Vec3::new(p.x, p.y, self.z(p))
+    }
+    fn du(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
     }
 }
 
@@ -103,6 +119,9 @@ impl Geometry for Sphere {
             v.sin() * u.sin(),
             u.cos(),
         )
+    }
+    fn du(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
     }
 }
 
