@@ -57,14 +57,29 @@ trait IsoSurface {
     fn iso_level(&self, position: &Vec3) -> f32;
 }
 
+struct DerivativeNotImplemented {
+
+}
+impl Geometry for DerivativeNotImplemented {
+    fn evaluate(&self, _p: &Vec2) -> Vec3 {
+        todo!()
+    }
+    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
+    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
+}
+
 trait Geometry {
     // maps a point on the surface p=(u,v) to a point in space (x, y, z)
     fn evaluate(&self, p: &Vec2) -> Vec3;
 
     // returns the partial derivative (d/du) for the geometry
-    fn du(&self) -> impl Geometry;
+    fn du(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
     // returns the partial derivative (d/dv) for the geometry
-    fn dv(&self) -> impl Geometry;
+    fn dv(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
 
     // evaluates metric tensor at p using derivatives dot product
     // can be overriden with analytic expression
@@ -78,16 +93,7 @@ trait Geometry {
     }
 }
 
-struct DerivativeNotImplemented {
 
-}
-impl Geometry for DerivativeNotImplemented {
-    fn evaluate(&self, p: &Vec2) -> Vec3 {
-        todo!()
-    }
-    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
-    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
-}
 
 struct Hole {
 }
@@ -95,12 +101,6 @@ struct Hole {
 impl Geometry for Hole {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         Vec3::new(p.x, p.y, self.z(p))
-    }
-    fn du(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
-    }
-    fn dv(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
     }
 }
 
@@ -141,8 +141,6 @@ impl Geometry for SphereDuDu {
            -u.cos(),
         )
     }
-    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
-    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
 }
 
 struct SphereDvDv {
@@ -157,8 +155,6 @@ impl Geometry for SphereDvDv {
           0.0,
         )
     }
-    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
-    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
 }
 
 struct SphereDuDv {
@@ -174,8 +170,6 @@ impl Geometry for SphereDuDv {
             0.0,
         )
     }
-    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
-    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
 }
 
 // first derivatives of sphere
