@@ -114,6 +114,51 @@ impl Sphere {
     }
 }
 
+// first derivative of sphere
+struct SphereDU {
+
+}
+impl Geometry for SphereDU {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
+        let (u, v) = (p.x, p.y);
+        return Vec3::new(
+            v.cos() * u.cos(),
+            v.sin() * u.cos(),
+            -u.sin(),
+        )
+    }
+
+    fn du(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
+
+    fn dv(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
+}
+
+struct SphereDV {
+
+}
+impl Geometry for SphereDV {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
+        let (u, v) = (p.x, p.y);
+        return Vec3::new(
+            -v.sin() * u.sin(),
+            v.cos() * u.sin(),
+            0.0,
+        )
+    }
+
+    fn du(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
+
+    fn dv(&self) -> impl Geometry {
+        DerivativeNotImplemented {}
+    }
+}
+
 impl Geometry for Sphere {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
