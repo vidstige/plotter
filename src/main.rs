@@ -60,7 +60,10 @@ trait IsoSurface {
 trait Geometry {
     // maps a point on the surface p=(u,v) to a point in space (x, y, z)
     fn evaluate(&self, p: &Vec2) -> Vec3;
+
+    // returns the partial derivative (d/du) for the geometry
     fn du(&self) -> impl Geometry;
+    // returns the partial derivative (d/dv) for the geometry
     fn dv(&self) -> impl Geometry;
 }
 
@@ -114,11 +117,61 @@ impl Sphere {
     }
 }
 
-// first derivative of sphere
-struct SphereDU {
+// second derivatives of sphere
+struct SphereDuDu {
 
 }
-impl Geometry for SphereDU {
+impl Geometry for SphereDuDu {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
+        let (u, v) = (p.x, p.y);
+        return Vec3::new(
+           -v.cos() * u.sin(),
+           -v.sin() * u.sin(),
+           -u.cos(),
+        )
+    }
+    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
+    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
+}
+
+struct SphereDvDv {
+
+}
+impl Geometry for SphereDvDv {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
+        let (u, v) = (p.x, p.y);
+        return Vec3::new(
+          -v.cos() * u.sin(),
+          -v.sin() * u.sin(),
+          0.0,
+        )
+    }
+    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
+    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
+}
+
+struct SphereDuDv {
+
+}
+
+impl Geometry for SphereDuDv {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
+        let (u, v) = (p.x, p.y);
+        return Vec3::new(
+            -v.sin() * u.cos(),
+            v.cos() * u.cos(),
+            0.0,
+        )
+    }
+    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
+    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
+}
+
+// first derivatives of sphere
+struct SphereDu {
+
+}
+impl Geometry for SphereDu {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
         return Vec3::new(
@@ -129,18 +182,18 @@ impl Geometry for SphereDU {
     }
 
     fn du(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
+        SphereDuDu {}
     }
 
     fn dv(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
+        SphereDuDv {}
     }
 }
 
-struct SphereDV {
+struct SphereDv {
 
 }
-impl Geometry for SphereDV {
+impl Geometry for SphereDv {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
         return Vec3::new(
@@ -151,11 +204,12 @@ impl Geometry for SphereDV {
     }
 
     fn du(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
+        // Order of derivation does not matter, so just reuse (d/du)(d/dv)
+        SphereDuDv {}
     }
 
     fn dv(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
+        SphereDvDv {}
     }
 }
 
@@ -169,10 +223,10 @@ impl Geometry for Sphere {
         )
     }
     fn du(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
+        SphereDu {}
     }
     fn dv(&self) -> impl Geometry {
-        DerivativeNotImplemented {}
+        SphereDv {}
     }
 }
 
