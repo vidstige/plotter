@@ -1,4 +1,4 @@
-use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque};
+use std::{ops::{Sub, Add, Index}, io::{self, Write}, fs::File, collections::VecDeque};
 
 use eq::{linesearch, newton_raphson};
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4, Mat2x2};
@@ -271,9 +271,28 @@ fn sample_vec2<D: Distribution<f64>>(distribution: &D, rng: &mut ThreadRng) -> V
     )
 }
 
+struct Tensor2x2x2 {
+    data: [f32; 8],
+}
+impl Index<(usize, usize, usize)> for Tensor2x2x2 {
+    type Output = f32;
+    fn index<'a>(&'a self, (k, i, j): (usize, usize, usize)) -> &'a f32 {
+        &self.data[k * 4 + i * 2 + j]
+    }
+}
+
+
 // return Christoffel symbols with index k, i, j
-fn gamma(geometry: &impl Geometry, k: usize, i: usize, j: usize) -> f32 {
-    0.0
+fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> Tensor2x2x2 {
+    let metric = geometry.metric(p);
+    let inverse_metric = metric.try_inverse().unwrap();
+    Tensor2x2x2 { data: [
+        geometry.du().du().evaluate(p).dot(&geometry.du().evaluate(p)) * inverse_metric[(0, 0)], 0.0,
+        0.0, 0.0,
+        
+        0.0, 0.0,
+        0.0, 0.0,
+    ]}
 }
 
 struct Particle {
@@ -320,12 +339,13 @@ fn main() -> io::Result<()> {
             particle.position += particle.velocity * dt;
 
             // tensor sum
+            let gamma = compute_gamma(&geometry, &particle.position);
             let mut a = Vec2::zeros();
             let u = particle.velocity.as_slice();
             for k in 0..1 {
                 for i in 0..1 {
                     for j in 0..1 {
-                        a.as_mut_slice()[k] += -gamma(&geometry, k, i, j) * u[i] * u[j];
+                        a.as_mut_slice()[k] += -gamma[(k, i, j)] * u[i] * u[j];
                     }
                 }
             }
