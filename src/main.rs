@@ -1,4 +1,4 @@
-use std::{ops::{Sub, Add, Index}, io::{self, Write}, fs::File, collections::VecDeque};
+use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque};
 
 use eq::{linesearch, newton_raphson};
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4, Mat2x2};
@@ -271,28 +271,31 @@ fn sample_vec2<D: Distribution<f64>>(distribution: &D, rng: &mut ThreadRng) -> V
     )
 }
 
-struct Tensor2x2x2 {
-    data: [f32; 8],
-}
-impl Index<(usize, usize, usize)> for Tensor2x2x2 {
-    type Output = f32;
-    fn index<'a>(&'a self, (k, i, j): (usize, usize, usize)) -> &'a f32 {
-        &self.data[k * 4 + i * 2 + j]
-    }
-}
-
-
 // return Christoffel symbols with index k, i, j
-fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> Tensor2x2x2 {
+fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
     let metric = geometry.metric(p);
     let inverse_metric = metric.try_inverse().unwrap();
-    Tensor2x2x2 { data: [
-        geometry.du().du().evaluate(p).dot(&geometry.du().evaluate(p)) * inverse_metric[(0, 0)], 0.0,
-        0.0, 0.0,
-        
-        0.0, 0.0,
-        0.0, 0.0,
-    ]}
+    // compute all second order partial derivatives
+    let d2: [[Vec3; 2]; 2] = [ 
+        [geometry.du().du().evaluate(p), geometry.du().dv().evaluate(p)],
+        [geometry.dv().du().evaluate(p), geometry.dv().dv().evaluate(p)],
+    ];
+    // compute first order partial derivatives
+    let d: [Vec3; 2] = [geometry.du().evaluate(p), geometry.dv().evaluate(p)];
+
+    // compute tensor product gamma^k_ij = (d²R/du^i du^j) * (dR/du^l) * (g^-1)^lk
+    // the index l is thus summed over
+    let mut tmp = [[[0.0; 2]; 2]; 2];
+    for k in 0..2 {
+        for i in 0..2 {
+            for j in 0..2 {
+                for l in 0..2 {
+                    tmp[k][i][j] += d2[i][j].dot(&d[l]) * inverse_metric[(l, k)];
+                }
+            }
+        }
+    }
+    tmp
 }
 
 struct Particle {
@@ -318,10 +321,11 @@ fn main() -> io::Result<()> {
     let geometry = Sphere::new();
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
-    let positions: Vec<_> = (0..1024).map(|_| sample_vec2(&distribution, &mut rng)).collect();
+    let positions: Vec<_> = (0..256).map(|_| sample_vec2(&distribution, &mut rng)).collect();
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
-        velocity: 0.5 * field.at(p),
+        //velocity: 0.5 * field.at(p),
+        velocity: Vec2::new(0.0, 0.5),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
@@ -342,10 +346,10 @@ fn main() -> io::Result<()> {
             let gamma = compute_gamma(&geometry, &particle.position);
             let mut a = Vec2::zeros();
             let u = particle.velocity.as_slice();
-            for k in 0..1 {
-                for i in 0..1 {
-                    for j in 0..1 {
-                        a.as_mut_slice()[k] += -gamma[(k, i, j)] * u[i] * u[j];
+            for k in 0..2 {
+                for i in 0..2 {
+                    for j in 0..2 {
+                        a.as_mut_slice()[k] += -gamma[k][i][j] * u[i] * u[j];
                     }
                 }
             }
