@@ -102,7 +102,11 @@ fn sample_vec2<D: Distribution<f64>>(distribution: &D, rng: &mut ThreadRng) -> V
 // return Christoffel symbols with index k, i, j
 fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
     let metric = geometry.metric(p);
-    let inverse_metric = metric.try_inverse().unwrap();
+    let maybe_inverse_metric = metric.try_inverse();
+    if maybe_inverse_metric.is_none() {
+        println!("could not invert {:?}", metric);
+    }
+    let inverse_metric = maybe_inverse_metric.unwrap();
     // compute all second order partial derivatives
     let d2: [[Vec3; 2]; 2] = [ 
         [geometry.du().du().evaluate(p), geometry.du().dv().evaluate(p)],
@@ -160,17 +164,17 @@ fn main() -> io::Result<()> {
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
 
-    //let geometry = Hole::new();
-    let geometry = Sphere::new();
+    let geometry = Hole::new();
+    //let geometry = Sphere::new();
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
-    //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&distribution, &mut rng)).collect();
-    let semicircle = Uniform::new(0.0, 0.5*TAU).unwrap();
-    let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
+    let positions: Vec<_> = (0..256).map(|_| sample_vec2(&distribution, &mut rng)).collect();
+    //let semicircle = Uniform::new(0.0, 0.5*TAU).unwrap();
+    //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
-        //velocity: 0.5 * field.at(p),
-        velocity: Vec2::new(0.0, 0.5),
+        velocity: 0.5 * field.at(p),
+        //velocity: Vec2::new(0.0, 0.5),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
