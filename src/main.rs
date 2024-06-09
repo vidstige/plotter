@@ -298,10 +298,10 @@ fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
     tmp
 }
 
-fn acceleration(geometry: &impl Geometry, particle: &Particle) -> Vec2 {
-    let gamma = compute_gamma(geometry, &particle.position);
+fn acceleration(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2) -> Vec2 {
+    let gamma = compute_gamma(geometry, position);
     let mut a = Vec2::zeros();
-    let u = particle.velocity.as_slice();
+    let u = velocity.as_slice();
     // tensor sum
     for k in 0..2 {
         for i in 0..2 {
@@ -355,8 +355,9 @@ fn main() -> io::Result<()> {
             p.add_assign(nabla.scale(step / norm));*/
 
             // integrate geodesic equation (d²u/dt²) + gamma^k_ij * (du^i/dt) * (du^j/dt) = 0
+
             particle.position += particle.velocity * dt;
-            let a = acceleration(&geometry, &particle);
+            let a = acceleration(&geometry, &particle.position, &particle.velocity);
             particle.velocity += a * dt;
 
             // evaluate surface at x, y
