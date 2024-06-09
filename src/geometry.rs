@@ -31,7 +31,7 @@ pub trait Geometry {
         let dv = self.dv().evaluate(p);
         Mat2x2::new(
             du.dot(&du), du.dot(&dv),
-            du.dot(&dv), dv.dot(&dv),
+            dv.dot(&du), dv.dot(&dv),
         )
     }
 }
