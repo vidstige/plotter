@@ -1,9 +1,9 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque, f64::consts::TAU};
 
 use eq::{linesearch, newton_raphson};
-use geometries::sphere::Sphere;
+use geometries::{sphere::Sphere, hole::Hole};
 use geometry::Geometry;
-use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4, Mat2x2};
+use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
 
 use polyline::Polyline2;
 
@@ -14,6 +14,7 @@ use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
 
 mod geometry;
 mod geometries {
+    pub mod hole;
     pub mod sphere;
 }
 mod resolution;
@@ -63,30 +64,11 @@ trait IsoSurface {
     fn iso_level(&self, position: &Vec3) -> f32;
 }
 
-struct Hole {
-}
-
-impl Geometry for Hole {
-    fn evaluate(&self, p: &Vec2) -> Vec3 {
-        Vec3::new(p.x, p.y, self.z(p))
-    }
-}
-
-impl Hole {
-    fn new() -> Hole {
-        Hole {}        
-    }
-    fn z(&self, p: &Vec2) -> f32 {
-        1.0 / p.norm_squared()
-    }
-}
-
 impl IsoSurface for Hole {
     fn iso_level(&self, position: &Vec3) -> f32 {
         self.z(&position.xy()) - position.z
     }
 }
-
 
 impl IsoSurface for Sphere {
     fn iso_level(&self, position: &Vec3) -> f32 {
@@ -188,7 +170,7 @@ fn main() -> io::Result<()> {
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
         //velocity: 0.5 * field.at(p),
-        velocity: Vec2::new(1.0, 0.1),
+        velocity: Vec2::new(0.0, 0.5),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
