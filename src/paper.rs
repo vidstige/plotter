@@ -31,7 +31,7 @@ pub fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
 pub struct Paper {
     pub view_box: ViewBox,
     pub pen: f32,
-    polylines: Vec<crate::Polyline2>,
+    polylines: Vec<Polyline2>,
 }
 
 fn as_node(polyline: &Polyline2) -> String {
@@ -44,7 +44,7 @@ impl Paper {
         Paper { view_box, pen, polylines: Vec::new() }
     }
 
-    pub(crate) fn add(&mut self, polyline: crate::Polyline2) {
+    pub(crate) fn add(&mut self, polyline: Polyline2) {
         self.polylines.push(polyline);
     }
 

@@ -1,28 +1,16 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque, f64::consts::TAU};
 
-use eq::{linesearch, newton_raphson};
-use geometries::{sphere::Sphere, hole::Hole};
-use geometry::Geometry;
+use plotter::eq::{linesearch, newton_raphson};
+use plotter::geometries::{sphere::Sphere, hole::Hole};
+use plotter::geometry::Geometry;
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
 
-use polyline::Polyline2;
+use plotter::polyline::Polyline2;
 
 use rand::{distributions::Distribution, rngs::ThreadRng};
-use resolution::Resolution;
+use plotter::resolution::Resolution;
 use statrs::distribution::{Normal, Uniform};
 use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
-
-mod geometry;
-mod geometries {
-    pub mod hole;
-    pub mod sphere;
-}
-mod resolution;
-mod eq;
-mod buffer;
-mod netbm;
-mod paper;
-mod polyline;
 
 fn cross2(vector: Vec2) -> Vec2 {
     Vec2::new(-vector.y, vector.x)
