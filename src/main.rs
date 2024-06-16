@@ -14,7 +14,7 @@ const UNTYPED_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
 enum Node {
     // Distribution node
-    //NormalDistribution(f32, f32),
+    NormalDistribution(f32, f32),
 
     /// Node with single input.
     /// Displays the value of the input.
@@ -85,6 +85,7 @@ impl SnarlViewer<Node> for NodeViewer {
 
     fn title(&mut self, node: &Node) -> String {
         match node {
+            Node::NormalDistribution(_, _) => "Normal Distribution".to_owned(),
             Node::Sink => "Sink".to_owned(),
             Node::Number(_) => "Number".to_owned(),
             Node::ExprNode(_) => "Expr".to_owned(),
@@ -93,6 +94,7 @@ impl SnarlViewer<Node> for NodeViewer {
 
     fn inputs(&mut self, node: &Node) -> usize {
         match node {
+            Node::NormalDistribution(_, _) => 2,
             Node::Sink => 1,
             Node::Number(_) => 0,
             Node::ExprNode(expr_node) => 1 + expr_node.bindings.len(),
@@ -101,6 +103,7 @@ impl SnarlViewer<Node> for NodeViewer {
 
     fn outputs(&mut self, node: &Node) -> usize {
         match node {
+            Node::NormalDistribution(_, _) => 1,
             Node::Sink => 0,
             Node::Number(_) => 1,
             Node::ExprNode(_) => 1,
@@ -115,6 +118,10 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl: &mut Snarl<Node>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
+            Node::NormalDistribution(_, _) => {
+                // TODO?
+                PinInfo::square().with_fill(NUMBER_COLOR)
+            },
             Node::Sink => {
                 assert_eq!(pin.id.input, 0, "Sink node has only one input");
 
@@ -124,6 +131,9 @@ impl SnarlViewer<Node> for NodeViewer {
                         PinInfo::circle().with_fill(UNTYPED_COLOR)
                     }
                     [remote] => match snarl[remote.node] {
+                        Node::NormalDistribution(_, _) => {
+                            PinInfo::square().with_fill(NUMBER_COLOR)
+                        }
                         Node::Sink => unreachable!("Sink node has no outputs"),
                         Node::Number(value) => {
                             assert_eq!(remote.output, 0, "Number node has only one output");
@@ -255,6 +265,10 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl: &mut Snarl<Node>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
+            Node::NormalDistribution(my, sigma) => {
+                // TODO: Use another color
+                PinInfo::square().with_fill(NUMBER_COLOR)
+            }
             Node::Sink => {
                 unreachable!("Sink node has no outputs")
             }
@@ -279,14 +293,16 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl: &mut Snarl<Node>,
     ) -> Color32 {
         match snarl[pin.id.node] {
+            Node::NormalDistribution(my, sigma) => {
+                NUMBER_COLOR
+            }
             Node::Sink => {
                 assert_eq!(pin.id.input, 0, "Sink node has only one input");
                 match &*pin.remotes {
                     [] => UNTYPED_COLOR,
                     [remote] => match snarl[remote.node] {
                         Node::Sink => unreachable!("Sink node has no outputs"),
-                        Node::Number(_) => NUMBER_COLOR,
-                        Node::ExprNode(_) => NUMBER_COLOR,
+                        _ => NUMBER_COLOR,
                     },
                     _ => unreachable!("Sink input has only one wire"),
                 }
@@ -307,6 +323,7 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl: &mut Snarl<Node>,
     ) -> Color32 {
         match snarl[pin.id.node] {
+            Node::NormalDistribution(_, _) => NUMBER_COLOR,
             Node::Sink => {
                 unreachable!("Sink node has no outputs")
             }
@@ -323,6 +340,10 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl: &mut Snarl<Node>,
     ) {
         ui.label("Add node");
+        if ui.button("Normal distribution").clicked() {
+            snarl.insert_node(pos, Node::NormalDistribution(0.0, 1.0));
+            ui.close_menu();
+        }
         if ui.button("Number").clicked() {
             snarl.insert_node(pos, Node::Number(0.0));
             ui.close_menu();
@@ -367,6 +388,9 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl: &mut Snarl<Node>,
     ) {
         match snarl[node] {
+            Node::NormalDistribution(_, _) => {
+                ui.label("Normal distribution");
+            }
             Node::Sink => {
                 ui.label("Displays anything connected to it");
             }
@@ -721,8 +745,8 @@ impl App for PlotterApp {
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 300.0])
-            .with_min_inner_size([300.0, 220.0]),
+            .with_inner_size([800.0, 600.0])
+            .with_min_inner_size([320.0, 200.0]),
         ..Default::default()
     };
 
