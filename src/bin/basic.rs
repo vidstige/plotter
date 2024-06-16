@@ -9,7 +9,7 @@ use plotter::polyline::Polyline2;
 
 use rand::{distributions::Distribution, rngs::ThreadRng};
 use plotter::resolution::Resolution;
-use statrs::distribution::{Normal, Uniform};
+use rand_distr::StandardNormal;
 use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
 
 fn cross2(vector: Vec2) -> Vec2 {
@@ -80,10 +80,10 @@ fn contains(resolution: &Resolution, point: &Vec2) -> bool {
     point.x >= 0.0 && point.x < resolution.width as f32 && point.y >= 0.0 && point.y < resolution.height as f32
 }
 
-fn sample_vec2<D: Distribution<f64>>(distribution: &D, rng: &mut ThreadRng) -> Vec2 {
+fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> Vec2 {
     Vec2::new(
-        distribution.sample(rng) as f32,
-        distribution.sample(rng) as f32,
+        distribution.sample(rng),
+        distribution.sample(rng),
     )
 }
 
@@ -142,7 +142,7 @@ fn main() -> io::Result<()> {
     let resolution = Resolution::new(506, 253);
 
     let mut rng = rand::thread_rng();
-    let distribution = Normal::new(0.0, 1.0).unwrap();
+    let distribution = StandardNormal {};
     let field = Spiral::new(Vec2::zeros());
 
     let eye = Vec3::new(-2.5, -2.5, -1.5);
