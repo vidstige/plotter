@@ -11,34 +11,77 @@ use tiny_skia::Pixmap;
 const NUMBER_COLOR: Color32 = Color32::from_rgb(0xb0, 0x00, 0x00);
 const UNTYPED_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
-enum Node {
-    // Distribution node
-    NormalDistribution(f32, f32),
 
-    /// Value node with a single output.
-    /// The value is editable in UI.
-    Number(f32),
-
-    Pixmap(Pixmap),
+trait Node {
+    fn title(&self) -> &str;
+    fn num_inputs(&self) -> usize;
+    fn num_outputs(&self) -> usize;
+    fn show_body(&self, ui: &mut Ui);
 }
 
-impl Node {
-    fn number_in(&mut self, idx: usize) -> &mut f32 {
-        match self {
-            Node::NormalDistribution(my, sigma) => match idx {
-                0 => my,
-                1 => sigma,
-                _ => unreachable!(),
-            }
-            _ => unreachable!(),
-        }
+struct ConstantNode {
+    value: f32,    
+}
+impl ConstantNode {
+    fn new(value: f32) -> ConstantNode {
+        ConstantNode { value }
+    }
+}
+impl Node for ConstantNode {
+    fn title(&self) -> &str { "Number" }
+    fn num_inputs(&self) -> usize { 0 }
+    fn num_outputs(&self) -> usize { 1 }
+    fn show_body(&self, _ui: &mut Ui) { }
+}
+
+struct NormalDistributionNode {
+    my: f32,
+    sigma: f32,
+}
+impl NormalDistributionNode {
+    fn new(my: f32, sigma: f32) -> NormalDistributionNode {
+        NormalDistributionNode { my, sigma }
+    }
+}
+impl Node for NormalDistributionNode {
+    fn title(&self) -> &str { "Normal distribution" }
+    fn num_inputs(&self) -> usize { 2 }
+    fn num_outputs(&self) -> usize { 1 }
+    fn show_body(&self, _ui: &mut Ui) { }
+}
+
+
+struct PixmapNode {
+    pixmap: Pixmap,
+}
+impl PixmapNode {
+    fn new(width: u32, height: u32) -> PixmapNode {
+        PixmapNode { pixmap: Pixmap::new(width, height).unwrap() }
+    }
+}
+impl Node for PixmapNode {
+    fn title(&self) -> &str { "Pixmap" }
+
+    fn num_inputs(&self) -> usize { 1 }
+
+    fn num_outputs(&self) -> usize { 0 }
+
+    fn show_body(&self, ui: &mut Ui) {
+        let pixmap = &self.pixmap;
+        let image_data = ColorImage::from_rgba_premultiplied([pixmap.width() as usize, pixmap.height() as usize], pixmap.data());
+        // TODO: Only upload here and allocate texture once
+        let texture = ui.ctx().load_texture("pixmap", image_data, TextureOptions::LINEAR);
+        let texture_id = TextureId::from(&texture);
+        let uv = Rect{ min:pos2(0.0, 0.0), max:pos2(1.0, 1.0)};
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(pixmap.width() as f32, pixmap.height() as f32), Sense::hover());
+        ui.painter().image(texture_id, rect, uv, Color32::WHITE);
     }
 }
 
 struct NodeViewer;
 
-impl SnarlViewer<Node> for NodeViewer {
-    fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<Node>) {
+impl SnarlViewer<Box<dyn Node>> for NodeViewer {
+    fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<Box<dyn Node>>) {
         // TODO: Check input/output types
         for &remote in &to.remotes {
             snarl.disconnect(remote, to.id);
@@ -47,28 +90,16 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl.connect(from.id, to.id);
     }
 
-    fn title(&mut self, node: &Node) -> String {
-        match node {
-            Node::NormalDistribution(_, _) => "Normal Distribution",
-            Node::Number(_) => "Number",
-            Node::Pixmap(_) => "Pixmap",
-        }.to_owned()
+    fn title(&mut self, node: &Box<dyn Node>) -> String {
+        node.title().to_owned()
     }
 
-    fn inputs(&mut self, node: &Node) -> usize {
-        match node {
-            Node::NormalDistribution(_, _) => 2,
-            Node::Number(_) => 0,
-            Node::Pixmap(_) => 1,
-        }
+    fn inputs(&mut self, node: &Box<dyn Node>) -> usize {
+        node.num_inputs()
     }
 
-    fn outputs(&mut self, node: &Node) -> usize {
-        match node {
-            Node::NormalDistribution(_, _) => 1,
-            Node::Number(_) => 1,
-            Node::Pixmap(_) => 0,
-        }
+    fn outputs(&mut self, node: &Box<dyn Node>) -> usize {
+        node.num_outputs()
     }
 
     fn show_input(
@@ -76,9 +107,9 @@ impl SnarlViewer<Node> for NodeViewer {
         pin: &InPin,
         ui: &mut Ui,
         _scale: f32,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl<Box<dyn Node>>,
     ) -> PinInfo {
-        match snarl[pin.id.node] {
+        /*match snarl[pin.id.node] {
             Node::NormalDistribution(_, _) => {
                 if pin.remotes.len() == 0 {
                     let node = &mut snarl[pin.id.node];
@@ -92,7 +123,8 @@ impl SnarlViewer<Node> for NodeViewer {
             Node::Pixmap(_) => {
                 PinInfo::square().with_fill(NUMBER_COLOR)
             }
-        }
+        }*/
+        PinInfo::square().with_fill(NUMBER_COLOR)
     }
 
     fn show_output(
@@ -100,9 +132,10 @@ impl SnarlViewer<Node> for NodeViewer {
         pin: &OutPin,
         ui: &mut Ui,
         _scale: f32,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl<Box<dyn Node>>,
     ) -> PinInfo {
-        match snarl[pin.id.node] {
+        PinInfo::square().with_fill(NUMBER_COLOR)
+        /*match snarl[pin.id.node] {
             Node::NormalDistribution(_, _) => {
                 // TODO: Use another color
                 PinInfo::square().with_fill(NUMBER_COLOR)
@@ -115,42 +148,30 @@ impl SnarlViewer<Node> for NodeViewer {
             Node::Pixmap(_) => {
                 PinInfo::square().with_fill(NUMBER_COLOR)
             }
-        }
+        }*/
     }
 
     fn input_color(
         &mut self,
         pin: &InPin,
         _style: &egui::Style,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl<Box<dyn Node>>,
     ) -> Color32 {
-        match snarl[pin.id.node] {
-            Node::NormalDistribution(_, _) => {
-                NUMBER_COLOR
-            }
-            Node::Number(_) => {
-                unreachable!("Number node has no inputs")
-            }
-            Node::Pixmap(_) => {
-                NUMBER_COLOR
-            }
-        }
+        NUMBER_COLOR
     }
 
     fn output_color(
         &mut self,
         _pin: &OutPin,
         _style: &egui::Style,
-        _snarl: &mut Snarl<Node>,
+        _snarl: &mut Snarl<Box<dyn Node>>,
     ) -> Color32 {
         NUMBER_COLOR
     }
 
-    fn has_body(&mut self, node: &Node) -> bool {
-        match node {
-            Node::Pixmap(_) => true,
-            _ => false,
-        }
+    fn has_body(&mut self, node: &Box<dyn Node>) -> bool {
+        // TODO: Only if has body?
+        true
     }
 
     fn show_body(
@@ -160,20 +181,9 @@ impl SnarlViewer<Node> for NodeViewer {
         _outputs: &[OutPin],
         ui: &mut Ui,
         _scale: f32,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl<Box<dyn Node>>,
     ) {
-        match snarl[node_id] {
-            Node::Pixmap(ref pixmap) => {
-                let image_data = ColorImage::from_rgba_premultiplied([pixmap.width() as usize, pixmap.height() as usize], pixmap.data());
-                // TODO: Only upload here and allocate texture once
-                let texture = ui.ctx().load_texture("pixmap", image_data, TextureOptions::LINEAR);
-                let texture_id = TextureId::from(&texture);
-                let uv = Rect{ min:pos2(0.0, 0.0), max:pos2(1.0, 1.0)};
-                let (rect, _) = ui.allocate_exact_size(Vec2::new(pixmap.width() as f32, pixmap.height() as f32), Sense::hover());
-                ui.painter().image(texture_id, rect, uv, Color32::WHITE);
-            },
-            _ => {},
-        }
+        snarl[node_id].show_body(ui);
     }
 
     fn graph_menu(
@@ -181,19 +191,19 @@ impl SnarlViewer<Node> for NodeViewer {
         pos: egui::Pos2,
         ui: &mut Ui,
         _scale: f32,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl<Box<dyn Node>>,
     ) {
         ui.label("Add node");
         if ui.button("Normal distribution").clicked() {
-            snarl.insert_node(pos, Node::NormalDistribution(0.0, 1.0));
+            snarl.insert_node(pos, Box::new(NormalDistributionNode::new(0.0, 1.0)));
             ui.close_menu();
         }
         if ui.button("Number").clicked() {
-            snarl.insert_node(pos, Node::Number(0.0));
+            snarl.insert_node(pos, Box::new(ConstantNode::new(0.0)));
             ui.close_menu();
         }
         if ui.button("Pixmap").clicked() {
-            snarl.insert_node(pos, Node::Pixmap(Pixmap::new(320, 200).unwrap()));
+            snarl.insert_node(pos, Box::new(PixmapNode::new(320, 200)));
             ui.close_menu();
         }
     }
@@ -205,7 +215,7 @@ impl SnarlViewer<Node> for NodeViewer {
         _outputs: &[OutPin],
         ui: &mut Ui,
         _scale: f32,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl<Box<dyn Node>>,
     ) {
         ui.label("Node menu");
         if ui.button("Remove").clicked() {
@@ -213,34 +223,10 @@ impl SnarlViewer<Node> for NodeViewer {
             ui.close_menu();
         }
     }
-
-    fn has_on_hover_popup(&mut self, _: &Node) -> bool {
-        true
-    }
-
-    fn show_on_hover_popup(
-        &mut self,
-        node: NodeId,
-        _inputs: &[InPin],
-        _outputs: &[OutPin],
-        ui: &mut Ui,
-        _scale: f32,
-        snarl: &mut Snarl<Node>,
-    ) {
-        match snarl[node] {
-            Node::NormalDistribution(_, _) => {
-                ui.label("Normal distribution");
-            }
-            Node::Number(_) => {
-                ui.label("Outputs integer value");
-            }
-            _ => {}
-        }
-    }
 }
 
 pub struct PlotterApp {
-    snarl: Snarl<Node>,
+    snarl: Snarl<Box<dyn Node>>,
     style: SnarlStyle,
 }
 
