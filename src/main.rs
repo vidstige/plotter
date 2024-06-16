@@ -6,11 +6,16 @@ use egui_snarl::{
     ui::{PinInfo, SnarlStyle, SnarlViewer},
     InPin, InPinId, NodeId, OutPin, Snarl,
 };
+use rand::{distributions::Distribution, rngs::ThreadRng};
+use rand_distr::Normal;
 
 const NUMBER_COLOR: Color32 = Color32::from_rgb(0xb0, 0x00, 0x00);
 const UNTYPED_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
 enum Node {
+    // Distribution node
+    //NormalDistribution(f32, f32),
+
     /// Node with single input.
     /// Displays the value of the input.
     Sink,
@@ -678,20 +683,20 @@ impl Expr {
     }
 }
 
-pub struct DemoApp {
+pub struct PlotterApp {
     snarl: Snarl<Node>,
     style: SnarlStyle,
 }
 
-impl DemoApp {
+impl PlotterApp {
     pub fn new(cx: &CreationContext) -> Self {
         let snarl = Snarl::new();
         let style = SnarlStyle::new();
-        DemoApp { snarl, style }
+        PlotterApp { snarl, style }
     }
 }
 
-impl App for DemoApp {
+impl App for PlotterApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         //egui_extras::install_image_loaders(ctx);
 
@@ -739,7 +744,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "egui-snarl demo",
         native_options,
-        Box::new(|cx| Box::new(DemoApp::new(cx))),
+        Box::new(|cx| Box::new(PlotterApp::new(cx))),
     )
 }
 
@@ -753,7 +758,7 @@ fn main() {
             .start(
                 "egui_snarl_demo",
                 web_options,
-                Box::new(|cx| Box::new(DemoApp::new(cx))),
+                Box::new(|cx| Box::new(PlotterApp::new(cx))),
             )
             .await
             .expect("failed to start eframe");
