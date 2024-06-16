@@ -23,6 +23,8 @@ trait Node {
     fn title(&self) -> &str;
     fn inputs(&self) -> &[Kind];
     fn outputs(&self) -> &[Kind];
+    fn input_ui(&mut self, ui: &mut Ui, pin: &InPin);
+    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin);
     fn show_body(&self, ui: &mut Ui);
 }
 
@@ -39,6 +41,13 @@ impl Node for ConstantNode {
     fn title(&self) -> &str { "Number" }
     fn inputs(&self) -> &[Kind] { &[] }
     fn outputs(&self) -> &[Kind] { &[Kind::F32] }
+    fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
+    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) {
+        match pin.id.output {
+            0 => ui.add(egui::DragValue::new(&mut self.value)),
+            _ => unreachable!("Constant only have one output")
+        };
+    } 
     fn show_body(&self, _ui: &mut Ui) { }
 }
 
@@ -56,6 +65,16 @@ impl Node for NormalDistributionNode {
     fn title(&self) -> &str { "Normal distribution" }
     fn inputs(&self) -> &[Kind] { &[Kind::F32, Kind::F32] }
     fn outputs(&self) -> &[Kind] { &[Kind::F32] }
+    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) { }
+    fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) {
+        if pin.remotes.len() == 0 {
+            match pin.id.input {
+                0 => ui.add(egui::DragValue::new(&mut self.my)),
+                1 => ui.add(egui::DragValue::new(&mut self.sigma)),
+                _ => unreachable!("NormalDistributionNode only have two inputs"),
+            };
+        }
+    }
     fn show_body(&self, _ui: &mut Ui) { }
 }
 
@@ -70,11 +89,10 @@ impl PixmapNode {
 }
 impl Node for PixmapNode {
     fn title(&self) -> &str { "Pixmap" }
-
     fn inputs(&self) -> &[Kind] { &[Kind::Pixmap] }
-
     fn outputs(&self) -> &[Kind] { &[] }
-
+    fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
+    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) { }
     fn show_body(&self, ui: &mut Ui) {
         let pixmap = &self.pixmap;
         let image_data = ColorImage::from_rgba_premultiplied([pixmap.width() as usize, pixmap.height() as usize], pixmap.data());
@@ -100,6 +118,8 @@ impl Node for Sample2Node {
     fn title(&self) -> &str { "Sample" }
     fn inputs(&self) -> &[Kind] { &[Kind::USize, Kind::Points2] }
     fn outputs(&self) -> &[Kind] { &[Kind::Points2] }
+    fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
+    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) { }
     fn show_body(&self, ui: &mut Ui) { }
 }
 
@@ -135,22 +155,8 @@ impl SnarlViewer<Box<dyn Node>> for NodeViewer {
         _scale: f32,
         snarl: &mut Snarl<Box<dyn Node>>,
     ) -> PinInfo {
-        /*match snarl[pin.id.node] {
-            Node::NormalDistribution(_, _) => {
-                if pin.remotes.len() == 0 {
-                    let node = &mut snarl[pin.id.node];
-                    ui.add(egui::DragValue::new(node.number_in(pin.id.input)));
-                }
-                PinInfo::square().with_fill(NUMBER_COLOR)
-            },
-            Node::Number(_) => {
-                unreachable!("Number node has no inputs")
-            }
-            Node::Pixmap(_) => {
-                PinInfo::square().with_fill(NUMBER_COLOR)
-            }
-        }*/
-        PinInfo::square().with_fill(NUMBER_COLOR)
+        snarl[pin.id.node].input_ui(ui, pin);
+        PinInfo::circle().with_fill(NUMBER_COLOR)
     }
 
     fn show_output(
@@ -160,6 +166,7 @@ impl SnarlViewer<Box<dyn Node>> for NodeViewer {
         _scale: f32,
         snarl: &mut Snarl<Box<dyn Node>>,
     ) -> PinInfo {
+        snarl[pin.id.node].output_ui(ui, pin);
         PinInfo::square().with_fill(NUMBER_COLOR)
         /*match snarl[pin.id.node] {
             Node::NormalDistribution(_, _) => {
