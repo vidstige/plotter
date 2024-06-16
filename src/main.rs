@@ -193,18 +193,7 @@ impl SnarlViewer<Node> for NodeViewer {
             ui.close_menu();
         }
         if ui.button("Pixmap").clicked() {
-            let mut pixmap = Pixmap::new(320, 200).unwrap();
-            let w = pixmap.width();
-            let h = pixmap.height();
-            for x in 0..w {
-                for y in 0..h {
-                    pixmap.data_mut()[4*(x + y * w) as usize] = (x + y) as u8;
-                    pixmap.data_mut()[4*(x + y * w) as usize + 1] = (x * y) as u8;
-                    pixmap.data_mut()[4*(x + y * w) as usize + 2] = 128;
-                    pixmap.data_mut()[4*(x + y * w) as usize + 3] = 0xff;
-                }
-            }
-            snarl.insert_node(pos, Node::Pixmap(pixmap));
+            snarl.insert_node(pos, Node::Pixmap(Pixmap::new(320, 200).unwrap()));
             ui.close_menu();
         }
     }
