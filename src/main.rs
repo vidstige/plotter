@@ -29,6 +29,11 @@ enum Node {
     ExprNode(ExprNode),
 }
 
+enum Kind {
+    Void,
+    F32,
+}
+
 impl Node {
     fn number_out(&self) -> f64 {
         match self {
@@ -70,27 +75,7 @@ impl Node {
 struct NodeViewer;
 
 impl SnarlViewer<Node> for NodeViewer {
-    #[inline]
     fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<Node>) {
-        // Validate connection
-        match (&snarl[from.id.node], &snarl[to.id.node]) {
-            (Node::Sink, _) => {
-                unreachable!("Sink node has no outputs")
-            }
-            (_, Node::Sink) => {}
-            (_, Node::Number(_)) => {
-                unreachable!("Number node has no inputs")
-            }
-            (Node::ExprNode(_), Node::ExprNode(_)) if to.id.input == 0 => {
-                return;
-            }
-            (Node::ExprNode(_), Node::ExprNode(_)) => {}
-            (Node::Number(_), Node::ExprNode(_)) if to.id.input == 0 => {
-                return;
-            }
-            (Node::Number(_), Node::ExprNode(_)) => {}
-        }
-
         for &remote in &to.remotes {
             snarl.disconnect(remote, to.id);
         }
