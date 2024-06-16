@@ -12,10 +12,17 @@ const NUMBER_COLOR: Color32 = Color32::from_rgb(0xb0, 0x00, 0x00);
 const UNTYPED_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
 
+enum Kind {
+    F32,
+    USize,
+    Points2,
+    Pixmap,
+}
+
 trait Node {
     fn title(&self) -> &str;
-    fn num_inputs(&self) -> usize;
-    fn num_outputs(&self) -> usize;
+    fn inputs(&self) -> &[Kind];
+    fn outputs(&self) -> &[Kind];
     fn show_body(&self, ui: &mut Ui);
 }
 
@@ -29,8 +36,8 @@ impl ConstantNode {
 }
 impl Node for ConstantNode {
     fn title(&self) -> &str { "Number" }
-    fn num_inputs(&self) -> usize { 0 }
-    fn num_outputs(&self) -> usize { 1 }
+    fn inputs(&self) -> &[Kind] { &[] }
+    fn outputs(&self) -> &[Kind] { &[Kind::F32] }
     fn show_body(&self, _ui: &mut Ui) { }
 }
 
@@ -45,11 +52,10 @@ impl NormalDistributionNode {
 }
 impl Node for NormalDistributionNode {
     fn title(&self) -> &str { "Normal distribution" }
-    fn num_inputs(&self) -> usize { 2 }
-    fn num_outputs(&self) -> usize { 1 }
+    fn inputs(&self) -> &[Kind] { &[Kind::F32, Kind::F32] }
+    fn outputs(&self) -> &[Kind] { &[Kind::F32] }
     fn show_body(&self, _ui: &mut Ui) { }
 }
-
 
 struct PixmapNode {
     pixmap: Pixmap,
@@ -62,9 +68,9 @@ impl PixmapNode {
 impl Node for PixmapNode {
     fn title(&self) -> &str { "Pixmap" }
 
-    fn num_inputs(&self) -> usize { 1 }
+    fn inputs(&self) -> &[Kind] { &[Kind::Pixmap] }
 
-    fn num_outputs(&self) -> usize { 0 }
+    fn outputs(&self) -> &[Kind] { &[] }
 
     fn show_body(&self, ui: &mut Ui) {
         let pixmap = &self.pixmap;
@@ -95,11 +101,11 @@ impl SnarlViewer<Box<dyn Node>> for NodeViewer {
     }
 
     fn inputs(&mut self, node: &Box<dyn Node>) -> usize {
-        node.num_inputs()
+        node.inputs().len()
     }
 
     fn outputs(&mut self, node: &Box<dyn Node>) -> usize {
-        node.num_outputs()
+        node.outputs().len()
     }
 
     fn show_input(
