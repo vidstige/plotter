@@ -62,9 +62,9 @@ impl Node {
     }
 }
 
-struct DemoViewer;
+struct NodeViewer;
 
-impl SnarlViewer<Node> for DemoViewer {
+impl SnarlViewer<Node> for NodeViewer {
     #[inline]
     fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<Node>) {
         // Validate connection
@@ -721,7 +721,7 @@ impl App for DemoApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             self.snarl
-                .show(&mut DemoViewer, &self.style, egui::Id::new("snarl"), ui);
+                .show(&mut NodeViewer, &self.style, egui::Id::new("snarl"), ui);
         });
     }
 }
