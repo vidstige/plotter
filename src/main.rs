@@ -139,9 +139,9 @@ impl SnarlViewer<Node> for NodeViewer {
 
     fn output_color(
         &mut self,
-        pin: &OutPin,
+        _pin: &OutPin,
         _style: &egui::Style,
-        snarl: &mut Snarl<Node>,
+        _snarl: &mut Snarl<Node>,
     ) -> Color32 {
         NUMBER_COLOR
     }
@@ -156,10 +156,10 @@ impl SnarlViewer<Node> for NodeViewer {
     fn show_body(
         &mut self,
         node_id: NodeId,
-        inputs: &[InPin],
-        outputs: &[OutPin],
+        _inputs: &[InPin],
+        _outputs: &[OutPin],
         ui: &mut Ui,
-        scale: f32,
+        _scale: f32,
         snarl: &mut Snarl<Node>,
     ) {
         match snarl[node_id] {
@@ -168,11 +168,6 @@ impl SnarlViewer<Node> for NodeViewer {
                 // TODO: Only upload here and allocate texture once
                 let texture = ui.ctx().load_texture("pixmap", image_data, TextureOptions::LINEAR);
                 let texture_id = TextureId::from(&texture);
-                // Draw
-                /*let rect = Rect{
-                    min: pos2(0.0, 0.0),
-                    max: pos2(pixmap.width() as f32, pixmap.height() as f32)
-                };*/
                 let uv = Rect{ min:pos2(0.0, 0.0), max:pos2(1.0, 1.0)};
                 let (rect, _) = ui.allocate_exact_size(Vec2::new(pixmap.width() as f32, pixmap.height() as f32), Sense::hover());
                 ui.painter().image(texture_id, rect, uv, Color32::WHITE);
@@ -261,7 +256,7 @@ pub struct PlotterApp {
 }
 
 impl PlotterApp {
-    pub fn new(cx: &CreationContext) -> Self {
+    pub fn new(_ctx: &CreationContext) -> Self {
         let snarl = Snarl::new();
         let style = SnarlStyle::new();
         PlotterApp { snarl, style }
@@ -335,9 +330,4 @@ fn main() {
             .await
             .expect("failed to start eframe");
     });
-}
-
-fn format_float(v: f32) -> String {
-    let v = (v * 1000.0).round() / 1000.0;
-    format!("{}", v)
 }
