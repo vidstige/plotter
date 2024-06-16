@@ -1,5 +1,5 @@
 use eframe::{App, CreationContext};
-use egui::{Color32, Ui};
+use egui::{Color32, Ui, ImageData, ColorImage, TextureOptions, TextureId, Rect, pos2, Sense, Vec2};
 use egui_snarl::{
     ui::{PinInfo, SnarlStyle, SnarlViewer},
     InPin, InPinId, NodeId, OutPin, Snarl,
@@ -146,6 +146,41 @@ impl SnarlViewer<Node> for NodeViewer {
         NUMBER_COLOR
     }
 
+    fn has_body(&mut self, node: &Node) -> bool {
+        match node {
+            Node::Pixmap(_) => true,
+            _ => false,
+        }
+    }
+
+    fn show_body(
+        &mut self,
+        node_id: NodeId,
+        inputs: &[InPin],
+        outputs: &[OutPin],
+        ui: &mut Ui,
+        scale: f32,
+        snarl: &mut Snarl<Node>,
+    ) {
+        match snarl[node_id] {
+            Node::Pixmap(ref pixmap) => {
+                let image_data = ColorImage::from_rgba_premultiplied([pixmap.width() as usize, pixmap.height() as usize], pixmap.data());
+                // TODO: Only upload here and allocate texture once
+                let texture = ui.ctx().load_texture("pixmap", image_data, TextureOptions::LINEAR);
+                let texture_id = TextureId::from(&texture);
+                // Draw
+                /*let rect = Rect{
+                    min: pos2(0.0, 0.0),
+                    max: pos2(pixmap.width() as f32, pixmap.height() as f32)
+                };*/
+                let uv = Rect{ min:pos2(0.0, 0.0), max:pos2(1.0, 1.0)};
+                let (rect, _) = ui.allocate_exact_size(Vec2::new(pixmap.width() as f32, pixmap.height() as f32), Sense::hover());
+                ui.painter().image(texture_id, rect, uv, Color32::WHITE);
+            },
+            _ => {},
+        }
+    }
+
     fn graph_menu(
         &mut self,
         pos: egui::Pos2,
@@ -163,7 +198,18 @@ impl SnarlViewer<Node> for NodeViewer {
             ui.close_menu();
         }
         if ui.button("Pixmap").clicked() {
-            snarl.insert_node(pos, Node::Pixmap(Pixmap::new(320, 200).unwrap()));
+            let mut pixmap = Pixmap::new(320, 200).unwrap();
+            let w = pixmap.width();
+            let h = pixmap.height();
+            for x in 0..w {
+                for y in 0..h {
+                    pixmap.data_mut()[4*(x + y * w) as usize] = (x + y) as u8;
+                    pixmap.data_mut()[4*(x + y * w) as usize + 1] = (x * y) as u8;
+                    pixmap.data_mut()[4*(x + y * w) as usize + 2] = 128;
+                    pixmap.data_mut()[4*(x + y * w) as usize + 3] = 0xff;
+                }
+            }
+            snarl.insert_node(pos, Node::Pixmap(pixmap));
             ui.close_menu();
         }
     }
