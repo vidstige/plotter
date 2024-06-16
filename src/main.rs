@@ -26,6 +26,7 @@ trait Node {
     fn show_body(&self, ui: &mut Ui);
 }
 
+// --- Constant ----------------------
 struct ConstantNode {
     value: f32,    
 }
@@ -41,6 +42,7 @@ impl Node for ConstantNode {
     fn show_body(&self, _ui: &mut Ui) { }
 }
 
+// --- NormalDistribution ----------------------
 struct NormalDistributionNode {
     my: f32,
     sigma: f32,
@@ -57,6 +59,7 @@ impl Node for NormalDistributionNode {
     fn show_body(&self, _ui: &mut Ui) { }
 }
 
+// --- Pixmap ----------------------
 struct PixmapNode {
     pixmap: Pixmap,
 }
@@ -84,11 +87,28 @@ impl Node for PixmapNode {
     }
 }
 
+// --- Sample2 ----------------------
+struct Sample2Node {
+    count: usize,
+}
+impl Sample2Node {
+    fn new(count: usize) -> Sample2Node {
+        Sample2Node { count }
+    }
+}
+impl Node for Sample2Node {
+    fn title(&self) -> &str { "Sample" }
+    fn inputs(&self) -> &[Kind] { &[Kind::USize, Kind::Points2] }
+    fn outputs(&self) -> &[Kind] { &[Kind::Points2] }
+    fn show_body(&self, ui: &mut Ui) { }
+}
+
 struct NodeViewer;
 
 impl SnarlViewer<Box<dyn Node>> for NodeViewer {
     fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<Box<dyn Node>>) {
-        // TODO: Check input/output types
+        //
+        
         for &remote in &to.remotes {
             snarl.disconnect(remote, to.id);
         }
@@ -206,6 +226,10 @@ impl SnarlViewer<Box<dyn Node>> for NodeViewer {
         }
         if ui.button("Number").clicked() {
             snarl.insert_node(pos, Box::new(ConstantNode::new(0.0)));
+            ui.close_menu();
+        }
+        if ui.button("Sample").clicked() {
+            snarl.insert_node(pos, Box::new(Sample2Node::new(256)));
             ui.close_menu();
         }
         if ui.button("Pixmap").clicked() {
