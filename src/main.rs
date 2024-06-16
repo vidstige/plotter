@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use eframe::{App, CreationContext};
 use egui::{Color32, Ui};
 use egui_snarl::{
@@ -8,6 +6,7 @@ use egui_snarl::{
 };
 use rand::{distributions::Distribution, rngs::ThreadRng};
 use rand_distr::Normal;
+use tiny_skia::Pixmap;
 
 const NUMBER_COLOR: Color32 = Color32::from_rgb(0xb0, 0x00, 0x00);
 const UNTYPED_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
@@ -19,6 +18,8 @@ enum Node {
     /// Value node with a single output.
     /// The value is editable in UI.
     Number(f32),
+
+    Pixmap(Pixmap),
 }
 
 impl Node {
@@ -38,6 +39,7 @@ struct NodeViewer;
 
 impl SnarlViewer<Node> for NodeViewer {
     fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<Node>) {
+        // TODO: Check input/output types
         for &remote in &to.remotes {
             snarl.disconnect(remote, to.id);
         }
@@ -47,15 +49,17 @@ impl SnarlViewer<Node> for NodeViewer {
 
     fn title(&mut self, node: &Node) -> String {
         match node {
-            Node::NormalDistribution(_, _) => "Normal Distribution".to_owned(),
-            Node::Number(_) => "Number".to_owned(),
-        }
+            Node::NormalDistribution(_, _) => "Normal Distribution",
+            Node::Number(_) => "Number",
+            Node::Pixmap(_) => "Pixmap",
+        }.to_owned()
     }
 
     fn inputs(&mut self, node: &Node) -> usize {
         match node {
             Node::NormalDistribution(_, _) => 2,
             Node::Number(_) => 0,
+            Node::Pixmap(_) => 1,
         }
     }
 
@@ -63,6 +67,7 @@ impl SnarlViewer<Node> for NodeViewer {
         match node {
             Node::NormalDistribution(_, _) => 1,
             Node::Number(_) => 1,
+            Node::Pixmap(_) => 0,
         }
     }
 
@@ -70,7 +75,7 @@ impl SnarlViewer<Node> for NodeViewer {
         &mut self,
         pin: &InPin,
         ui: &mut Ui,
-        scale: f32,
+        _scale: f32,
         snarl: &mut Snarl<Node>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
@@ -84,6 +89,9 @@ impl SnarlViewer<Node> for NodeViewer {
             Node::Number(_) => {
                 unreachable!("Number node has no inputs")
             }
+            Node::Pixmap(_) => {
+                PinInfo::square().with_fill(NUMBER_COLOR)
+            }
         }
     }
 
@@ -95,13 +103,16 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl: &mut Snarl<Node>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
-            Node::NormalDistribution(my, sigma) => {
+            Node::NormalDistribution(_, _) => {
                 // TODO: Use another color
                 PinInfo::square().with_fill(NUMBER_COLOR)
             }
             Node::Number(ref mut value) => {
                 assert_eq!(pin.id.output, 0, "Number node has only one output");
                 ui.add(egui::DragValue::new(value));
+                PinInfo::square().with_fill(NUMBER_COLOR)
+            }
+            Node::Pixmap(_) => {
                 PinInfo::square().with_fill(NUMBER_COLOR)
             }
         }
@@ -114,11 +125,14 @@ impl SnarlViewer<Node> for NodeViewer {
         snarl: &mut Snarl<Node>,
     ) -> Color32 {
         match snarl[pin.id.node] {
-            Node::NormalDistribution(my, sigma) => {
+            Node::NormalDistribution(_, _) => {
                 NUMBER_COLOR
             }
             Node::Number(_) => {
                 unreachable!("Number node has no inputs")
+            }
+            Node::Pixmap(_) => {
+                NUMBER_COLOR
             }
         }
     }
@@ -129,10 +143,7 @@ impl SnarlViewer<Node> for NodeViewer {
         _style: &egui::Style,
         snarl: &mut Snarl<Node>,
     ) -> Color32 {
-        match snarl[pin.id.node] {
-            Node::NormalDistribution(_, _) => NUMBER_COLOR,
-            Node::Number(_) => NUMBER_COLOR,
-        }
+        NUMBER_COLOR
     }
 
     fn graph_menu(
@@ -149,6 +160,10 @@ impl SnarlViewer<Node> for NodeViewer {
         }
         if ui.button("Number").clicked() {
             snarl.insert_node(pos, Node::Number(0.0));
+            ui.close_menu();
+        }
+        if ui.button("Pixmap").clicked() {
+            snarl.insert_node(pos, Node::Pixmap(Pixmap::new(320, 200).unwrap()));
             ui.close_menu();
         }
     }
@@ -189,6 +204,7 @@ impl SnarlViewer<Node> for NodeViewer {
             Node::Number(_) => {
                 ui.label("Outputs integer value");
             }
+            _ => {}
         }
     }
 }
