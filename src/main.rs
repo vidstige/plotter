@@ -173,8 +173,8 @@ fn main() -> io::Result<()> {
     //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
-        velocity: 0.5 * field.at(p),
-        //velocity: Vec2::new(0.0, 0.5),
+        //velocity: 0.2 * field.at(p),
+        velocity: Vec2::new(0.0, 0.5),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
