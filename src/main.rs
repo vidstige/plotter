@@ -22,20 +22,15 @@ enum Node {
 
     /// Value node with a single output.
     /// The value is editable in UI.
-    Number(f64),
+    Number(f32),
 
     /// Expression node with a single output.
     /// It has number of inputs equal to number of variables in the expression.
     ExprNode(ExprNode),
 }
 
-enum Kind {
-    Void,
-    F32,
-}
-
 impl Node {
-    fn number_out(&self) -> f64 {
+    fn number_out(&self) -> f32 {
         match self {
             Node::Number(value) => *value,
             Node::ExprNode(expr_node) => expr_node.eval(),
@@ -43,8 +38,13 @@ impl Node {
         }
     }
 
-    fn number_in(&mut self, idx: usize) -> &mut f64 {
+    fn number_in(&mut self, idx: usize) -> &mut f32 {
         match self {
+            Node::NormalDistribution(my, sigma) => match idx {
+                0 => my,
+                1 => sigma,
+                _ => unreachable!(),
+            }
             Node::ExprNode(expr_node) => &mut expr_node.values[idx - 1],
             _ => unreachable!(),
         }
@@ -119,7 +119,8 @@ impl SnarlViewer<Node> for NodeViewer {
     ) -> PinInfo {
         match snarl[pin.id.node] {
             Node::NormalDistribution(_, _) => {
-                // TODO?
+                let node = &mut snarl[pin.id.node];
+                ui.add(egui::DragValue::new(node.number_in(pin.id.input)));
                 PinInfo::square().with_fill(NUMBER_COLOR)
             },
             Node::Sink => {
@@ -179,7 +180,7 @@ impl SnarlViewer<Node> for NodeViewer {
                                 expr_node.bindings.iter().map(String::clone),
                                 expr_node.values.iter().copied(),
                             )
-                            .collect::<HashMap<String, f64>>();
+                            .collect::<HashMap<String, f32>>();
 
                             let mut new_bindings = Vec::new();
                             expr_node.expr.extend_bindings(&mut new_bindings);
@@ -407,7 +408,7 @@ impl SnarlViewer<Node> for NodeViewer {
 struct ExprNode {
     text: String,
     bindings: Vec<String>,
-    values: Vec<f64>,
+    values: Vec<f32>,
     expr: Expr,
 }
 
@@ -421,7 +422,7 @@ impl ExprNode {
         }
     }
 
-    fn eval(&self) -> f64 {
+    fn eval(&self) -> f32 {
         self.expr.eval(&self.bindings, &self.values)
     }
 }
@@ -441,7 +442,7 @@ enum BinOp {
 
 enum Expr {
     Var(String),
-    Val(f64),
+    Val(f32),
     UnOp {
         op: UnOp,
         expr: Box<Expr>,
@@ -454,7 +455,7 @@ enum Expr {
 }
 
 impl Expr {
-    fn eval(&self, bindings: &[String], args: &[f64]) -> f64 {
+    fn eval(&self, bindings: &[String], args: &[f32]) -> f32 {
         let binding_index =
             |name: &str| bindings.iter().position(|binding| binding == name).unwrap();
 
@@ -556,7 +557,7 @@ impl syn::parse::Parse for Expr {
         //     lhs = expr;
         } else if lookahead.peek(syn::LitInt) {
             let lit = input.parse::<syn::LitInt>()?;
-            let value = lit.base10_parse::<f64>()?;
+            let value = lit.base10_parse::<f32>()?;
             let expr = Expr::Val(value);
             if input.is_empty() {
                 return Ok(expr);
@@ -599,7 +600,7 @@ impl Expr {
             lhs = expr;
         } else if lookahead.peek(syn::LitFloat) {
             let lit = input.parse::<syn::LitFloat>()?;
-            let value = lit.base10_parse::<f64>()?;
+            let value = lit.base10_parse::<f32>()?;
             let expr = Expr::UnOp {
                 op,
                 expr: Box::new(Expr::Val(value)),
@@ -610,7 +611,7 @@ impl Expr {
             lhs = expr;
         } else if lookahead.peek(syn::LitInt) {
             let lit = input.parse::<syn::LitInt>()?;
-            let value = lit.base10_parse::<f64>()?;
+            let value = lit.base10_parse::<f32>()?;
             let expr = Expr::UnOp {
                 op,
                 expr: Box::new(Expr::Val(value)),
@@ -651,14 +652,14 @@ impl Expr {
             }
         } else if lookahead.peek(syn::LitFloat) {
             let lit = input.parse::<syn::LitFloat>()?;
-            let value = lit.base10_parse::<f64>()?;
+            let value = lit.base10_parse::<f32>()?;
             rhs = Box::new(Expr::Val(value));
             if input.is_empty() {
                 return Ok(Expr::BinOp { lhs, op, rhs });
             }
         } else if lookahead.peek(syn::LitInt) {
             let lit = input.parse::<syn::LitInt>()?;
-            let value = lit.base10_parse::<f64>()?;
+            let value = lit.base10_parse::<f32>()?;
             rhs = Box::new(Expr::Val(value));
             if input.is_empty() {
                 return Ok(Expr::BinOp { lhs, op, rhs });
@@ -774,7 +775,7 @@ fn main() {
     });
 }
 
-fn format_float(v: f64) -> String {
+fn format_float(v: f32) -> String {
     let v = (v * 1000.0).round() / 1000.0;
     format!("{}", v)
 }
