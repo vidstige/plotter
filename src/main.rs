@@ -25,7 +25,7 @@ trait Node {
     fn outputs(&self) -> &[Kind];
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin);
     fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin);
-    fn show_body(&self, ui: &mut Ui);
+    fn show_body(&mut self, ui: &mut Ui);
 }
 
 // --- Constant ----------------------
@@ -48,7 +48,9 @@ impl Node for ConstantNode {
             _ => unreachable!("Constant only have one output")
         };
     } 
-    fn show_body(&self, _ui: &mut Ui) { }
+    fn show_body(&mut self, ui: &mut Ui) {
+        ui.add(egui::DragValue::new(&mut self.value));
+    }
 }
 
 // --- NormalDistribution ----------------------
@@ -75,7 +77,7 @@ impl Node for NormalDistributionNode {
             };
         }
     }
-    fn show_body(&self, _ui: &mut Ui) { }
+    fn show_body(&mut self, _ui: &mut Ui) { }
 }
 
 // --- Pixmap ----------------------
@@ -93,7 +95,7 @@ impl Node for PixmapNode {
     fn outputs(&self) -> &[Kind] { &[] }
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
     fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) { }
-    fn show_body(&self, ui: &mut Ui) {
+    fn show_body(&mut self, ui: &mut Ui) {
         let pixmap = &self.pixmap;
         let image_data = ColorImage::from_rgba_premultiplied([pixmap.width() as usize, pixmap.height() as usize], pixmap.data());
         // TODO: Only upload here and allocate texture once
@@ -120,7 +122,7 @@ impl Node for Sample2Node {
     fn outputs(&self) -> &[Kind] { &[Kind::Points2] }
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
     fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) { }
-    fn show_body(&self, ui: &mut Ui) { }
+    fn show_body(&mut self, ui: &mut Ui) { }
 }
 
 struct NodeViewer;
@@ -166,7 +168,7 @@ impl SnarlViewer<Box<dyn Node>> for NodeViewer {
         _scale: f32,
         snarl: &mut Snarl<Box<dyn Node>>,
     ) -> PinInfo {
-        snarl[pin.id.node].output_ui(ui, pin);
+        //snarl[pin.id.node].output_ui(ui, pin);
         PinInfo::square().with_fill(NUMBER_COLOR)
         /*match snarl[pin.id.node] {
             Node::NormalDistribution(_, _) => {
