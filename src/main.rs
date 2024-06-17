@@ -24,7 +24,6 @@ trait Node {
     fn inputs(&self) -> &[Kind];
     fn outputs(&self) -> &[Kind];
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin);
-    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin);
     fn show_body(&mut self, ui: &mut Ui);
 }
 
@@ -42,12 +41,6 @@ impl Node for ConstantNode {
     fn inputs(&self) -> &[Kind] { &[] }
     fn outputs(&self) -> &[Kind] { &[Kind::F32] }
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
-    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) {
-        match pin.id.output {
-            0 => ui.add(egui::DragValue::new(&mut self.value)),
-            _ => unreachable!("Constant only have one output")
-        };
-    } 
     fn show_body(&mut self, ui: &mut Ui) {
         ui.add(egui::DragValue::new(&mut self.value));
     }
@@ -67,7 +60,6 @@ impl Node for NormalDistributionNode {
     fn title(&self) -> &str { "Normal distribution" }
     fn inputs(&self) -> &[Kind] { &[Kind::F32, Kind::F32] }
     fn outputs(&self) -> &[Kind] { &[Kind::F32] }
-    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) { }
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) {
         if pin.remotes.len() == 0 {
             match pin.id.input {
@@ -94,7 +86,6 @@ impl Node for PixmapNode {
     fn inputs(&self) -> &[Kind] { &[Kind::Pixmap] }
     fn outputs(&self) -> &[Kind] { &[] }
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
-    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) { }
     fn show_body(&mut self, ui: &mut Ui) {
         let pixmap = &self.pixmap;
         let image_data = ColorImage::from_rgba_premultiplied([pixmap.width() as usize, pixmap.height() as usize], pixmap.data());
@@ -121,7 +112,6 @@ impl Node for Sample2Node {
     fn inputs(&self) -> &[Kind] { &[Kind::USize, Kind::Points2] }
     fn outputs(&self) -> &[Kind] { &[Kind::Points2] }
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
-    fn output_ui(&mut self, ui: &mut Ui, pin: &OutPin) { }
     fn show_body(&mut self, ui: &mut Ui) { }
 }
 
@@ -168,7 +158,6 @@ impl SnarlViewer<Box<dyn Node>> for NodeViewer {
         _scale: f32,
         snarl: &mut Snarl<Box<dyn Node>>,
     ) -> PinInfo {
-        //snarl[pin.id.node].output_ui(ui, pin);
         PinInfo::square().with_fill(NUMBER_COLOR)
         /*match snarl[pin.id.node] {
             Node::NormalDistribution(_, _) => {
