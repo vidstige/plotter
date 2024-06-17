@@ -159,20 +159,6 @@ impl SnarlViewer<Box<dyn Node>> for NodeViewer {
         snarl: &mut Snarl<Box<dyn Node>>,
     ) -> PinInfo {
         PinInfo::square().with_fill(NUMBER_COLOR)
-        /*match snarl[pin.id.node] {
-            Node::NormalDistribution(_, _) => {
-                // TODO: Use another color
-                PinInfo::square().with_fill(NUMBER_COLOR)
-            }
-            Node::Number(ref mut value) => {
-                assert_eq!(pin.id.output, 0, "Number node has only one output");
-                ui.add(egui::DragValue::new(value));
-                PinInfo::square().with_fill(NUMBER_COLOR)
-            }
-            Node::Pixmap(_) => {
-                PinInfo::square().with_fill(NUMBER_COLOR)
-            }
-        }*/
     }
 
     fn input_color(
