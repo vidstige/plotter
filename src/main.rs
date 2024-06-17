@@ -1,5 +1,5 @@
 use eframe::{App, CreationContext};
-use egui::{Color32, Ui, ImageData, ColorImage, TextureOptions, TextureId, Rect, pos2, Sense, Vec2};
+use egui::{Color32, Ui, ImageData, ColorImage, TextureOptions, TextureId, Rect, pos2, Sense, Vec2, Response};
 use egui_snarl::{
     ui::{PinInfo, SnarlStyle, SnarlViewer},
     InPin, InPinId, NodeId, OutPin, Snarl,
@@ -61,13 +61,14 @@ impl Node for NormalDistributionNode {
     fn inputs(&self) -> &[Kind] { &[Kind::F32, Kind::F32] }
     fn outputs(&self) -> &[Kind] { &[Kind::F32] }
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) {
-        if pin.remotes.len() == 0 {
-            match pin.id.input {
-                0 => ui.add(egui::DragValue::new(&mut self.my)),
-                1 => ui.add(egui::DragValue::new(&mut self.sigma)),
-                _ => unreachable!("NormalDistributionNode only have two inputs"),
-            };
+        if pin.remotes.len() > 0 {
+            return;
         }
+        match pin.id.input {
+            0 => ui.add(egui::DragValue::new(&mut self.my)),
+            1 => ui.add(egui::DragValue::new(&mut self.sigma)),
+            _ => unreachable!("NormalDistributionNode only have two inputs"),
+        };
     }
     fn show_body(&mut self, _ui: &mut Ui) { }
 }
@@ -111,7 +112,14 @@ impl Node for Sample2Node {
     fn title(&self) -> &str { "Sample" }
     fn inputs(&self) -> &[Kind] { &[Kind::USize, Kind::Points2] }
     fn outputs(&self) -> &[Kind] { &[Kind::Points2] }
-    fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) { }
+    fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) {
+        if pin.remotes.len() > 0 {
+            return;
+        }
+        if pin.id.input == 0 {
+            ui.add(egui::DragValue::new(&mut self.count));
+        }
+    }
     fn show_body(&mut self, ui: &mut Ui) { }
 }
 
