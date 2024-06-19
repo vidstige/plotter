@@ -12,6 +12,7 @@ const NUMBER_COLOR: Color32 = Color32::from_rgb(0xb0, 0x00, 0x00);
 const UNTYPED_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
 
+#[derive(Clone)]
 enum Kind {
     F32,
     USize,
@@ -110,7 +111,7 @@ impl Sample2Node {
 }
 impl Node for Sample2Node {
     fn title(&self) -> &str { "Sample" }
-    fn inputs(&self) -> &[Kind] { &[Kind::USize, Kind::Points2] }
+    fn inputs(&self) -> &[Kind] { &[Kind::USize, Kind::F32, Kind::F32] }
     fn outputs(&self) -> &[Kind] { &[Kind::Points2] }
     fn input_ui(&mut self, ui: &mut Ui, pin: &InPin) {
         if pin.remotes.len() > 0 {
@@ -195,12 +196,17 @@ impl SnarlViewer<Box<dyn Node>> for NodeViewer {
     fn show_body(
         &mut self,
         node_id: NodeId,
-        _inputs: &[InPin],
+        inputs: &[InPin],
         _outputs: &[OutPin],
         ui: &mut Ui,
         _scale: f32,
         snarl: &mut Snarl<Box<dyn Node>>,
     ) {
+        for input in inputs {
+            //let kind = &snarl[input.id.node].inputs()[input.id.input];
+            //snarl[node_id].input_value(input.id.input)
+            //node.receive();
+        }
         snarl[node_id].show_body(ui);
     }
 
