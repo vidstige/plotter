@@ -195,24 +195,25 @@ fn main() -> io::Result<()> {
         }
 
         // draw traces
-        if frame > 10 {
-            for particle_trace in &traces {
-                let mut polyline = Polyline2::new();
-                for screen in particle_trace {
-                    if contains(&resolution, &screen.xy()) {
-                        // back project and ray trace to find occlusions
-                        let ray = backproject(&screen.xy(), &model, &projection, viewport);
-                        if let Some(intersection) = trace(&ray, &geometry, near, far) {
-                            let traced_screen = project(&intersection, &model, &projection, viewport);
-                            // handle occlusions
-                            if screen.z - traced_screen.z < 0.0001 {
-                                polyline.add(screen.xy());
-                            }
+        if frame < 10 {
+            continue;;
+        }
+        for particle_trace in &traces {
+            let mut polyline = Polyline2::new();
+            for screen in particle_trace {
+                if contains(&resolution, &screen.xy()) {
+                    // back project and ray trace to find occlusions
+                    let ray = backproject(&screen.xy(), &model, &projection, viewport);
+                    if let Some(intersection) = trace(&ray, &geometry, near, far) {
+                        let traced_screen = project(&intersection, &model, &projection, viewport);
+                        // handle occlusions
+                        if screen.z - traced_screen.z < 0.0001 {
+                            polyline.add(screen.xy());
                         }
                     }
                 }
-                polylines.push(polyline);
             }
+            polylines.push(polyline);
         }
 
         // render to pixmap
