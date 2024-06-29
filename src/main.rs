@@ -1,4 +1,4 @@
-use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque, f64::consts::TAU};
+use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque, f32::consts::TAU};
 
 use plotter::eq::{linesearch, newton_raphson};
 use plotter::geometries::{sphere::Sphere, hole::Hole};
@@ -9,7 +9,7 @@ use plotter::polyline::Polyline2;
 
 use rand::{distributions::Distribution, rngs::ThreadRng};
 use plotter::resolution::Resolution;
-use rand_distr::StandardNormal;
+use rand_distr::{StandardNormal, Uniform};
 use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
 
 fn cross2(vector: Vec2) -> Vec2 {
@@ -152,22 +152,22 @@ fn main() -> io::Result<()> {
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
 
-    let geometry = Hole::new();
-    //let geometry = Sphere::new();
+    //let geometry = Hole::new();
+    let geometry = Sphere::new();
 
     //let mut output = File::create(std::path::Path::new("output.raw"))?;
     let mut output = io::stdout().lock();
 
-    let positions: Vec<_> = (0..256)
-        .map(|_| sample_vec2(&distribution, &mut rng))
-        .filter(|position| position.magnitude_squared() > 0.3*0.3)
-        .collect();
-    //let semicircle = Uniform::new(0.0, 0.5*TAU).unwrap();
-    //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
+    //let positions: Vec<_> = (0..256)
+    //    .map(|_| sample_vec2(&distribution, &mut rng))
+    //    .filter(|position| position.magnitude_squared() > 0.3*0.3)
+    //    .collect();
+    let semicircle = Uniform::new(0.0 + 0.1, TAU - 0.1);
+    let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
-        velocity: 0.15 / field.at(p).magnitude_squared() * field.at(p),
-        //velocity: Vec2::new(0.0, 0.5),
+        //velocity: 0.15 / field.at(p).magnitude_squared() * field.at(p),
+        velocity: Vec2::new(0.0, 0.1),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
@@ -175,16 +175,22 @@ fn main() -> io::Result<()> {
     for frame in 0..512 {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
-            // euler
+            // substepping
             for _ in 0..5 {
+                // euler
+                //let a = acceleration(&geometry, &particle.position, &particle.velocity);
+                //particle.position += particle.velocity * dt;
+                //particle.velocity += a * dt;
+            
+                // verlet
                 let a = acceleration(&geometry, &particle.position, &particle.velocity);
-                particle.position += particle.velocity * dt;
-                particle.velocity += a * dt;
+                let new_position = particle.position + particle.velocity * dt + a * (dt * dt * 0.5);
+                let new_a = acceleration(&geometry, &new_position, &particle.velocity);
+                let new_velocity = particle.velocity + (a + new_a) * (dt * 0.5);
+                particle.position = new_position;
+                particle.velocity = new_velocity;
+                // TODO: acceleration could be stored to save time
             }
-
-            // evaluate surface at x, y
-            //let z = hole.z(&p);
-            //let world = Vec3::new(p.x, p.y, z);
             
             // project world cordinate into screen cordinate
             let world = geometry.evaluate(&particle.position);
