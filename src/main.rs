@@ -156,13 +156,16 @@ fn main() -> io::Result<()> {
     //let geometry = Sphere::new();
 
     let mut output = File::create(std::path::Path::new("output.raw"))?;
-    let positions: Vec<_> = (0..256).map(|_| sample_vec2(&distribution, &mut rng)).collect();
+    let positions: Vec<_> = (0..256)
+        .map(|_| sample_vec2(&distribution, &mut rng))
+        .filter(|position| position.magnitude_squared() > 0.2*0.2)
+        .collect();
     //let semicircle = Uniform::new(0.0, 0.5*TAU).unwrap();
     //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
-        //velocity: 0.2 * field.at(p),
-        velocity: Vec2::new(0.0, 0.5),
+        velocity: 0.02 / field.at(p).magnitude_squared() * field.at(p),
+        //velocity: Vec2::new(0.0, 0.5),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
@@ -170,28 +173,12 @@ fn main() -> io::Result<()> {
     for frame in 0..256 {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
-            // move according to field
-            /*let nabla = field.at(p);
-            let norm = nabla.norm();
-            let step = 0.01;
-            p.add_assign(nabla.scale(step / norm));*/
-
-            // integrate geodesic equation (d²u/dt²) + gamma^k_ij * (du^i/dt) * (du^j/dt) = 0
-            
-            // verlet
-            /*let a = acceleration(&geometry, &particle.position, &particle.velocity);
-            let new_position = particle.position + particle.velocity * dt + a * (dt * dt * 0.5);
-            let new_a = acceleration(&geometry, &new_position, &particle.velocity);
-            let new_velocity = particle.velocity + (a + new_a) * (dt * 0.5);
-            particle.position = new_position;
-            particle.velocity = new_velocity;
-            // TODO: acceleration could be stored to save time
-            */
-            
             // euler
-            let a = acceleration(&geometry, &particle.position, &particle.velocity);
-            particle.position += particle.velocity * dt;
-            particle.velocity += a * dt;
+            for _ in 0..15 {
+                let a = acceleration(&geometry, &particle.position, &particle.velocity);
+                particle.position += particle.velocity * dt;
+                particle.velocity += a * dt;
+            }
 
             // evaluate surface at x, y
             //let z = hole.z(&p);
