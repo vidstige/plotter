@@ -155,26 +155,28 @@ fn main() -> io::Result<()> {
     let geometry = Hole::new();
     //let geometry = Sphere::new();
 
-    let mut output = File::create(std::path::Path::new("output.raw"))?;
+    //let mut output = File::create(std::path::Path::new("output.raw"))?;
+    let mut output = io::stdout().lock();
+
     let positions: Vec<_> = (0..256)
         .map(|_| sample_vec2(&distribution, &mut rng))
-        .filter(|position| position.magnitude_squared() > 0.2*0.2)
+        .filter(|position| position.magnitude_squared() > 0.3*0.3)
         .collect();
     //let semicircle = Uniform::new(0.0, 0.5*TAU).unwrap();
     //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
-        velocity: 0.02 / field.at(p).magnitude_squared() * field.at(p),
+        velocity: 0.15 / field.at(p).magnitude_squared() * field.at(p),
         //velocity: Vec2::new(0.0, 0.5),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
     let dt = 1.0 / fps;
-    for frame in 0..256 {
+    for frame in 0..512 {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
             // euler
-            for _ in 0..15 {
+            for _ in 0..5 {
                 let a = acceleration(&geometry, &particle.position, &particle.velocity);
                 particle.position += particle.velocity * dt;
                 particle.velocity += a * dt;
@@ -196,7 +198,7 @@ fn main() -> io::Result<()> {
 
         // draw traces
         if frame < 10 {
-            continue;;
+            continue;
         }
         for particle_trace in &traces {
             let mut polyline = Polyline2::new();
@@ -225,7 +227,7 @@ fn main() -> io::Result<()> {
         paint.anti_alias = true;
 
         let mut stroke = Stroke::default();
-        stroke.width = 1.0;
+        stroke.width = 2.0;
 
         for polyline in polylines {
             let mut pb = PathBuilder::new();
