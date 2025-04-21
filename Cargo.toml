@@ -2,7 +2,15 @@
 name = "plotter"
 version = "0.1.0"
 edition = "2021"
-default-run = "plotter"
+default-run = "main"
+
+[[bin]]
+name = "main"
+path = "src/bin/main.rs"
+
+[[bin]]
+name = "animate"
+path = "src/bin/animate.rs"
 
 [dependencies]
 svg = "0.17.0"
