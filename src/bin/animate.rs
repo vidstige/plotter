@@ -1,14 +1,13 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, collections::VecDeque, f32::consts::TAU};
 
-use plotter::{eq::{linesearch, newton_raphson}, geometry::compute_gamma, iso_surface::IsoSurface};
+use plotter::{geometry::compute_gamma, iso_surface::IsoSurface, raytracer::{backproject, trace}};
 use plotter::geometries::{sphere::Sphere, hole::Hole};
 use plotter::geometry::Geometry;
-use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
-
+use plotter::resolution::Resolution;
 use plotter::polyline::Polyline2;
 
 use rand::{distributions::Distribution, rngs::ThreadRng};
-use plotter::resolution::Resolution;
+use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective};
 use rand_distr::{StandardNormal, Uniform};
 use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
 
@@ -26,38 +25,6 @@ impl Spiral {
     fn at(&self, p: &Vec2) -> Vec2 {
         cross2(p.sub(&self.center))
     }
-}
-
-struct Ray {
-    origin: Vec3,
-    direction: Vec3,
-}
-
-impl Ray {
-    fn at(&self, t: f32) -> Vec3 {
-        self.origin.add(self.direction.scale(t))
-    }
-}
-
-fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec4) -> Ray {
-    let world = unproject(&Vec3::new(screen.x, screen.y, 1.0), &model, &projection, viewport);
-    // recover eye position
-    let model_inverse = model.try_inverse().unwrap();
-    let eye = model_inverse.column(3).xyz();
-
-    Ray{ origin: eye, direction: world.sub(eye).normalize() }
-}
-
-fn trace<S: IsoSurface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
-    // first linesearch to find rough estimate
-    let f = |t| surface.iso_level(&ray.at(t));
-    if let Some((lo, hi)) = linesearch(f, lo, hi, 10) {
-        // fine tune with newton_raphson
-        if let Some(t) = newton_raphson(f, 0.5 * (hi + lo)) {
-            return Some(ray.at(t));
-        }
-    }
-    None
 }
 
 fn contains(resolution: &Resolution, point: &Vec2) -> bool {
