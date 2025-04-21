@@ -1,6 +1,6 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, collections::VecDeque, f32::consts::TAU};
 
-use plotter::{eq::{linesearch, newton_raphson}, geometry::compute_gamma};
+use plotter::{eq::{linesearch, newton_raphson}, geometry::compute_gamma, iso_surface::IsoSurface};
 use plotter::geometries::{sphere::Sphere, hole::Hole};
 use plotter::geometry::Geometry;
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
@@ -46,22 +46,6 @@ fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec4) -
     let eye = model_inverse.column(3).xyz();
 
     Ray{ origin: eye, direction: world.sub(eye).normalize() }
-}
-
-trait IsoSurface {
-    fn iso_level(&self, position: &Vec3) -> f32;
-}
-
-impl IsoSurface for Hole {
-    fn iso_level(&self, position: &Vec3) -> f32 {
-        self.z(&position.xy()) - position.z
-    }
-}
-
-impl IsoSurface for Sphere {
-    fn iso_level(&self, position: &Vec3) -> f32 {
-        position.norm() - 1.0
-    }
 }
 
 fn trace<S: IsoSurface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
