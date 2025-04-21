@@ -1,6 +1,6 @@
-use std::{ops::{Sub, Add}, io::{self, Write}, fs::File, collections::VecDeque, f32::consts::TAU};
+use std::{ops::{Sub, Add}, io::{self, Write}, collections::VecDeque, f32::consts::TAU};
 
-use plotter::eq::{linesearch, newton_raphson};
+use plotter::{eq::{linesearch, newton_raphson}, geometry::compute_gamma};
 use plotter::geometries::{sphere::Sphere, hole::Hole};
 use plotter::geometry::Geometry;
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective, unproject, Mat4};
@@ -85,37 +85,6 @@ fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> V
         distribution.sample(rng),
         distribution.sample(rng),
     )
-}
-
-// return Christoffel symbols with index k, i, j
-fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
-    let metric = geometry.metric(p);
-    let maybe_inverse_metric = metric.try_inverse();
-    if maybe_inverse_metric.is_none() {
-        println!("could not invert {:?}", metric);
-    }
-    let inverse_metric = maybe_inverse_metric.unwrap();
-    // compute all second order partial derivatives
-    let d2: [[Vec3; 2]; 2] = [ 
-        [geometry.du().du().evaluate(p), geometry.du().dv().evaluate(p)],
-        [geometry.dv().du().evaluate(p), geometry.dv().dv().evaluate(p)],
-    ];
-    // compute first order partial derivatives
-    let d: [Vec3; 2] = [geometry.du().evaluate(p), geometry.dv().evaluate(p)];
-
-    // compute tensor product gamma^k_ij = (d²R/du^i du^j) * (dR/du^l) * (g^-1)^lk
-    // the index l is thus summed over
-    let mut tmp = [[[0.0; 2]; 2]; 2];
-    for k in 0..2 {
-        for i in 0..2 {
-            for j in 0..2 {
-                for l in 0..2 {
-                    tmp[k][i][j] += d2[i][j].dot(&d[l]) * inverse_metric[(l, k)];
-                }
-            }
-        }
-    }
-    tmp
 }
 
 fn acceleration(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2) -> Vec2 {

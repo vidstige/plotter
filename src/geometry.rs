@@ -35,3 +35,34 @@ pub trait Geometry {
         )
     }
 }
+
+// return Christoffel symbols with index k, i, j
+pub fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
+    let metric = geometry.metric(p);
+    let maybe_inverse_metric = metric.try_inverse();
+    if maybe_inverse_metric.is_none() {
+        println!("could not invert {:?}", metric);
+    }
+    let inverse_metric = maybe_inverse_metric.unwrap();
+    // compute all second order partial derivatives
+    let d2: [[Vec3; 2]; 2] = [ 
+        [geometry.du().du().evaluate(p), geometry.du().dv().evaluate(p)],
+        [geometry.dv().du().evaluate(p), geometry.dv().dv().evaluate(p)],
+    ];
+    // compute first order partial derivatives
+    let d: [Vec3; 2] = [geometry.du().evaluate(p), geometry.dv().evaluate(p)];
+
+    // compute tensor product gamma^k_ij = (d²R/du^i du^j) * (dR/du^l) * (g^-1)^lk
+    // the index l is thus summed over
+    let mut tmp = [[[0.0; 2]; 2]; 2];
+    for k in 0..2 {
+        for i in 0..2 {
+            for j in 0..2 {
+                for l in 0..2 {
+                    tmp[k][i][j] += d2[i][j].dot(&d[l]) * inverse_metric[(l, k)];
+                }
+            }
+        }
+    }
+    tmp
+}
