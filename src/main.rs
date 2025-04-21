@@ -183,13 +183,50 @@ fn main() -> io::Result<()> {
                 //particle.velocity += a * dt;
             
                 // verlet
-                let a = acceleration(&geometry, &particle.position, &particle.velocity);
+                /*let a = acceleration(&geometry, &particle.position, &particle.velocity);
                 let new_position = particle.position + particle.velocity * dt + a * (dt * dt * 0.5);
                 let new_a = acceleration(&geometry, &new_position, &particle.velocity);
                 let new_velocity = particle.velocity + (a + new_a) * (dt * 0.5);
                 particle.position = new_position;
                 particle.velocity = new_velocity;
                 // TODO: acceleration could be stored to save time
+                */
+
+                // implicit euler with fixed point
+                
+                // Fixed-point iteration (from ChatGPT)
+                // Initial guess using explicit Euler
+                let x = particle.position;
+                let v = particle.velocity;
+                let mut x_next = x + dt * v;
+                let mut v_next = v;
+                for _ in 0..10 {
+                    let gamma = compute_gamma(&geometry, &x_next);
+
+                    // Compute acceleration a^k = Γ^k_ij v^i v^j
+                    let mut acc = Vec2::zeros();
+                    for k in 0..2 {
+                        for i in 0..2 {
+                            for j in 0..2 {
+                                acc[k] += gamma[k][i][j] * v_next[i] * v_next[j];
+                            }
+                        }
+                    }
+
+                    let v_new = v - dt * acc;
+                    let x_new = x + dt * v_new;
+
+                    let dx = x_new - x_next;
+                    let dv = v_new - v_next;
+
+                    x_next = x_new;
+                    v_next = v_new;
+                    if dx.norm_squared() + dv.norm_squared() < 1e-9 {
+                        break;
+                    }
+                }
+                particle.position = x_next;
+                particle.velocity = v_next;
             }
             
             // project world cordinate into screen cordinate
