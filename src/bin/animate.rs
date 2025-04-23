@@ -27,12 +27,11 @@ fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> V
 fn acceleration(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2) -> Vec2 {
     let gamma = compute_gamma(geometry, position);
     let mut a = Vec2::zeros();
-    let u = velocity.as_slice();
     // tensor sum
     for k in 0..2 {
         for i in 0..2 {
             for j in 0..2 {
-                a[k] += -gamma[k][i][j] * u[i] * u[j];
+                a[k] += -gamma[k][i][j] * velocity[i] * velocity[j];
             }
         }
     }
