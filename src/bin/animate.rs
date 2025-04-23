@@ -42,6 +42,11 @@ struct Particle {
     velocity: Vec2,
 }
 
+fn euler(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
+    let a = acceleration(geometry, position, &velocity);
+    (position + velocity * dt, velocity + a * dt)
+}
+
 fn main() -> io::Result<()> {
     let resolution = Resolution::new(506, 253);
 
@@ -80,10 +85,8 @@ fn main() -> io::Result<()> {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
             // euler
-            //let a = acceleration(&geometry, &particle.position, &particle.velocity);
-            //particle.position += particle.velocity * dt;
-            //particle.velocity += a * dt;
-        
+            (particle.position, particle.velocity) = euler(&geometry, &particle.position, &particle.velocity, dt);
+
             // verlet
             /*let a = acceleration(&geometry, &particle.position, &particle.velocity);
             let new_position = particle.position + particle.velocity * dt + a * (dt * dt * 0.5);
@@ -98,7 +101,7 @@ fn main() -> io::Result<()> {
             
             // Fixed-point iteration (from ChatGPT)
             // Initial guess using explicit Euler
-            let x = particle.position;
+            /*let x = particle.position;
             let v = particle.velocity;
             let mut x_next = x + dt * v;
             let mut v_next = v;
@@ -129,7 +132,8 @@ fn main() -> io::Result<()> {
             }
             particle.position = x_next;
             particle.velocity = v_next;
-            
+            */
+
             // project world cordinate into screen cordinate
             let world = geometry.evaluate(&particle.position);
             let screen = project(&world, &model, &projection, viewport);
