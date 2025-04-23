@@ -4,6 +4,7 @@ pub mod geometries {
     pub mod sphere;
 }
 pub mod fields;
+pub mod integrate;
 pub mod iso_surface;
 pub mod resolution;
 pub mod eq;

@@ -66,3 +66,19 @@ pub fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
     }
     tmp
 }
+
+// Compute acceleration: a^k = Γ^k_ij v^i v^j
+// This is the solution to the geodesic equation
+pub fn acceleration(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2) -> Vec2 {
+    let gamma = compute_gamma(geometry, position);
+    let mut a = Vec2::zeros();
+    // tensor sum
+    for k in 0..2 {
+        for i in 0..2 {
+            for j in 0..2 {
+                a[k] += -gamma[k][i][j] * velocity[i] * velocity[j];
+            }
+        }
+    }
+    a
+}

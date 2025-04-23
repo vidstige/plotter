@@ -1,6 +1,6 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, collections::VecDeque, f32::consts::TAU};
 
-use plotter::{fields::Spiral, geometry::compute_gamma, iso_surface::IsoSurface, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometry::{acceleration, compute_gamma}, integrate::implicit_euler, iso_surface::IsoSurface, raytracer::{backproject, trace}};
 use plotter::geometries::{sphere::Sphere, hole::Hole};
 use plotter::geometry::Geometry;
 use plotter::resolution::Resolution;
@@ -22,65 +22,9 @@ fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> V
     )
 }
 
-// Compute acceleration: a^k = Γ^k_ij v^i v^j
-// This is the solution to the geodesic equation
-fn acceleration(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2) -> Vec2 {
-    let gamma = compute_gamma(geometry, position);
-    let mut a = Vec2::zeros();
-    // tensor sum
-    for k in 0..2 {
-        for i in 0..2 {
-            for j in 0..2 {
-                a[k] += -gamma[k][i][j] * velocity[i] * velocity[j];
-            }
-        }
-    }
-    a
-}
-
 struct Particle {
     position: Vec2,
     velocity: Vec2,
-}
-
-// step functions
-fn euler(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
-    let a = acceleration(geometry, position, &velocity);
-    (position + velocity * dt, velocity + a * dt)
-}
-
-fn verlet(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
-    let a = acceleration(geometry, position, velocity);
-    let new_position = position + velocity * dt + a * (dt * dt * 0.5);
-    let new_a = acceleration(geometry, &new_position, &velocity);
-    // TODO: acceleration could be stored to save time next frame
-    let new_velocity = velocity + (a + new_a) * (dt * 0.5);
-    (new_position, new_velocity)
-}
-
-// Fixed-point iteration (from ChatGPT)
-fn implicit_euler(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
-    // Initial guess using explicit Euler
-    let x = *position;
-    let v = *velocity;
-    let mut x_next = x + dt * v;
-    let mut v_next = v;
-    for _ in 0..10 {
-        let acc = acceleration(geometry, position, &velocity);
-
-        let v_new = v - dt * acc;
-        let x_new = x + dt * v_new;
-
-        let dx = x_new - x_next;
-        let dv = v_new - v_next;
-
-        x_next = x_new;
-        v_next = v_new;
-        if dx.norm_squared() + dv.norm_squared() < 1e-9 {
-            break;
-        }
-    }
-    (x_next, v_next)
 }
 
 fn main() -> io::Result<()> {
@@ -120,13 +64,7 @@ fn main() -> io::Result<()> {
     for frame in 0..512 {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
-            // euler
-            //(particle.position, particle.velocity) = euler(&geometry, &particle.position, &particle.velocity, dt);
-
-            // verlet
-            //(particle.position, particle.velocity) = verlet(&geometry, &particle.position, &particle.velocity, dt);
-
-            // implicit euler
+            // take integration step
             (particle.position, particle.velocity) = implicit_euler(&geometry, &particle.position, &particle.velocity, dt);
 
             // project world cordinate into screen cordinate
