@@ -70,7 +70,7 @@ impl Paper {
     }
 
     // re-orders poly-lines for faster plotting
-    pub(crate) fn optimize(&mut self) {
+    pub fn optimize(&mut self) {
         // Simple greedy algorithm for the travelling salesmen
 
         // start at idrawpenplotter home (top right)

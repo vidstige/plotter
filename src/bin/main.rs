@@ -67,6 +67,7 @@ fn main() -> io::Result<()> {
         paper.add(polyline);
     }
 
+    paper.optimize();
     paper.save("output.svg")?;
 
     Ok(())
