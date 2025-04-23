@@ -57,6 +57,41 @@ fn verlet(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -
     (new_position, new_velocity)
 }
 
+// Fixed-point iteration (from ChatGPT)
+fn implicit_euler(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
+    // Initial guess using explicit Euler
+    let x = *position;
+    let v = *velocity;
+    let mut x_next = x + dt * v;
+    let mut v_next = v;
+    for _ in 0..10 {
+        let gamma = compute_gamma(geometry, &x_next);
+
+        // Compute acceleration a^k = Γ^k_ij v^i v^j
+        let mut acc = Vec2::zeros();
+        for k in 0..2 {
+            for i in 0..2 {
+                for j in 0..2 {
+                    acc[k] += gamma[k][i][j] * v_next[i] * v_next[j];
+                }
+            }
+        }
+
+        let v_new = v - dt * acc;
+        let x_new = x + dt * v_new;
+
+        let dx = x_new - x_next;
+        let dv = v_new - v_next;
+
+        x_next = x_new;
+        v_next = v_new;
+        if dx.norm_squared() + dv.norm_squared() < 1e-9 {
+            break;
+        }
+    }
+    (x_next, v_next)
+}
+
 fn main() -> io::Result<()> {
     let resolution = Resolution::new(506, 253);
 
@@ -98,42 +133,10 @@ fn main() -> io::Result<()> {
             //(particle.position, particle.velocity) = euler(&geometry, &particle.position, &particle.velocity, dt);
 
             // verlet
-            (particle.position, particle.velocity) = verlet(&geometry, &particle.position, &particle.velocity, dt);
-            
-            // Fixed-point iteration (from ChatGPT)
-            // Initial guess using explicit Euler
-            /*let x = particle.position;
-            let v = particle.velocity;
-            let mut x_next = x + dt * v;
-            let mut v_next = v;
-            for _ in 0..10 {
-                let gamma = compute_gamma(&geometry, &x_next);
+            //(particle.position, particle.velocity) = verlet(&geometry, &particle.position, &particle.velocity, dt);
 
-                // Compute acceleration a^k = Γ^k_ij v^i v^j
-                let mut acc = Vec2::zeros();
-                for k in 0..2 {
-                    for i in 0..2 {
-                        for j in 0..2 {
-                            acc[k] += gamma[k][i][j] * v_next[i] * v_next[j];
-                        }
-                    }
-                }
-
-                let v_new = v - dt * acc;
-                let x_new = x + dt * v_new;
-
-                let dx = x_new - x_next;
-                let dv = v_new - v_next;
-
-                x_next = x_new;
-                v_next = v_new;
-                if dx.norm_squared() + dv.norm_squared() < 1e-9 {
-                    break;
-                }
-            }
-            particle.position = x_next;
-            particle.velocity = v_next;
-            */
+            // implicit euler
+            (particle.position, particle.velocity) = implicit_euler(&geometry, &particle.position, &particle.velocity, dt);
 
             // project world cordinate into screen cordinate
             let world = geometry.evaluate(&particle.position);
