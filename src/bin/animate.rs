@@ -22,6 +22,8 @@ fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> V
     )
 }
 
+// Compute acceleration: a^k = Γ^k_ij v^i v^j
+// This is the solution to the geodesic equation
 fn acceleration(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2) -> Vec2 {
     let gamma = compute_gamma(geometry, position);
     let mut a = Vec2::zeros();
@@ -65,17 +67,7 @@ fn implicit_euler(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt
     let mut x_next = x + dt * v;
     let mut v_next = v;
     for _ in 0..10 {
-        let gamma = compute_gamma(geometry, &x_next);
-
-        // Compute acceleration a^k = Γ^k_ij v^i v^j
-        let mut acc = Vec2::zeros();
-        for k in 0..2 {
-            for i in 0..2 {
-                for j in 0..2 {
-                    acc[k] += gamma[k][i][j] * v_next[i] * v_next[j];
-                }
-            }
-        }
+        let acc = acceleration(geometry, position, &velocity);
 
         let v_new = v - dt * acc;
         let x_new = x + dt * v_new;
