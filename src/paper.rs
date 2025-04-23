@@ -44,7 +44,7 @@ impl Paper {
         Paper { view_box, pen, polylines: Vec::new() }
     }
 
-    pub(crate) fn add(&mut self, polyline: Polyline2) {
+    pub fn add(&mut self, polyline: Polyline2) {
         self.polylines.push(polyline);
     }
 
@@ -97,7 +97,7 @@ impl Paper {
             .collect();
     }
 
-    pub(crate) fn save(self, filename: &str) -> io::Result<()> {
+    pub fn save(self, filename: &str) -> io::Result<()> {
         let mut group = Group::new()
             .set("fill", "none")
             .set("stroke", "black")
