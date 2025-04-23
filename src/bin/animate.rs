@@ -42,9 +42,19 @@ struct Particle {
     velocity: Vec2,
 }
 
+// step functions
 fn euler(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
     let a = acceleration(geometry, position, &velocity);
     (position + velocity * dt, velocity + a * dt)
+}
+
+fn verlet(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
+    let a = acceleration(geometry, position, velocity);
+    let new_position = position + velocity * dt + a * (dt * dt * 0.5);
+    let new_a = acceleration(geometry, &new_position, &velocity);
+    // TODO: acceleration could be stored to save time next frame
+    let new_velocity = velocity + (a + new_a) * (dt * 0.5);
+    (new_position, new_velocity)
 }
 
 fn main() -> io::Result<()> {
@@ -85,19 +95,10 @@ fn main() -> io::Result<()> {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
             // euler
-            (particle.position, particle.velocity) = euler(&geometry, &particle.position, &particle.velocity, dt);
+            //(particle.position, particle.velocity) = euler(&geometry, &particle.position, &particle.velocity, dt);
 
             // verlet
-            /*let a = acceleration(&geometry, &particle.position, &particle.velocity);
-            let new_position = particle.position + particle.velocity * dt + a * (dt * dt * 0.5);
-            let new_a = acceleration(&geometry, &new_position, &particle.velocity);
-            let new_velocity = particle.velocity + (a + new_a) * (dt * 0.5);
-            particle.position = new_position;
-            particle.velocity = new_velocity;
-            // TODO: acceleration could be stored to save time
-            */
-
-            // implicit euler with fixed point
+            (particle.position, particle.velocity) = verlet(&geometry, &particle.position, &particle.velocity, dt);
             
             // Fixed-point iteration (from ChatGPT)
             // Initial guess using explicit Euler
