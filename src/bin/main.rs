@@ -1,7 +1,7 @@
 use std::{io, ops::AddAssign};
 
 use nalgebra_glm::{look_at, perspective, project, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::hole::Hole, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
 use rand_distr::{Distribution, Normal};
 
 fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
@@ -32,20 +32,21 @@ fn main() -> io::Result<()> {
     let projection = perspective(viewbox_aspect(paper.view_box), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
 
-    for _ in 0..512 {
+    for i in 0..512 {
         let mut polyline = Polyline2::new();
 
         let mut p = Vec2::new(
             distribution.sample(&mut rng) as f32,
             distribution.sample(&mut rng) as f32,
         );
+        //let mut p = Vec2::new(-0.5, i as f32 / i as f32 - 0.5);
+
         for _ in 0..5 {
             // evaluate surface at x, y
-            let z = geometry.z(&p);
-            let world = Vec3::new(p.x, p.y, z);
+            let world = geometry.evaluate(&p);
             // project world cordinate into screen cordinate
             let screen = project(&world, &model, &projection, viewport);
-            
+
             if contains(&area, &screen.xy()) {
                 // back project and ray trace to find occlusions
                 let ray = backproject(&screen.xy(), &model, &projection, viewport);
