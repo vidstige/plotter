@@ -32,7 +32,7 @@ fn acceleration(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2) -> V
     for k in 0..2 {
         for i in 0..2 {
             for j in 0..2 {
-                a.as_mut_slice()[k] += -gamma[k][i][j] * u[i] * u[j];
+                a[k] += -gamma[k][i][j] * u[i] * u[j];
             }
         }
     }
