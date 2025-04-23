@@ -3,6 +3,7 @@ pub mod geometries {
     pub mod hole;
     pub mod sphere;
 }
+pub mod fields;
 pub mod iso_surface;
 pub mod resolution;
 pub mod eq;

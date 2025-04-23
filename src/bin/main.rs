@@ -1,25 +1,8 @@
-use std::{io, ops::{AddAssign, Sub}};
+use std::{io, ops::AddAssign};
 
 use nalgebra_glm::{look_at, perspective, project, Vec2, Vec3, Vec4};
-use plotter::{geometries::hole::Hole, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometries::hole::Hole, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
 use rand_distr::{Distribution, Normal};
-
-// TODO: Spiral code duplicated
-fn cross2(vector: Vec2) -> Vec2 {
-    Vec2::new(-vector.y, vector.x)
-}
-
-struct Spiral {
-    center: Vec2,
-}
-impl Spiral {
-    fn new(center: Vec2) -> Spiral {
-        Spiral { center }
-    }
-    fn at(&self, p: &Vec2) -> Vec2 {
-        cross2(p.sub(&self.center))
-    }
-}
 
 fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
     let (x, y, w, h) = view_box;

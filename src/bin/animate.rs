@@ -1,6 +1,6 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, collections::VecDeque, f32::consts::TAU};
 
-use plotter::{geometry::compute_gamma, iso_surface::IsoSurface, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometry::compute_gamma, iso_surface::IsoSurface, raytracer::{backproject, trace}};
 use plotter::geometries::{sphere::Sphere, hole::Hole};
 use plotter::geometry::Geometry;
 use plotter::resolution::Resolution;
@@ -10,22 +10,6 @@ use rand::{distributions::Distribution, rngs::ThreadRng};
 use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective};
 use rand_distr::{StandardNormal, Uniform};
 use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
-
-fn cross2(vector: Vec2) -> Vec2 {
-    Vec2::new(-vector.y, vector.x)
-}
-
-struct Spiral {
-    center: Vec2,
-}
-impl Spiral {
-    fn new(center: Vec2) -> Spiral {
-        Spiral { center }
-    }
-    fn at(&self, p: &Vec2) -> Vec2 {
-        cross2(p.sub(&self.center))
-    }
-}
 
 fn contains(resolution: &Resolution, point: &Vec2) -> bool {
     point.x >= 0.0 && point.x < resolution.width as f32 && point.y >= 0.0 && point.y < resolution.height as f32
