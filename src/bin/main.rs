@@ -1,7 +1,7 @@
-use std::{io, ops::AddAssign};
+use std::io;
 
-use nalgebra_glm::{cross2d, look_at, perspective, project, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, integrate::{euler, implicit_euler}, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use nalgebra_glm::{look_at, perspective, project, Vec2, Vec3, Vec4};
+use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, integrate::verlet, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2};
 use rand_distr::{Distribution, Normal};
 
 fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
@@ -79,8 +79,7 @@ fn main() -> io::Result<()> {
 
             // step forward
             let dt = 0.1;
-            (particle.position, particle.velocity) = implicit_euler(&geometry, &particle.position, &particle.velocity, dt);
-            //(particle.position, particle.velocity) = euler(&geometry, &particle.position, &particle.velocity, dt);
+            (particle.position, particle.velocity) = verlet(&geometry, &particle.position, &particle.velocity, dt);
             //particle.position += particle.velocity * dt;
         }
         paper.add(polyline);
