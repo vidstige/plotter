@@ -11,20 +11,29 @@ fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
     point.x > *x as f32 && point.y > *y as f32 && point.x < (x + w) as f32 && point.y < (y + h) as f32
 }
 
+struct Camera {
+    projection: Mat4x4,
+    model: Mat4x4,
+    viewport: Vec4,
+}
+impl Camera {
+    fn project(&self, world: Vec3) -> Vec3 {
+        project(&world, &self.model, &self.projection, self.viewport)
+    }
+}
+
 // handle occlusions
 fn visible(
     screen: &Vec3,
-    model: &Mat4x4,
-    projection: &Mat4x4,
-    viewport: Vec4,
+    camera: &Camera,
     geometry: &impl IsoSurface,
     near: f32,
     far: f32,
 ) -> bool {
     // back project and ray trace to find occlusions
-    let ray = backproject(&screen.xy(), &model, &projection, viewport);
+    let ray = backproject(&screen.xy(), &camera.model, &camera.projection, camera.viewport);
     if let Some(intersection) = trace(&ray, geometry, near, far) {
-        let traced_screen = project(&intersection, &model, &projection, viewport);
+        let traced_screen = project(&intersection, &camera.model, &camera.projection, camera.viewport);
         // handle occlusions
         if screen.z - traced_screen.z < 0.0001 {
             return true
@@ -60,6 +69,7 @@ fn main() -> io::Result<()> {
     let far = 10.0;
     let projection = perspective(viewbox_aspect(paper.view_box), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
+    let camera = Camera { projection, model, viewport };
 
     let n = 64;
     for i in 0..n {
@@ -98,9 +108,9 @@ fn main() -> io::Result<()> {
         // project & etc
         let points: Vec<_> = uv_polyline.points.iter()
             .map(|uv| geometry.evaluate(uv))  // evaluate to 3D point
-            .map(|world| project(&world, &model, &projection, viewport)) // project
+            .map(|world| camera.project(world))
             .filter(|&screen| contains(&area, &screen.xy()))
-            .filter(|&screen| visible(&screen, &model, &projection, viewport, &geometry, near, far)) // handle occlusions
+            .filter(|&screen| visible(&screen, &camera, &geometry, near, far)) // handle occlusions
             .map(|screen| screen.xy())
             .collect();
 
