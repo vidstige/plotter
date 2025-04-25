@@ -41,8 +41,6 @@ fn main() -> io::Result<()> {
 
     let n = 64;
     for i in 0..n {
-        let mut polyline = Polyline2::new();
-
         // random positions
         /*let position = Vec2::new(
             distribution.sample(&mut rng) as f32,
@@ -67,32 +65,36 @@ fn main() -> io::Result<()> {
         let velocity = -cross2(position) - 2.0 * position;
         let mut particle = Particle {position, velocity};*/
 
+        // integrate
+        let mut uv_polyline = Polyline2::new();
         for _ in 0..20 {
-            // evaluate surface at x, y
-            let world = geometry.evaluate(&particle.position);
-            // project world cordinate into screen cordinate
-            let screen = project(&world, &model, &projection, viewport);
-
-            if contains(&area, &screen.xy()) {
-                polyline.add(screen.xy());
-
-                /*
-                // back project and ray trace to find occlusions
-                let ray = backproject(&screen.xy(), &model, &projection, viewport);
-                if let Some(intersection) = trace(&ray, &geometry, near, far) {
-                    let traced_screen = project(&intersection, &model, &projection, viewport);
-                    // handle occlusions
-                    if screen.z - traced_screen.z < 0.0001 {
-                        polyline.add(screen.xy());
-                    }
-                }
-                */
-            }
-
-            // step forward
+            uv_polyline.add(particle.position);
             let dt = 0.1;
             (particle.position, particle.velocity) = verlet(&geometry, &particle.position, &particle.velocity, dt);
-            //particle.position += particle.velocity * dt;
+        }
+
+        // project & etc
+        let mut polyline = Polyline2::new();
+        for position in uv_polyline.points {
+             // evaluate surface at u, v
+             let world = geometry.evaluate(&position);
+             // project world cordinate into screen cordinate
+             let screen = project(&world, &model, &projection, viewport);
+
+             // clip against screen
+             if contains(&area, &screen.xy()) {
+                 polyline.add(screen.xy());
+
+                 // back project and ray trace to find occlusions
+                 let ray = backproject(&screen.xy(), &model, &projection, viewport);
+                 if let Some(intersection) = trace(&ray, &geometry, near, far) {
+                     let traced_screen = project(&intersection, &model, &projection, viewport);
+                     // handle occlusions
+                     if screen.z - traced_screen.z < 0.0001 {
+                         polyline.add(screen.xy());
+                     }
+                 }
+             }
         }
         paper.add(polyline);
     }
