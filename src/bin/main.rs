@@ -1,7 +1,7 @@
 use std::{f32::consts::TAU, io};
 
-use nalgebra_glm::{cross2d, look_at, perspective, project, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, integrate::verlet, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use nalgebra_glm::{cross2d, look_at, perspective, project, Mat4, Mat4x4, Vec2, Vec3, Vec4};
+use plotter::{fields::Spiral, geometries::hole::Hole, geometry::{self, Geometry}, integrate::verlet, iso_surface::IsoSurface, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Normal};
 use svg::node::element::path::Position;
@@ -9,6 +9,28 @@ use svg::node::element::path::Position;
 fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
     let (x, y, w, h) = view_box;
     point.x > *x as f32 && point.y > *y as f32 && point.x < (x + w) as f32 && point.y < (y + h) as f32
+}
+
+// handle occlusions
+fn visible(
+    screen: &Vec3,
+    model: &Mat4x4,
+    projection: &Mat4x4,
+    viewport: Vec4,
+    geometry: &impl IsoSurface,
+    near: f32,
+    far: f32,
+) -> bool {
+    // back project and ray trace to find occlusions
+    let ray = backproject(&screen.xy(), &model, &projection, viewport);
+    if let Some(intersection) = trace(&ray, geometry, near, far) {
+        let traced_screen = project(&intersection, &model, &projection, viewport);
+        // handle occlusions
+        if screen.z - traced_screen.z < 0.0001 {
+            return true
+        }
+    }
+    false
 }
 
 struct Particle {
@@ -74,28 +96,15 @@ fn main() -> io::Result<()> {
         }
 
         // project & etc
-        let mut polyline = Polyline2::new();
-        for position in uv_polyline.points {
-             // evaluate surface at u, v
-             let world = geometry.evaluate(&position);
-             // project world cordinate into screen cordinate
-             let screen = project(&world, &model, &projection, viewport);
+        let points: Vec<_> = uv_polyline.points.iter()
+            .map(|uv| geometry.evaluate(uv))  // evaluate to 3D point
+            .map(|world| project(&world, &model, &projection, viewport)) // project
+            .filter(|&screen| contains(&area, &screen.xy()))
+            .filter(|&screen| visible(&screen, &model, &projection, viewport, &geometry, near, far)) // handle occlusions
+            .map(|screen| screen.xy())
+            .collect();
 
-             // clip against screen
-             if contains(&area, &screen.xy()) {
-                 polyline.add(screen.xy());
-
-                 // back project and ray trace to find occlusions
-                 let ray = backproject(&screen.xy(), &model, &projection, viewport);
-                 if let Some(intersection) = trace(&ray, &geometry, near, far) {
-                     let traced_screen = project(&intersection, &model, &projection, viewport);
-                     // handle occlusions
-                     if screen.z - traced_screen.z < 0.0001 {
-                         polyline.add(screen.xy());
-                     }
-                 }
-             }
-        }
+        let polyline = Polyline2 { points };
         paper.add(polyline);
     }
 
