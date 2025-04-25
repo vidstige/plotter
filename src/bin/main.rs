@@ -1,8 +1,10 @@
-use std::io;
+use std::{f32::consts::TAU, io};
 
-use nalgebra_glm::{look_at, perspective, project, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, integrate::verlet, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2};
+use nalgebra_glm::{cross2d, look_at, perspective, project, Vec2, Vec3, Vec4};
+use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, integrate::verlet, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Normal};
+use svg::node::element::path::Position;
 
 fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
     let (x, y, w, h) = view_box;
@@ -41,6 +43,7 @@ fn main() -> io::Result<()> {
     for i in 0..n {
         let mut polyline = Polyline2::new();
 
+        // random positions
         /*let position = Vec2::new(
             distribution.sample(&mut rng) as f32,
             distribution.sample(&mut rng) as f32,
@@ -51,13 +54,20 @@ fn main() -> io::Result<()> {
             velocity: field.at(&position),
         };*/
 
-        let size = 2.5;
+        // paralell lines
+        let size = 1.5;
         let mut particle = Particle {
             position: Vec2::new(-size, size * 2.0 * (i as f32 / n as f32 - 0.5)),
             velocity: Vec2::new(1.0, 0.0),
         };
 
-        for _ in 0..50 {
+        // inward
+        /*let theta = TAU * (i as f32 / n as f32);
+        let position = 2.0 * Vec2::new(theta.cos(), theta.sin());
+        let velocity = -cross2(position) - 2.0 * position;
+        let mut particle = Particle {position, velocity};*/
+
+        for _ in 0..20 {
             // evaluate surface at x, y
             let world = geometry.evaluate(&particle.position);
             // project world cordinate into screen cordinate
@@ -66,7 +76,8 @@ fn main() -> io::Result<()> {
             if contains(&area, &screen.xy()) {
                 polyline.add(screen.xy());
 
-                /*// back project and ray trace to find occlusions
+                /*
+                // back project and ray trace to find occlusions
                 let ray = backproject(&screen.xy(), &model, &projection, viewport);
                 if let Some(intersection) = trace(&ray, &geometry, near, far) {
                     let traced_screen = project(&intersection, &model, &projection, viewport);
@@ -74,7 +85,8 @@ fn main() -> io::Result<()> {
                     if screen.z - traced_screen.z < 0.0001 {
                         polyline.add(screen.xy());
                     }
-                }*/
+                }
+                */
             }
 
             // step forward
