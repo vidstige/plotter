@@ -26,9 +26,9 @@ impl Geometry for Sphere {
     }
     fn metric(&self, p: &Vec2) -> Mat2x2 {
         // override metric tensor with analytical expression
-        return Mat2x2::new(
+        Mat2x2::new(
             1.0, 0.0,
-            0.0, p.y.sin().powi(2)
+            0.0, p.x.sin().powi(2)
         )
     }
 }
