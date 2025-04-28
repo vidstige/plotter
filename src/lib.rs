@@ -2,6 +2,8 @@ pub mod geometry;
 pub mod geometries {
     pub mod hole;
     pub mod sphere;
+    pub mod plane;
+    mod zero;
 }
 pub mod fields;
 pub mod integrate;
