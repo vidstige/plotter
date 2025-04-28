@@ -61,14 +61,14 @@ fn grid_line(
     geometry: &impl Geometry,
     start: Vec2,
     end: Vec2,
-    n: usize,
     amplitude: f32,
 ) -> Polyline2 {
     let mut polyline = Polyline2::new();
 
     let direction = (end - start).normalize();
-    for i in 0..n {
-        let t = i as f32 / (n - 1) as f32;
+    let mut t = 0.0;
+    while t < 1.0 {
+        //let t = i as f32 / (n - 1) as f32;
         // lerp position between start & end
         let p = (1.0 - t) * start + t * end;
 
@@ -81,10 +81,34 @@ fn grid_line(
         let pos = p + direction * amplitude + 0.5 * offset * amplitude * amplitude;
 
         polyline.add(pos);
-        //polyline.add(p);
-    }
 
+        // Figure out step length
+        // TODO: metric already computed inside compute_gama
+        let g = geometry.metric(&p);
+        let eps = 1e-5;
+        let base_step = 1.0 / 8.0;
+        let step = base_step / (g.determinant().sqrt() + eps);
+        t += step.clamp(1.0 / 1024.0, 1.0 / 8.0);
+    }
+    println!("{}", polyline.points.len());
     polyline
+}
+
+// Takes uv-coordinates and returns xy-cordinates
+// 1. Evaluates geometry
+// 2. Project using camera
+// 3. Clip to viewport 
+// 4. Handle occlusion
+fn reproject<G: Geometry + IsoSurface>(polyline: &Polyline2, geometry: &G, camera: &Camera, area: ViewBox, near: f32, far: f32) -> Polyline2 {
+    let points: Vec<_> = polyline.points.iter()
+    .map(|uv| geometry.evaluate(uv))  // evaluate to 3D point
+    .map(|world| camera.project(world))
+    .filter(|&screen| contains(&area, &screen.xy()))
+    .filter(|&screen| visible(&screen, &camera, geometry, near, far)) // handle occlusions
+    .map(|screen| screen.xy())
+    .collect();
+
+    Polyline2 { points }
 }
 
 fn main() -> io::Result<()> {
@@ -119,11 +143,17 @@ fn main() -> io::Result<()> {
     for i in 0..n {
         // gridlines
         let amplitude = 0.05;
-
         let p = size * 2.0 * (i as f32 / n as f32 - 0.5);
+        // fixed v gridlines
         let start = Vec2::new(-size, p);
         let end = Vec2::new(size, p);
-        let uv_polyline = grid_line(&geometry, start, end, 32, amplitude);
+        let uv_polyline = grid_line(&geometry, start, end, amplitude);
+        paper.add(reproject(&uv_polyline, &geometry, &camera, area, near, far));
+        // fixed u gridlines
+        let start = Vec2::new(p, -size);
+        let end = Vec2::new(p, size);
+        let uv_polyline = grid_line(&geometry, start, end, amplitude);
+        paper.add(reproject(&uv_polyline, &geometry, &camera, area, near, far));
 
         // random positions
         /*let position = Vec2::new(
@@ -157,16 +187,7 @@ fn main() -> io::Result<()> {
         }*/
 
         // project & etc
-        let points: Vec<_> = uv_polyline.points.iter()
-            .map(|uv| geometry.evaluate(uv))  // evaluate to 3D point
-            .map(|world| camera.project(world))
-            .filter(|&screen| contains(&area, &screen.xy()))
-            .filter(|&screen| visible(&screen, &camera, &geometry, near, far)) // handle occlusions
-            .map(|screen| screen.xy())
-            .collect();
-
-        let polyline = Polyline2 { points };
-        paper.add(polyline);
+        //paper.add(reproject(&uv_polyline, &geometry, &camera, area, near, far));
     }
     paper.optimize();
     paper.save("output.svg")?;
