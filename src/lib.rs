@@ -15,3 +15,6 @@ pub mod netbm;
 pub mod paper;
 pub mod polyline;
 pub mod raytracer;
+
+#[cfg(test)]
+mod tests;
