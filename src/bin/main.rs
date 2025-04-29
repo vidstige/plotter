@@ -53,15 +53,21 @@ struct Particle {
 // 4. Handle occlusion
 fn reproject<G: Geometry + IsoSurface>(polyline: &Polyline2, geometry: &G, camera: &Camera, area: ViewBox, near: f32, far: f32) -> Vec<Polyline2> {
     // TODO: When a point is occluded, start a new linesegment
-    let points: Vec<_> = polyline.points.iter()
+    let points = polyline.points.iter()
         .map(|uv| geometry.evaluate(uv))  // evaluate to 3D point
-        .map(|world| camera.project(world))
-        .filter(|&screen| contains(&area, &screen.xy()))
-        .filter(|&screen| visible(&screen, &camera, geometry, near, far)) // handle occlusions
-        .map(|screen| screen.xy())
-        .collect();
-
-    [Polyline2 { points }].into()
+        .map(|world| camera.project(world));
+    let mut polylines = Vec::new();
+    let mut current = Polyline2::new();
+    for screen in points {
+        if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, near, far) {
+            current.add(screen.xy());
+        } else {
+            polylines.push(current);
+            current = Polyline2::new();
+        }
+    }
+    polylines.push(current);
+    polylines
 }
 
 fn main() -> io::Result<()> {
