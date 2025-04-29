@@ -2,6 +2,14 @@ use nalgebra_glm::Vec2;
 
 use crate::{geometry::{compute_gamma, Geometry}, polyline::Polyline2};
 
+// Straight uv-polyline split into n line segments
+pub fn grid_line(start: Vec2, end: Vec2, n: usize) -> Polyline2 {
+    Polyline2 { points: (0..n)
+        .map(|i| i as f32 / (n - 1) as f32)
+        .map(|t| (1.0 - t) * start + t * end)
+        .collect()
+    }
+}
 
 fn grid_line_offset_at(gamma: &[[[f32; 2]; 2]; 2], direction: Vec2) -> Vec2 {
     let d = direction;
@@ -26,7 +34,6 @@ pub fn bent_grid_line(
     let direction = (end - start).normalize();
     let mut t = 0.0;
     while t < 1.0 {
-        //let t = i as f32 / (n - 1) as f32;
         // lerp position between start & end
         let p = (1.0 - t) * start + t * end;
 
