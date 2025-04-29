@@ -1,7 +1,7 @@
 use std::{io, ops::AddAssign};
 
 use nalgebra_glm::{look_at, perspective, project, Mat4x4, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, gridlines::grid_line, integrate::verlet, iso_surface::IsoSurface, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, gridlines::bent_grid_line, integrate::verlet, iso_surface::IsoSurface, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Normal};
 
@@ -99,12 +99,12 @@ fn main() -> io::Result<()> {
         // fixed v gridlines
         let start = Vec2::new(-size, p);
         let end = Vec2::new(size, p);
-        let uv_polyline = grid_line(&geometry, start, end, amplitude);
+        let uv_polyline = bent_grid_line(&geometry, start, end, amplitude);
         paper.add(reproject(&uv_polyline, &geometry, &camera, area, near, far));
         // fixed u gridlines
         let start = Vec2::new(p, -size);
         let end = Vec2::new(p, size);
-        let uv_polyline = grid_line(&geometry, start, end, amplitude);
+        let uv_polyline = bent_grid_line(&geometry, start, end, amplitude);
         paper.add(reproject(&uv_polyline, &geometry, &camera, area, near, far));
 
         // random positions

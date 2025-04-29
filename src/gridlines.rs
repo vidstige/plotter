@@ -14,7 +14,8 @@ fn grid_line_offset_at(gamma: &[[[f32; 2]; 2]; 2], direction: Vec2) -> Vec2 {
     offset
 }
 
-pub fn grid_line(
+// Gridline bent by the local affine connection
+pub fn bent_grid_line(
     geometry: &impl Geometry,
     start: Vec2,
     end: Vec2,
