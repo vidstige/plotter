@@ -8,6 +8,7 @@ pub mod geometries {
 pub mod fields;
 pub mod integrate;
 pub mod iso_surface;
+pub mod gridlines;
 pub mod resolution;
 pub mod eq;
 pub mod buffer;
