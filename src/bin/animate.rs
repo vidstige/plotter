@@ -35,7 +35,7 @@ fn main() -> io::Result<()> {
     let field = Spiral::new(Vec2::zeros());
 
     let eye = Vec3::new(-2.5, -2.5, -1.5);
-    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
+    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.1), &Vec3::new(0.0, 0.0, 1.0));
     let near = 0.1;
     let far = 10.0;
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
@@ -60,7 +60,7 @@ fn main() -> io::Result<()> {
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
-    let dt = 1.0 / fps;
+    let dt = 5.0 / fps;
     for frame in 0..512 {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
