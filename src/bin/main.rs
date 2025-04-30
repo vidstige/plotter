@@ -86,8 +86,8 @@ fn main() -> io::Result<()> {
     let geometry = Hole::new();
 
     // set up 3D camera
-    let eye = Vec3::new(-2.5, -2.5, -1.5);
-    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.8), &Vec3::new(0.0, 0.0, 1.0));
+    let eye = Vec3::new(-1.8, -1.8, -0.8);
+    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 1.3), &Vec3::new(0.0, 0.0, 1.0));
     // top-view
     //let eye = Vec3::new(0.0, 0.0, -2.5);
     //let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 1.0, 0.0));
@@ -99,7 +99,7 @@ fn main() -> io::Result<()> {
     let camera = Camera { projection, model, viewport };
 
     let size = 1.5;  // parameter for square things like gridlines
-    let n = 16;
+    let n = 32;
     for i in 0..n {
         // gridlines
         let amplitude = 0.05;
@@ -108,7 +108,7 @@ fn main() -> io::Result<()> {
         let start = Vec2::new(-size, p);
         let end = Vec2::new(size, p);
         //let uv_polyline = bent_grid_line(&geometry, start, end, amplitude);
-        let uv_polyline = grid_line(start, end, 128);
+        let uv_polyline = grid_line(start, end, 256);
         for polyline in reproject(&uv_polyline, &geometry, &camera, area, near, far) {
             paper.add(polyline);
         }
@@ -116,7 +116,7 @@ fn main() -> io::Result<()> {
         let start = Vec2::new(p, -size);
         let end = Vec2::new(p, size);
         //let uv_polyline = bent_grid_line(&geometry, start, end, amplitude);
-        let uv_polyline = grid_line(start, end, 128);
+        let uv_polyline = grid_line(start, end, 256);
         for polyline in reproject(&uv_polyline, &geometry, &camera, area, near, far) {
             paper.add(polyline);
         }
