@@ -73,7 +73,7 @@ fn reproject<G: Geometry + IsoSurface>(polyline: &Polyline2, geometry: &G, camer
 fn main() -> io::Result<()> {
     // set up paper
     let mut paper = Paper::new(A4_LANDSCAPE, 0.5);
-    let area = pad(paper.view_box, 20);
+    let area = pad(paper.view_box, 8);
 
     // set up pseudo random generator
     let mut rng = rand::thread_rng();
