@@ -56,17 +56,18 @@ impl Paper {
         }
     }
 
-    // total travel length for pen
-    pub fn length(&self) -> f32 {
-        let mut len = 0.0;
+    // computes drawing distance and moving distance. sum to get total
+    pub fn length(&self) -> (f32, f32) {
+        let mut drawing = 0.0;
+        let mut moving = 0.0;
         let mut pen = Vec2::new(0.0, self.view_box.2 as f32);
         for polyline in &self.polylines {
             // distance from pen to first point
-            len += pen.sub(polyline.points.first().unwrap_or(&pen)).norm();
-            len += polyline.length();
+            moving += pen.sub(polyline.points.first().unwrap_or(&pen)).norm();
+            drawing += polyline.length();
             pen = *polyline.points.last().unwrap_or(&pen);
         }
-        len
+        (drawing, moving)
     }
 
     // re-orders poly-lines for faster plotting

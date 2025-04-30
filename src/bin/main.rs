@@ -156,7 +156,10 @@ fn main() -> io::Result<()> {
         // project & etc
         //paper.add(reproject(&uv_polyline, &geometry, &camera, area, near, far));
     }
+    
     paper.optimize();
+    let (dl, ml) = paper.length();
+    println!("draw: {dl} mm, move: {ml} mm");
     paper.save("output.svg")?;
 
     Ok(())
