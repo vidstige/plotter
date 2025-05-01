@@ -4,9 +4,7 @@ use crate::{geometry::Geometry, iso_surface::IsoSurface};
 
 pub struct Sphere;
 impl Sphere {
-    pub fn new() -> Sphere {
-        Sphere { }
-    }
+    pub fn new() -> Sphere { Sphere }
 }
 
 impl Geometry for Sphere {
@@ -18,12 +16,8 @@ impl Geometry for Sphere {
             u.cos(),
         )
     }
-    fn du(&self) -> impl Geometry {
-        SphereDu {}
-    }
-    fn dv(&self) -> impl Geometry {
-        SphereDv {}
-    }
+    fn du(&self) -> impl Geometry { SphereDu }
+    fn dv(&self) -> impl Geometry { SphereDv }
     fn metric(&self, p: &Vec2) -> Mat2x2 {
         // override metric tensor with analytical expression
         Mat2x2::new(
@@ -50,14 +44,8 @@ impl Geometry for SphereDu {
             -u.sin(),
         )
     }
-
-    fn du(&self) -> impl Geometry {
-        SphereDuDu {}
-    }
-
-    fn dv(&self) -> impl Geometry {
-        SphereDuDv {}
-    }
+    fn du(&self) -> impl Geometry { SphereDuDu }
+    fn dv(&self) -> impl Geometry { SphereDuDv }
 }
 
 struct SphereDv;
@@ -70,15 +58,9 @@ impl Geometry for SphereDv {
             0.0,
         )
     }
-
-    fn du(&self) -> impl Geometry {
-        // Order of derivation does not matter, so just reuse (d/du)(d/dv)
-        SphereDuDv {}
-    }
-
-    fn dv(&self) -> impl Geometry {
-        SphereDvDv {}
-    }
+    // Order of derivation does not matter, so just reuse (d/du)(d/dv)
+    fn du(&self) -> impl Geometry { SphereDuDv }
+    fn dv(&self) -> impl Geometry { SphereDvDv }
 }
 
 // second derivatives of sphere
