@@ -1,6 +1,6 @@
 use nalgebra_glm::Vec2;
 
-use crate::{geometry::{compute_gamma, Geometry}, polyline::Polyline2};
+use crate::{geometry::{compute_gamma, Geometry}, lerp::lerp, polyline::Polyline2};
 
 // Straight uv-polyline split into n line segments
 pub fn grid_line(start: Vec2, end: Vec2, n: usize) -> Polyline2 {
@@ -35,7 +35,7 @@ pub fn bent_grid_line(
     let mut t = 0.0;
     while t < 1.0 {
         // lerp position between start & end
-        let p = (1.0 - t) * start + t * end;
+        let p = lerp(start, end, t);
 
         // Compute Christoffel symbols at current point
         let gamma = compute_gamma(geometry, &p);

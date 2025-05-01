@@ -6,6 +6,7 @@ pub mod geometries {
     pub mod gaussian;
     mod zero;
 }
+pub mod lerp;
 pub mod fields;
 pub mod integrate;
 pub mod iso_surface;
