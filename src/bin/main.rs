@@ -1,7 +1,7 @@
 use std::{io, ops::AddAssign};
 
 use nalgebra_glm::{look_at, perspective, project, Mat4x4, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::hole::Hole, geometry::Geometry, gridlines::{bent_grid_line, grid_line}, integrate::verlet, iso_surface::IsoSurface, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometries::hole::Hole, geometries::gaussian::Gaussian, geometry::{self, Geometry}, gridlines::{bent_grid_line, grid_line}, integrate::verlet, iso_surface::IsoSurface, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Normal};
 
@@ -56,6 +56,7 @@ fn reproject<G: Geometry + IsoSurface>(polyline: &Polyline2, geometry: &G, camer
     let points = polyline.points.iter()
         .map(|uv| geometry.evaluate(uv))  // evaluate to 3D point
         .map(|world| camera.project(world));
+
     let mut polylines = Vec::new();
     let mut current = Polyline2::new();
     for screen in points {
@@ -83,7 +84,8 @@ fn main() -> io::Result<()> {
     let field = Spiral::new(Vec2::zeros());
 
     // set up 3D geometry
-    let geometry = Hole::new();
+    //let geometry = Hole::new();
+    let geometry = Gaussian::new();
 
     // set up 3D camera
     let eye = Vec3::new(-1.8, -1.8, -0.8);
@@ -98,7 +100,7 @@ fn main() -> io::Result<()> {
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let camera = Camera { projection, model, viewport };
 
-    let size = 1.5;  // parameter for square things like gridlines
+    let size = 2.0;  // parameter for square things like gridlines
     let n = 32;
     for i in 0..n {
         // gridlines

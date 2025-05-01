@@ -3,6 +3,7 @@ pub mod geometries {
     pub mod hole;
     pub mod sphere;
     pub mod plane;
+    pub mod gaussian;
     mod zero;
 }
 pub mod fields;
