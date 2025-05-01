@@ -1,6 +1,6 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, collections::VecDeque, f32::consts::TAU};
 
-use plotter::{fields::Spiral, geometry::{acceleration, compute_gamma}, integrate::implicit_euler, iso_surface::IsoSurface, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometries::gaussian::Gaussian, geometry::{acceleration, compute_gamma}, integrate::implicit_euler, iso_surface::IsoSurface, raytracer::{backproject, trace}};
 use plotter::geometries::{sphere::Sphere, hole::Hole};
 use plotter::geometry::Geometry;
 use plotter::resolution::Resolution;
@@ -41,26 +41,26 @@ fn main() -> io::Result<()> {
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
 
-    //let geometry = Hole::new();
-    let geometry = Sphere::new();
+    let geometry = Gaussian::new();
+    //let geometry = Sphere::new();
 
-    //let mut output = File::create(std::path::Path::new("output.raw"))?;
     let mut output = io::stdout().lock();
 
-    //let positions: Vec<_> = (0..256)
-    //    .map(|_| sample_vec2(&distribution, &mut rng))
-    //    .filter(|position| position.magnitude_squared() > 0.3*0.3)
-    //    .collect();
-    let semicircle = Uniform::new(0.0 + 0.1, TAU - 0.1);
-    let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
+    let positions: Vec<_> = (0..256)
+        .map(|_| sample_vec2(&distribution, &mut rng))
+        .filter(|position| position.magnitude_squared() > 0.3*0.3)
+        .collect();
+    //let semicircle = Uniform::new(0.0 + 0.2, TAU - 0.2);
+    //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
     let mut particles: Vec<_> = positions.iter().map(|p| Particle {
         position: Vec2::new(p.x, p.y),
-        //velocity: 0.15 / field.at(p).magnitude_squared() * field.at(p),
-        velocity: Vec2::new(0.0, 0.1),
+        velocity: Vec2::new(1.0, 0.0),
+        //velocity:  1.0 / field.at(p).magnitude_squared() * field.at(p),
+        //velocity: 0.1 * sample_vec2(&distribution, &mut rng),
     }).collect();
     let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
-    let dt = 5.0 / fps;
+    let dt = 0.2 / fps;
     for frame in 0..512 {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
