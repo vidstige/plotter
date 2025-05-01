@@ -4,6 +4,7 @@ pub mod geometries {
     pub mod sphere;
     pub mod plane;
     pub mod gaussian;
+    pub mod blend;
     mod zero;
 }
 pub mod lerp;
