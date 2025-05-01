@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec2, Vec3, Mat2x2};
+use nalgebra_glm::{Vec2, Vec3};
 use crate::{geometry::Geometry, iso_surface::IsoSurface};
 
 pub struct Gaussian;
