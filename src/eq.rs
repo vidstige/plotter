@@ -22,7 +22,7 @@ pub fn newton_raphson<F: Fn(f32) -> f32>(f: F, x0: f32) -> Option<f32> {
     
     for _ in 0..20 {
         // compute df/dt using forward diffrentiation
-        let dfdt = (f(x + epsilon) - f(x)) / epsilon;
+        let dfdt = (f(x + epsilon) - f(x - epsilon)) / (2.0 * epsilon);
         if dfdt.abs() < 0.001 {
             break;
         }
