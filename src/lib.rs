@@ -1,10 +1,11 @@
 pub mod geometry;
 pub mod geometries {
+    pub mod blend;
     pub mod hole;
     pub mod sphere;
     pub mod plane;
     pub mod gaussian;
-    pub mod blend;
+    pub mod torus;
     mod zero;
 }
 pub mod lerp;

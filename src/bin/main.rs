@@ -1,7 +1,7 @@
 use std::{io, ops::AddAssign};
 
 use nalgebra_glm::{look_at, perspective, project, Mat4x4, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::hole::Hole, geometries::gaussian::Gaussian, geometry::{self, Geometry}, gridlines::{bent_grid_line, grid_line}, integrate::verlet, iso_surface::IsoSurface, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{self, Geometry}, gridlines::{bent_grid_line, grid_line}, integrate::verlet, iso_surface::IsoSurface, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Normal};
 
@@ -60,12 +60,13 @@ fn reproject<G: Geometry + IsoSurface>(polyline: &Polyline2, geometry: &G, camer
     let mut polylines = Vec::new();
     let mut current = Polyline2::new();
     for screen in points {
-        if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, near, far) {
+        current.add(screen.xy());
+        /*if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, near, far) {
             current.add(screen.xy());
         } else {
             polylines.push(current);
             current = Polyline2::new();
-        }
+        }*/
     }
     polylines.push(current);
     polylines
@@ -85,11 +86,16 @@ fn main() -> io::Result<()> {
 
     // set up 3D geometry
     //let geometry = Hole::new();
-    let geometry = Gaussian::new();
+    //let geometry = Gaussian::new();
+    let geometry = Torus::new(0.5, 1.0);
 
     // set up 3D camera
+    // torus view
     let eye = Vec3::new(-1.8, -1.8, -0.8);
-    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 1.3), &Vec3::new(0.0, 0.0, 1.0));
+    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.5), &Vec3::new(0.0, 0.0, 1.0));
+    // hole & gaussian view
+    //let eye = Vec3::new(-1.8, -1.8, -0.8);
+    //let model = look_at(&eye, &Vec3::new(0.0, 0.0, 1.3), &Vec3::new(0.0, 0.0, 1.0));
     // top-view
     //let eye = Vec3::new(0.0, 0.0, -2.5);
     //let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 1.0, 0.0));
