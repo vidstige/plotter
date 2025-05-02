@@ -20,7 +20,7 @@ pub fn newton_raphson<F: Fn(f32) -> f32>(f: F, x0: f32) -> Option<f32> {
     let tol = 0.001; // for considering roots
     let mut x = x0; 
     
-    for _ in 0..10 {
+    for _ in 0..20 {
         // compute df/dt using forward diffrentiation
         let dfdt = (f(x + epsilon) - f(x)) / epsilon;
         if dfdt.abs() < 0.001 {
