@@ -22,7 +22,7 @@ impl Hole {
 }
 
 impl SDF for Hole {
-    fn iso_level(&self, position: &Vec3) -> f32 {
+    fn sdf(&self, position: &Vec3) -> f32 {
         self.z(&position.xy()) - position.z
     }
 }

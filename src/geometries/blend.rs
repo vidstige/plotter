@@ -21,9 +21,9 @@ where
     A: SDF,
     B: SDF,
 {
-    fn iso_level(&self, position: &Vec3) -> f32 {
-        let a_level = self.a.iso_level(position);
-        let b_level = self.b.iso_level(position);
+    fn sdf(&self, position: &Vec3) -> f32 {
+        let a_level = self.a.sdf(position);
+        let b_level = self.b.sdf(position);
         lerp(a_level, b_level, self.t)
     }
 }

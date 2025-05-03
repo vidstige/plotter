@@ -51,7 +51,7 @@ impl Geometry for Torus {
 }
 
 impl SDF for Torus {
-    fn iso_level(&self, position: &Vec3) -> f32 {
+    fn sdf(&self, position: &Vec3) -> f32 {
         let x = position.x;
         let y = position.y;
         let z = position.z;

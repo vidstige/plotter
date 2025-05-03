@@ -28,7 +28,7 @@ impl Geometry for Sphere {
 }
 
 impl SDF for Sphere {
-    fn iso_level(&self, position: &Vec3) -> f32 {
+    fn sdf(&self, position: &Vec3) -> f32 {
         position.norm() - 1.0
     }
 }

@@ -31,7 +31,7 @@ impl Geometry for Plane {
 }
 
 impl SDF for Plane {
-    fn iso_level(&self, position: &Vec3) -> f32 {
+    fn sdf(&self, position: &Vec3) -> f32 {
         position.z
     }
 }
