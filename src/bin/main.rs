@@ -73,9 +73,9 @@ fn reproject<G: Geometry + SDF>(polyline: &Polyline2, geometry: &G, camera: &Cam
 }
 
 fn setup_torus(view_box: ViewBox, area: ViewBox) -> (Torus, Camera, Vec<Polyline2>) {
-    let geometry = Torus::new(0.25, 0.5);
+    let geometry = Torus::new(0.5, 1.0);
 
-    let eye = Vec3::new(-1.8, -1.8, -0.8);
+    let eye = Vec3::new(-2.2, -2.2, -1.2);
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.5), &Vec3::new(0.0, 0.0, 1.0));
 
     let near = 0.1;
@@ -84,7 +84,7 @@ fn setup_torus(view_box: ViewBox, area: ViewBox) -> (Torus, Camera, Vec<Polyline
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let camera = Camera { projection, model, viewport };
 
-    let uv_polylines = generate_grid((0.0, TAU), (0.0, TAU), 32, 32);
+    let uv_polylines = generate_grid((0.0, TAU), (0.0, TAU), 32, 128);
 
     (geometry, camera, uv_polylines)
 }
