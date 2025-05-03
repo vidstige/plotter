@@ -3,7 +3,7 @@ use std::ops::{Add, Sub};
 use nalgebra_glm::{Mat4, Vec2, Vec3, Vec4};
 use nalgebra_glm::unproject;
 
-use crate::{eq::{linesearch, newton_raphson}, iso_surface::IsoSurface};
+use crate::{eq::{linesearch, newton_raphson}, sdf::SDF};
 
 
 pub struct Ray {
@@ -26,7 +26,7 @@ pub fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec
     Ray{ origin: eye, direction: world.sub(eye).normalize() }
 }
 
-pub fn trace<S: IsoSurface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
+pub fn trace<S: SDF>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
     // first linesearch to find rough estimate
     let f = |t| surface.iso_level(&ray.at(t));
     if let Some((lo, hi)) = linesearch(f, lo, hi, 200) {

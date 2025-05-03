@@ -1,6 +1,6 @@
 use nalgebra_glm::{Vec2, Vec3};
 use crate::geometry::Geometry;
-use crate::iso_surface::IsoSurface;
+use crate::sdf::SDF;
 use crate::lerp::lerp;
 
 /// A surface blending two geometries A and B with interpolation factor t ∈ [0, 1]
@@ -16,10 +16,10 @@ impl<A, B> Blend<A, B> {
     }
 }
 
-impl<A, B> IsoSurface for Blend<A, B>
+impl<A, B> SDF for Blend<A, B>
 where
-    A: IsoSurface,
-    B: IsoSurface,
+    A: SDF,
+    B: SDF,
 {
     fn iso_level(&self, position: &Vec3) -> f32 {
         let a_level = self.a.iso_level(position);

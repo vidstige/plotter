@@ -1,6 +1,6 @@
 use nalgebra_glm::{Mat2x2, Vec2, Vec3};
 
-use crate::{geometry::Geometry, iso_surface::IsoSurface};
+use crate::{geometry::Geometry, sdf::SDF};
 
 pub struct Torus {
     pub r: f32, // minor radius
@@ -50,7 +50,7 @@ impl Geometry for Torus {
     }
 }
 
-impl IsoSurface for Torus {
+impl SDF for Torus {
     fn iso_level(&self, position: &Vec3) -> f32 {
         let x = position.x;
         let y = position.y;

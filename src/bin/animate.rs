@@ -1,6 +1,6 @@
 use std::{ops::{Sub, Add}, io::{self, Write}, collections::VecDeque, f32::consts::TAU};
 
-use plotter::{fields::Spiral, geometries::gaussian::Gaussian, geometry::{acceleration, compute_gamma}, integrate::implicit_euler, iso_surface::IsoSurface, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometries::gaussian::Gaussian, geometry::{acceleration, compute_gamma}, integrate::implicit_euler, sdf::SDF, raytracer::{backproject, trace}};
 use plotter::geometries::{sphere::Sphere, hole::Hole};
 use plotter::geometry::Geometry;
 use plotter::resolution::Resolution;

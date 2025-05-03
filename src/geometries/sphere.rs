@@ -1,6 +1,6 @@
 use nalgebra_glm::{Vec2, Vec3, Mat2x2};
 
-use crate::{geometry::Geometry, iso_surface::IsoSurface};
+use crate::{geometry::Geometry, sdf::SDF};
 
 pub struct Sphere;
 impl Sphere {
@@ -27,7 +27,7 @@ impl Geometry for Sphere {
     }
 }
 
-impl IsoSurface for Sphere {
+impl SDF for Sphere {
     fn iso_level(&self, position: &Vec3) -> f32 {
         position.norm() - 1.0
     }

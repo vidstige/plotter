@@ -1,6 +1,6 @@
 use nalgebra_glm::{Vec2, Vec3};
 
-use crate::{geometry::Geometry, iso_surface::IsoSurface};
+use crate::{geometry::Geometry, sdf::SDF};
 
 pub struct Hole;
 
@@ -21,7 +21,7 @@ impl Hole {
     }
 }
 
-impl IsoSurface for Hole {
+impl SDF for Hole {
     fn iso_level(&self, position: &Vec3) -> f32 {
         self.z(&position.xy()) - position.z
     }

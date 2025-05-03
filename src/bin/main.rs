@@ -1,7 +1,7 @@
 use std::{f32::consts::TAU, io, ops::AddAssign};
 
 use nalgebra_glm::{look_at, perspective, project, Mat4x4, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{self, Geometry}, gridlines::{generate_grid}, integrate::verlet, iso_surface::IsoSurface, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}};
+use plotter::{fields::Spiral, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{self, Geometry}, gridlines::generate_grid, integrate::verlet, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}, sdf::SDF};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Normal};
 
@@ -25,7 +25,7 @@ impl Camera {
 fn visible(
     screen: &Vec3,
     camera: &Camera,
-    geometry: &impl IsoSurface,
+    geometry: &impl SDF,
     near: f32,
     far: f32,
 ) -> bool {
@@ -51,7 +51,7 @@ struct Particle {
 // 2. Project using camera
 // 3. Clip to viewport 
 // 4. Handle occlusion
-fn reproject<G: Geometry + IsoSurface>(polyline: &Polyline2, geometry: &G, camera: &Camera, area: ViewBox, near: f32, far: f32) -> Vec<Polyline2> {
+fn reproject<G: Geometry + SDF>(polyline: &Polyline2, geometry: &G, camera: &Camera, area: ViewBox, near: f32, far: f32) -> Vec<Polyline2> {
     // TODO: When a point is occluded, start a new linesegment
     let points = polyline.points.iter()
         .map(|uv| geometry.evaluate(uv))  // evaluate to 3D point

@@ -1,5 +1,5 @@
 use nalgebra_glm::{Vec2, Vec3};
-use crate::{geometry::Geometry, iso_surface::IsoSurface};
+use crate::{geometry::Geometry, sdf::SDF};
 
 pub struct Gaussian;
 impl Gaussian {
@@ -20,7 +20,7 @@ impl Geometry for Gaussian {
     fn dv(&self) -> impl Geometry { GaussianDv }
 }
 
-impl IsoSurface for Gaussian {
+impl SDF for Gaussian {
     fn iso_level(&self, position: &Vec3) -> f32 {
         self.z(&position.xy()) - position.z
     }

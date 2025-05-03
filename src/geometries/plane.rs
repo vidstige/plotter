@@ -1,6 +1,6 @@
 use nalgebra_glm::{Vec2, Vec3, Mat2x2};
 
-use crate::{geometry::Geometry, iso_surface::IsoSurface};
+use crate::{geometry::Geometry, sdf::SDF};
 use crate::geometries::zero::Zero;
 
 pub struct Plane;
@@ -30,7 +30,7 @@ impl Geometry for Plane {
     }
 }
 
-impl IsoSurface for Plane {
+impl SDF for Plane {
     fn iso_level(&self, position: &Vec3) -> f32 {
         position.z
     }
