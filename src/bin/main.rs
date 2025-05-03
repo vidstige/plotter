@@ -34,7 +34,7 @@ fn visible(
     if let Some(intersection) = trace(&ray, geometry, near, far) {
         let traced_screen = project(&intersection, &camera.model, &camera.projection, camera.viewport);
         // handle occlusions
-        if screen.z - traced_screen.z < 0.001 {
+        if screen.z - traced_screen.z < 0.00001 {
             return true
         }
     }
@@ -79,7 +79,7 @@ fn setup_torus(view_box: ViewBox, area: ViewBox) -> (Torus, Camera, Vec<Polyline
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.5), &Vec3::new(0.0, 0.0, 1.0));
 
     let near = 0.1;
-    let far = 5.0;
+    let far = 4.0;
     let projection = perspective(viewbox_aspect(view_box), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let camera = Camera { projection, model, viewport };

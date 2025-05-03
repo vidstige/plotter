@@ -16,8 +16,8 @@ pub fn linesearch<F: Fn(f32) -> f32>(f: F, lo: f32, hi: f32, steps: usize) -> Op
 }
 
 pub fn newton_raphson<F: Fn(f32) -> f32>(f: F, x0: f32) -> Option<f32> {
-    let epsilon = 0.01; // for numerical diffrentiation
-    let tol = 0.001; // for considering roots
+    let epsilon = 0.001; // for numerical diffrentiation
+    let tol = 0.0001; // for considering roots
     let mut x = x0; 
     
     for _ in 0..20 {

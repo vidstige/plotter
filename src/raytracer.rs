@@ -29,7 +29,7 @@ pub fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec
 pub fn trace<S: IsoSurface>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
     // first linesearch to find rough estimate
     let f = |t| surface.iso_level(&ray.at(t));
-    if let Some((lo, hi)) = linesearch(f, lo, hi, 50) {
+    if let Some((lo, hi)) = linesearch(f, lo, hi, 200) {
         // fine tune with newton_raphson
         if let Some(t) = newton_raphson(f, 0.5 * (hi + lo)) {
         //if let Some(t) = newton_raphson(f, lo) {
