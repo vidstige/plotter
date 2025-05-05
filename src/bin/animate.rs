@@ -1,18 +1,13 @@
 use std::{io::{self, Write}, collections::VecDeque};
 
-use plotter::{camera::Camera, geometries::gaussian::Gaussian, integrate::implicit_euler, raytracer::{backproject, trace}};
-use plotter::geometry::Geometry;
+use plotter::{camera::Camera, geometries::gaussian::Gaussian, integrate::implicit_euler, uv2xy::reproject};
 use plotter::resolution::Resolution;
 use plotter::polyline::Polyline2;
 
 use rand::{distributions::Distribution, rngs::ThreadRng};
-use nalgebra_glm::{Vec2, Vec3, look_at, project, Vec4, perspective};
+use nalgebra_glm::{Vec2, Vec3, look_at, Vec4, perspective};
 use rand_distr::{StandardNormal, Uniform};
 use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
-
-fn contains(resolution: &Resolution, point: &Vec2) -> bool {
-    point.x >= 0.0 && point.x < resolution.width as f32 && point.y >= 0.0 && point.y < resolution.height as f32
-}
 
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> Vec2 {
     Vec2::new(
@@ -50,9 +45,9 @@ fn main() -> io::Result<()> {
     let mut rng = rand::thread_rng();
     let distribution = StandardNormal {};
 
-    let positions: Vec<_> = (0..256)
-        .map(|_| sample_vec2(&distribution, &mut rng))
-        .filter(|position| position.magnitude_squared() > 0.3*0.3)
+    let positions: Vec<_> = (0..1024)
+        .map(|_| 2.0 * sample_vec2(&distribution, &mut rng))
+        //.filter(|position| position.magnitude_squared() > 0.3*0.3)
         .collect();
     //let semicircle = Uniform::new(0.0 + 0.2, TAU - 0.2);
     //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
@@ -62,7 +57,7 @@ fn main() -> io::Result<()> {
         //velocity:  1.0 / field.at(p).magnitude_squared() * field.at(p),
         //velocity: 0.1 * sample_vec2(&distribution, &mut rng),
     }).collect();
-    let mut traces: Vec<VecDeque<Vec3>> = particles.iter().map(|_| VecDeque::new()).collect();
+    let mut traces: Vec<VecDeque<Vec2>> = particles.iter().map(|_| VecDeque::new()).collect();
     let fps = 25.0;
     let dt = 0.2 / fps;
     for frame in 0..512 {
@@ -71,11 +66,7 @@ fn main() -> io::Result<()> {
             // take integration step
             (particle.position, particle.velocity) = implicit_euler(&geometry, &particle.position, &particle.velocity, dt);
 
-            // project world cordinate into screen cordinate
-            let world = geometry.evaluate(&particle.position);
-            let screen = camera.project(world);
-
-            traces[index].push_back(screen);
+            traces[index].push_back(particle.position);
             if traces[index].len() > 10 {
                 traces[index].pop_front();
             }
@@ -86,21 +77,9 @@ fn main() -> io::Result<()> {
             continue;
         }
         for particle_trace in &traces {
-            let mut polyline = Polyline2::new();
-            for screen in particle_trace {
-                if contains(&resolution, &screen.xy()) {
-                    // back project and ray trace to find occlusions
-                    let ray = backproject(&screen.xy(), &camera.model, &camera.projection, camera.viewport);
-                    if let Some(intersection) = trace(&ray, &geometry, near, far) {
-                        let traced_screen = project(&intersection, &camera.model, &camera.projection, camera.viewport);
-                        // handle occlusions
-                        if screen.z - traced_screen.z < 0.0001 {
-                            polyline.add(screen.xy());
-                        }
-                    }
-                }
-            }
-            polylines.push(polyline);
+            let uv_polyline = Polyline2 { points: particle_trace.iter().copied().collect() };
+            let polyline = reproject(&uv_polyline, &geometry, &camera, (0, 0, resolution.width as i32, resolution.height as i32), near, far);
+            polylines.extend(polyline);
         }
 
         // render to pixmap
