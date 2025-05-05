@@ -6,6 +6,7 @@ pub mod geometries {
     pub mod plane;
     pub mod gaussian;
     pub mod torus;
+    pub mod pulse;
     mod zero;
 }
 pub mod lerp;
