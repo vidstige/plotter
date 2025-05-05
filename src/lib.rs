@@ -9,6 +9,7 @@ pub mod geometries {
     pub mod pulse;
     mod zero;
 }
+pub mod camera;
 pub mod lerp;
 pub mod fields;
 pub mod integrate;

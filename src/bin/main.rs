@@ -1,24 +1,13 @@
 use std::{f32::consts::TAU, io, ops::AddAssign};
 
 use nalgebra_glm::{look_at, perspective, project, Mat4x4, Vec2, Vec3, Vec4};
-use plotter::{fields::Spiral, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{self, Geometry}, gridlines::generate_grid, integrate::verlet, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}, sdf::SDF};
+use plotter::{camera::Camera, fields::Spiral, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{self, Geometry}, gridlines::generate_grid, integrate::verlet, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}, sdf::SDF};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Normal};
 
 fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
     let (x, y, w, h) = view_box;
     point.x > *x as f32 && point.y > *y as f32 && point.x < (x + w) as f32 && point.y < (y + h) as f32
-}
-
-struct Camera {
-    projection: Mat4x4,
-    model: Mat4x4,
-    viewport: Vec4,
-}
-impl Camera {
-    fn project(&self, world: Vec3) -> Vec3 {
-        project(&world, &self.model, &self.projection, self.viewport)
-    }
 }
 
 // handle occlusions
