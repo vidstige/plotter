@@ -22,6 +22,7 @@ pub mod netbm;
 pub mod paper;
 pub mod polyline;
 pub mod raytracer;
+pub mod uv2xy;
 
 #[cfg(test)]
 mod tests;

@@ -1,64 +1,13 @@
-use std::{f32::consts::TAU, io, ops::AddAssign};
+use std::{f32::consts::TAU, io};
 
-use nalgebra_glm::{look_at, perspective, project, Mat4x4, Vec2, Vec3, Vec4};
-use plotter::{camera::Camera, fields::Spiral, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{self, Geometry}, gridlines::generate_grid, integrate::verlet, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, raytracer::{backproject, trace}, sdf::SDF};
+use nalgebra_glm::{look_at, perspective, Vec2, Vec3, Vec4};
+use plotter::{camera::Camera, geometries::torus::Torus, gridlines::generate_grid, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, uv2xy::reproject};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Normal};
-
-fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
-    let (x, y, w, h) = view_box;
-    point.x > *x as f32 && point.y > *y as f32 && point.x < (x + w) as f32 && point.y < (y + h) as f32
-}
-
-// handle occlusions
-fn visible(
-    screen: &Vec3,
-    camera: &Camera,
-    geometry: &impl SDF,
-    near: f32,
-    far: f32,
-) -> bool {
-    // back project and ray trace to find occlusions
-    let ray = backproject(&screen.xy(), &camera.model, &camera.projection, camera.viewport);
-    if let Some(intersection) = trace(&ray, geometry, near, far) {
-        let traced_screen = project(&intersection, &camera.model, &camera.projection, camera.viewport);
-        // handle occlusions
-        if screen.z - traced_screen.z < 0.00001 {
-            return true
-        }
-    }
-    false
-}
 
 struct Particle {
     position: Vec2,
     velocity: Vec2,
-}
-
-// Takes uv-coordinates and returns xy-cordinates
-// 1. Evaluates geometry
-// 2. Project using camera
-// 3. Clip to viewport 
-// 4. Handle occlusion
-fn reproject<G: Geometry + SDF>(polyline: &Polyline2, geometry: &G, camera: &Camera, area: ViewBox, near: f32, far: f32) -> Vec<Polyline2> {
-    // TODO: When a point is occluded, start a new linesegment
-    let points = polyline.points.iter()
-        .map(|uv| geometry.evaluate(uv))  // evaluate to 3D point
-        .map(|world| camera.project(world));
-
-    let mut polylines = Vec::new();
-    let mut current = Polyline2::new();
-    for screen in points {
-        //current.add(screen.xy());
-        if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, near, far) {
-            current.add(screen.xy());
-        } else {
-            polylines.push(current);
-            current = Polyline2::new();
-        }
-    }
-    polylines.push(current);
-    polylines
 }
 
 fn setup_torus(view_box: ViewBox, area: ViewBox) -> (Torus, Camera, Vec<Polyline2>) {
