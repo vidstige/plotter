@@ -1,7 +1,6 @@
-use std::{ops::{Sub, Add}, io::{self, Write}, collections::VecDeque, f32::consts::TAU};
+use std::{io::{self, Write}, collections::VecDeque};
 
-use plotter::{fields::Spiral, geometries::gaussian::Gaussian, geometry::{acceleration, compute_gamma}, integrate::implicit_euler, sdf::SDF, raytracer::{backproject, trace}};
-use plotter::geometries::{sphere::Sphere, hole::Hole};
+use plotter::{camera::Camera, geometries::gaussian::Gaussian, integrate::implicit_euler, raytracer::{backproject, trace}};
 use plotter::geometry::Geometry;
 use plotter::resolution::Resolution;
 use plotter::polyline::Polyline2;
@@ -27,24 +26,29 @@ struct Particle {
     velocity: Vec2,
 }
 
-fn main() -> io::Result<()> {
-    let resolution = Resolution::new(506, 253);
-
-    let mut rng = rand::thread_rng();
-    let distribution = StandardNormal {};
-    let field = Spiral::new(Vec2::zeros());
-
+fn setup_gaussian(resolution: &Resolution) -> (Gaussian, Camera) {
     let eye = Vec3::new(-2.5, -2.5, -1.5);
     let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.1), &Vec3::new(0.0, 0.0, 1.0));
     let near = 0.1;
     let far = 10.0;
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
+    let camera = Camera { projection, model, viewport};
 
     let geometry = Gaussian::new();
-    //let geometry = Sphere::new();
+    (geometry, camera)
+}
+
+fn main() -> io::Result<()> {
+    let resolution = Resolution::new(506, 253);
+    let (geometry, camera) = setup_gaussian(&resolution);
+    let near = 0.1;
+    let far = 10.0;
 
     let mut output = io::stdout().lock();
+
+    let mut rng = rand::thread_rng();
+    let distribution = StandardNormal {};
 
     let positions: Vec<_> = (0..256)
         .map(|_| sample_vec2(&distribution, &mut rng))
@@ -69,7 +73,7 @@ fn main() -> io::Result<()> {
 
             // project world cordinate into screen cordinate
             let world = geometry.evaluate(&particle.position);
-            let screen = project(&world, &model, &projection, viewport);
+            let screen = camera.project(world);
 
             traces[index].push_back(screen);
             if traces[index].len() > 10 {
@@ -86,9 +90,9 @@ fn main() -> io::Result<()> {
             for screen in particle_trace {
                 if contains(&resolution, &screen.xy()) {
                     // back project and ray trace to find occlusions
-                    let ray = backproject(&screen.xy(), &model, &projection, viewport);
+                    let ray = backproject(&screen.xy(), &camera.model, &camera.projection, camera.viewport);
                     if let Some(intersection) = trace(&ray, &geometry, near, far) {
-                        let traced_screen = project(&intersection, &model, &projection, viewport);
+                        let traced_screen = project(&intersection, &camera.model, &camera.projection, camera.viewport);
                         // handle occlusions
                         if screen.z - traced_screen.z < 0.0001 {
                             polyline.add(screen.xy());
@@ -125,6 +129,7 @@ fn main() -> io::Result<()> {
         }
         //pixmap.save_png("image.png")?;
         output.write_all(pixmap.data())?;
+        output.flush()?;
     }
 
     Ok(())
