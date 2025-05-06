@@ -58,26 +58,27 @@ fn main() -> io::Result<()> {
         //velocity: 0.1 * sample_vec2(&distribution, &mut rng),
     }).collect();
     let mut traces: Vec<VecDeque<Vec2>> = particles.iter().map(|_| VecDeque::new()).collect();
-    let fps = 25.0;
-    let dt = 0.2 / fps;
-    for frame in 0..512 {
+    let trace_length = 24;
+    let fps = 30.0;
+    let dt = 0.4 / fps;
+    for frame in 0..256 {
         let mut polylines = Vec::new();
         for (index, particle) in particles.iter_mut().enumerate() {
             // take integration step
             (particle.position, particle.velocity) = implicit_euler(&geometry, &particle.position, &particle.velocity, dt);
 
             traces[index].push_back(particle.position);
-            if traces[index].len() > 10 {
+            if traces[index].len() > trace_length {
                 traces[index].pop_front();
             }
         }
 
         // draw traces
-        if frame < 10 {
+        if frame < trace_length {
             continue;
         }
         for particle_trace in &traces {
-            let uv_polyline = Polyline2 { points: particle_trace.iter().copied().collect() };
+            let uv_polyline = Polyline2 { points: particle_trace.iter().step_by(2).copied().collect() };
             let polyline = reproject(&uv_polyline, &geometry, &camera, (0, 0, resolution.width as i32, resolution.height as i32), near, far);
             polylines.extend(polyline);
         }
