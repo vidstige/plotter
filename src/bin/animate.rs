@@ -22,8 +22,8 @@ struct Particle {
 }
 
 fn setup_gaussian(resolution: &Resolution) -> (Gaussian, Camera) {
-    let eye = Vec3::new(-2.5, -2.5, -1.5);
-    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.1), &Vec3::new(0.0, 0.0, 1.0));
+    let eye = Vec3::new(-2.6, -2.6, -1.5);
+    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.4), &Vec3::new(0.0, 0.0, 1.0));
     let near = 0.1;
     let far = 10.0;
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
@@ -35,7 +35,7 @@ fn setup_gaussian(resolution: &Resolution) -> (Gaussian, Camera) {
 }
 
 fn main() -> io::Result<()> {
-    let resolution = Resolution::new(506, 253);
+    let resolution = Resolution::new(720, 720);
     let (geometry, camera) = setup_gaussian(&resolution);
     let near = 0.1;
     let far = 10.0;
