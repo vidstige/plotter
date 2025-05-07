@@ -34,6 +34,20 @@ fn setup_gaussian(resolution: &Resolution) -> (Gaussian, Camera) {
     (geometry, camera)
 }
 
+fn draw_polyline(pixmap: &mut Pixmap, polyline: Polyline2, paint: &Paint, stroke: &Stroke) {
+    let mut pb = PathBuilder::new();
+    for (index, point) in polyline.points.iter().enumerate() {
+        if index == 0 {
+            pb.move_to(point.x, point.y);
+        } else {
+            pb.line_to(point.x, point.y);
+        }
+    }
+    if let Some(path) = pb.finish() {
+        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+    }
+}
+
 fn main() -> io::Result<()> {
     let resolution = Resolution::new(720, 720);
     let (geometry, camera) = setup_gaussian(&resolution);
@@ -95,17 +109,7 @@ fn main() -> io::Result<()> {
         stroke.width = 2.0;
 
         for polyline in polylines {
-            let mut pb = PathBuilder::new();
-            for (index, point) in polyline.points.iter().enumerate() {
-                if index == 0 {
-                    pb.move_to(point.x, point.y);
-                } else {
-                    pb.line_to(point.x, point.y);
-                }
-            }
-            if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
-            }
+            draw_polyline(&mut pixmap, polyline, &paint, &stroke);
         }
         //pixmap.save_png("image.png")?;
         output.write_all(pixmap.data())?;
