@@ -85,18 +85,21 @@ fn main() -> io::Result<()> {
     let fps = 30.0;
     let dt = 0.4 / fps;
     for frame in 0..256 {
-        let mut polylines = Vec::new();
-        for (index, particle) in particles.iter_mut().enumerate() {
-            // take integration step
+        // take integration step
+        for particle in particles.iter_mut() {
             (particle.position, particle.velocity) = implicit_euler(&geometry, &particle.position, &particle.velocity, dt);
-
-            traces[index].push_back(particle.position);
-            if traces[index].len() > trace_length {
-                traces[index].pop_front();
+        }
+        
+        // remember particle traces
+        for (particle, trace) in particles.iter().zip(traces.iter_mut()) {
+            trace.push_back(particle.position);
+            if trace.len() > trace_length {
+                trace.pop_front();
             }
         }
 
         // draw traces
+        let mut polylines = Vec::new();
         if frame < trace_length {
             continue;
         }
