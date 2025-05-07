@@ -1,6 +1,6 @@
 use std::{io::{self, Write}, collections::VecDeque};
 
-use plotter::{camera::Camera, geometries::gaussian::Gaussian, integrate::implicit_euler, uv2xy::reproject};
+use plotter::{camera::Camera, geometries::gaussian::Gaussian, gridlines::generate_grid, integrate::implicit_euler, uv2xy::reproject};
 use plotter::resolution::Resolution;
 use plotter::polyline::Polyline2;
 
@@ -80,11 +80,13 @@ fn main() -> io::Result<()> {
         //velocity:  1.0 / field.at(p).magnitude_squared() * field.at(p),
         //velocity: 0.1 * sample_vec2(&distribution, &mut rng),
     }).collect();
-    let mut traces: Vec<VecDeque<Vec2>> = particles.iter().map(|_| VecDeque::new()).collect();
-    let trace_length = 24;
+    //let mut traces: Vec<VecDeque<Vec2>> = particles.iter().map(|_| VecDeque::new()).collect();
+    //let trace_length = 24;
+    let uv_polylines = generate_grid((-2.0, 2.0), (-2.0, 2.0), 32, 128);
     let fps = 30.0;
     let dt = 0.4 / fps;
     for frame in 0..256 {
+        /*
         // take integration step
         for particle in particles.iter_mut() {
             (particle.position, particle.velocity) = implicit_euler(&geometry, &particle.position, &particle.velocity, dt);
@@ -97,18 +99,22 @@ fn main() -> io::Result<()> {
                 trace.pop_front();
             }
         }
+        if frame < trace_length {
+            continue;
+        }*/
 
         // draw traces
         let mut polylines = Vec::new();
-        if frame < trace_length {
-            continue;
-        }
-        for particle_trace in &traces {
-            let uv_polyline = Polyline2 { points: particle_trace.iter().step_by(2).copied().collect() };
-            let polyline = reproject(&uv_polyline, &geometry, &camera, (0, 0, resolution.width as i32, resolution.height as i32), near, far);
+        for uv_polyline in &uv_polylines {
+            let polyline = reproject(uv_polyline, &geometry, &camera, (0, 0, resolution.width as i32, resolution.height as i32), near, far);
             polylines.extend(polyline);
         }
 
+        /*for particle_trace in &traces {
+            let uv_polyline = Polyline2 { points: particle_trace.iter().step_by(2).copied().collect() };
+            let polyline = reproject(&uv_polyline, &geometry, &camera, (0, 0, resolution.width as i32, resolution.height as i32), near, far);
+            polylines.extend(polyline);
+        }*/
         // render to pixmap
         let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
         for polyline in polylines {
