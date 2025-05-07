@@ -58,6 +58,15 @@ fn main() -> io::Result<()> {
 
     let mut rng = rand::thread_rng();
     let distribution = StandardNormal {};
+        
+    // set up color
+    let color = Color::from_rgba8(255, 180, 220, 0xff);
+    let mut paint = Paint::default();
+    paint.set_color(color);
+    paint.anti_alias = true;
+
+    let mut stroke = Stroke::default();
+    stroke.width = 2.0;
 
     let positions: Vec<_> = (0..1024)
         .map(|_| 2.0 * sample_vec2(&distribution, &mut rng))
@@ -99,15 +108,6 @@ fn main() -> io::Result<()> {
 
         // render to pixmap
         let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
-        
-        let color = Color::from_rgba8(255, 180, 220, 0xff);
-        let mut paint = Paint::default();
-        paint.set_color(color);
-        paint.anti_alias = true;
-
-        let mut stroke = Stroke::default();
-        stroke.width = 2.0;
-
         for polyline in polylines {
             draw_polyline(&mut pixmap, polyline, &paint, &stroke);
         }
