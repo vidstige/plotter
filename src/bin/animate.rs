@@ -1,11 +1,11 @@
 use std::{io::{self, Write}, collections::VecDeque};
 
-use plotter::{camera::Camera, geometries::gaussian::Gaussian, gridlines::generate_grid, integrate::implicit_euler, uv2xy::reproject};
+use plotter::{camera::Camera, geometries::gaussian::Gaussian, gridlines::generate_grid, integrate::implicit_euler, lerp::lerp, uv2xy::reproject};
 use plotter::resolution::Resolution;
 use plotter::polyline::Polyline2;
 
 use rand::{distributions::Distribution, rngs::ThreadRng};
-use nalgebra_glm::{Vec2, Vec3, look_at, Vec4, perspective};
+use nalgebra_glm::{identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
 use rand_distr::{StandardNormal, Uniform};
 use tiny_skia::{Pixmap, PathBuilder, Paint, Stroke, Transform, Color};
 
@@ -22,13 +22,11 @@ struct Particle {
 }
 
 fn setup_gaussian(resolution: &Resolution) -> (Gaussian, Camera) {
-    let eye = Vec3::new(-2.6, -2.6, -1.5);
-    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.4), &Vec3::new(0.0, 0.0, 1.0));
     let near = 0.1;
     let far = 10.0;
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
-    let camera = Camera { projection, model, viewport};
+    let camera = Camera { projection, model: identity(), viewport};
 
     let geometry = Gaussian::new();
     (geometry, camera)
@@ -48,9 +46,16 @@ fn draw_polyline(pixmap: &mut Pixmap, polyline: Polyline2, paint: &Paint, stroke
     }
 }
 
+fn camera_at(t: f32) -> Mat4x4 {
+    //let eye = Vec3::new(-2.6, -2.6, -1.5);
+    let t_ = lerp(0.1, 0.2, t);
+    let eye = Vec3::new(2.6 * t_.cos(), 2.6 * t_.sin(), -1.5);
+    look_at(&eye, &Vec3::new(0.0, 0.0, 0.4), &Vec3::new(0.0, 0.0, 1.0))
+}
+
 fn main() -> io::Result<()> {
     let resolution = Resolution::new(720, 720);
-    let (geometry, camera) = setup_gaussian(&resolution);
+    let (geometry, mut camera) = setup_gaussian(&resolution);
     let near = 0.1;
     let far = 10.0;
 
@@ -82,10 +87,13 @@ fn main() -> io::Result<()> {
     }).collect();
     //let mut traces: Vec<VecDeque<Vec2>> = particles.iter().map(|_| VecDeque::new()).collect();
     //let trace_length = 24;
-    let uv_polylines = generate_grid((-2.0, 2.0), (-2.0, 2.0), 32, 128);
+    let uv_polylines = generate_grid((-4.0, 4.0), (-4.0, 4.0), 32, 128);
     let fps = 30.0;
     let dt = 0.4 / fps;
     for frame in 0..256 {
+        let t = frame as f32 / 256 as f32;
+        // update camera 
+        camera.model = camera_at(t);
         /*
         // take integration step
         for particle in particles.iter_mut() {
