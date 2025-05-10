@@ -1,6 +1,6 @@
-use std::{io::{self, Write}, collections::VecDeque};
+use std::{collections::VecDeque, f32::consts::TAU, io::{self, Write}};
 
-use plotter::{camera::Camera, geometries::gaussian::Gaussian, gridlines::generate_grid, integrate::implicit_euler, lerp::lerp, uv2xy::reproject};
+use plotter::{camera::Camera, geometries::{gaussian::Gaussian, pulse::Pulse}, gridlines::generate_grid, integrate::implicit_euler, lerp::lerp, uv2xy::reproject};
 use plotter::resolution::Resolution;
 use plotter::polyline::Polyline2;
 
@@ -21,15 +21,12 @@ struct Particle {
     velocity: Vec2,
 }
 
-fn setup_gaussian(resolution: &Resolution) -> (Gaussian, Camera) {
+fn initialize_camera(resolution: &Resolution) -> Camera {
     let near = 0.1;
     let far = 10.0;
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
-    let camera = Camera { projection, model: identity(), viewport};
-
-    let geometry = Gaussian::new();
-    (geometry, camera)
+    Camera { projection, model: identity(), viewport}
 }
 
 fn draw_polyline(pixmap: &mut Pixmap, polyline: Polyline2, paint: &Paint, stroke: &Stroke) {
@@ -55,7 +52,17 @@ fn camera_at(t: f32) -> Mat4x4 {
 
 fn main() -> io::Result<()> {
     let resolution = Resolution::new(720, 720);
-    let (geometry, mut camera) = setup_gaussian(&resolution);
+    let mut camera = initialize_camera(&resolution);
+
+    let mut geometry = Pulse {
+        amplitude: 0.2,
+        sigma: 0.8,
+        c: 16.0,
+        cycles: 0.4,
+        lambda: 0.2,
+        t: 0.0,
+    };
+
     let near = 0.1;
     let far = 10.0;
 
@@ -92,7 +99,8 @@ fn main() -> io::Result<()> {
     let dt = 0.4 / fps;
     for frame in 0..256 {
         let t = frame as f32 / 256 as f32;
-        // update camera 
+        // update camera & geometry
+        geometry.t = t;
         camera.model = camera_at(t);
         /*
         // take integration step
