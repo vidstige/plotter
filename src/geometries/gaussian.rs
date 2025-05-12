@@ -1,23 +1,24 @@
 use nalgebra_glm::{Vec2, Vec3};
-use crate::{geometry::Geometry, sdf::SDF};
+use crate::{geometry::{DifferentiableGeometry, Geometry}, sdf::SDF};
+
+use super::heightmap::Heightmap;
 
 pub struct Gaussian;
 impl Gaussian {
     pub fn new() -> Self { Self }
-    pub fn z(&self, p: &Vec2) -> f32 {
+}
+
+impl Heightmap for Gaussian {
+    fn z(&self, p: &Vec2) -> f32 {
         let (u, v) = (p.x, p.y);
         let r2 = u * u + v * v;
         (-r2).exp()
     }
 }
 
-impl Geometry for Gaussian {
-    fn evaluate(&self, p: &Vec2) -> Vec3 {
-        Vec3::new(p.x, p.y, self.z(p))
-    }
-
-    fn du(&self) -> impl Geometry { GaussianDu }
-    fn dv(&self) -> impl Geometry { GaussianDv }
+impl DifferentiableGeometry for Gaussian {
+    fn du(&self) -> impl DifferentiableGeometry { GaussianDu }
+    fn dv(&self) -> impl DifferentiableGeometry { GaussianDv }
 }
 
 impl SDF for Gaussian {
@@ -34,9 +35,10 @@ impl Geometry for GaussianDu {
         let dz = -2.0 * u * (-r2).exp();
         Vec3::new(1.0, 0.0, dz)
     }
-
-    fn du(&self) -> impl Geometry { GaussianDuDu }
-    fn dv(&self) -> impl Geometry { GaussianDuDv }
+}
+impl DifferentiableGeometry for GaussianDu {
+    fn du(&self) -> impl DifferentiableGeometry { GaussianDuDu }
+    fn dv(&self) -> impl DifferentiableGeometry { GaussianDuDv }
 }
 
 struct GaussianDv;
@@ -47,10 +49,11 @@ impl Geometry for GaussianDv {
         let dz = -2.0 * v * (-r2).exp();
         Vec3::new(0.0, 1.0, dz)
     }
-
+}
+impl DifferentiableGeometry for GaussianDv {
     // Order of derivation does not matter, so just reuse (d/du)(d/dv)
-    fn du(&self) -> impl Geometry { GaussianDuDv }
-    fn dv(&self) -> impl Geometry { GaussianDvDv }
+    fn du(&self) -> impl DifferentiableGeometry { GaussianDuDv }
+    fn dv(&self) -> impl DifferentiableGeometry { GaussianDvDv }
 }
 
 struct GaussianDuDu;
@@ -63,6 +66,7 @@ impl Geometry for GaussianDuDu {
         Vec3::new(0.0, 0.0, dz)
     }
 }
+impl DifferentiableGeometry for GaussianDuDu { }
 
 struct GaussianDvDv;
 impl Geometry for GaussianDvDv {
@@ -74,6 +78,7 @@ impl Geometry for GaussianDvDv {
         Vec3::new(0.0, 0.0, dz)
     }
 }
+impl DifferentiableGeometry for GaussianDvDv { }
 
 struct GaussianDuDv;
 impl Geometry for GaussianDuDv {
@@ -84,3 +89,4 @@ impl Geometry for GaussianDuDv {
         Vec3::new(0.0, 0.0, dz)
     }
 }
+impl DifferentiableGeometry for GaussianDuDv { }

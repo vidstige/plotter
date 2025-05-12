@@ -1,5 +1,6 @@
 pub mod geometry;
 pub mod geometries {
+    pub mod heightmap;
     pub mod blend;
     pub mod hole;
     pub mod sphere;

@@ -1,6 +1,6 @@
 use nalgebra_glm::{Vec2, Vec3, Mat2x2};
 
-use crate::{geometry::Geometry, sdf::SDF};
+use crate::{geometry::{DifferentiableGeometry, Geometry}, sdf::SDF};
 
 pub struct Sphere;
 impl Sphere {
@@ -16,8 +16,11 @@ impl Geometry for Sphere {
             u.cos(),
         )
     }
-    fn du(&self) -> impl Geometry { SphereDu }
-    fn dv(&self) -> impl Geometry { SphereDv }
+}
+
+impl DifferentiableGeometry for Sphere {
+    fn du(&self) -> impl DifferentiableGeometry { SphereDu }
+    fn dv(&self) -> impl DifferentiableGeometry { SphereDv }
     fn metric(&self, p: &Vec2) -> Mat2x2 {
         // override metric tensor with analytical expression
         Mat2x2::new(
@@ -44,8 +47,11 @@ impl Geometry for SphereDu {
             -u.sin(),
         )
     }
-    fn du(&self) -> impl Geometry { SphereDuDu }
-    fn dv(&self) -> impl Geometry { SphereDuDv }
+}
+
+impl DifferentiableGeometry for SphereDu {
+    fn du(&self) -> impl DifferentiableGeometry { SphereDuDu }
+    fn dv(&self) -> impl DifferentiableGeometry { SphereDuDv }
 }
 
 struct SphereDv;
@@ -58,9 +64,12 @@ impl Geometry for SphereDv {
             0.0,
         )
     }
+}
+
+impl DifferentiableGeometry for SphereDv {
     // Order of derivation does not matter, so just reuse (d/du)(d/dv)
-    fn du(&self) -> impl Geometry { SphereDuDv }
-    fn dv(&self) -> impl Geometry { SphereDvDv }
+    fn du(&self) -> impl DifferentiableGeometry { SphereDuDv }
+    fn dv(&self) -> impl DifferentiableGeometry { SphereDvDv }
 }
 
 // second derivatives of sphere
@@ -75,6 +84,7 @@ impl Geometry for SphereDuDu {
         )
     }
 }
+impl DifferentiableGeometry for SphereDuDu {}
 
 struct SphereDvDv;
 impl Geometry for SphereDvDv {
@@ -87,6 +97,7 @@ impl Geometry for SphereDvDv {
         )
     }
 }
+impl DifferentiableGeometry for SphereDvDv {}
 
 struct SphereDuDv;
 
@@ -100,3 +111,4 @@ impl Geometry for SphereDuDv {
         )
     }
 }
+impl DifferentiableGeometry for SphereDuDv {}

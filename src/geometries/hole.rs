@@ -1,22 +1,22 @@
 use nalgebra_glm::{Vec2, Vec3};
 
-use crate::{geometry::Geometry, sdf::SDF};
+use crate::{geometry::{DifferentiableGeometry, Geometry}, sdf::SDF};
+
+use super::heightmap::Heightmap;
 
 pub struct Hole;
 
-impl Geometry for Hole {
-    fn evaluate(&self, p: &Vec2) -> Vec3 {
-        Vec3::new(p.x, p.y, self.z(p))
-    }
-    fn du(&self) -> impl Geometry { HoleDu {} }
-    fn dv(&self) -> impl Geometry { HoleDv {} }
+impl DifferentiableGeometry for Hole {
+    fn du(&self) -> impl DifferentiableGeometry { HoleDu }
+    fn dv(&self) -> impl DifferentiableGeometry { HoleDv }
 }
 
 impl Hole {
-    pub fn new() -> Hole {
-        Hole {}        
-    }
-    pub fn z(&self, p: &Vec2) -> f32 {
+    pub fn new() -> Hole { Hole }
+}
+
+impl Heightmap for Hole {
+    fn z(&self, p: &Vec2) -> f32 {
         1.0 / p.norm_squared()
     }
 }
@@ -39,8 +39,11 @@ impl Geometry for HoleDu {
             -(2.0 * p.x) / (p.x * p.x + p.y * p.y).powi(2),
         )
     }
-    fn du(&self) -> impl Geometry { HoleDuDu {} }
-    fn dv(&self) -> impl Geometry { HoleDuDv {} }
+}
+
+impl DifferentiableGeometry for HoleDu {
+    fn du(&self) -> impl DifferentiableGeometry { HoleDuDu }
+    fn dv(&self) -> impl DifferentiableGeometry { HoleDuDv }
 }
 
 struct HoleDv;
@@ -53,8 +56,11 @@ impl Geometry for HoleDv {
             -(2.0 * p.y) / (p.x * p.x + p.y * p.y).powi(2),
         )
     }
-    fn du(&self) -> impl Geometry { HoleDuDv {} } // order of diffrentiation does not matter
-    fn dv(&self) -> impl Geometry { HoleDvDv {} }
+}
+
+impl DifferentiableGeometry for HoleDv {
+    fn du(&self) -> impl DifferentiableGeometry { HoleDuDv } // order of diffrentiation does not matter
+    fn dv(&self) -> impl DifferentiableGeometry { HoleDvDv }
 }
 
 
@@ -69,6 +75,8 @@ impl Geometry for HoleDuDu {
         )
     }
 }
+impl DifferentiableGeometry for HoleDuDu {}
+
 struct HoleDvDv;
 impl Geometry for HoleDvDv {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
@@ -79,6 +87,7 @@ impl Geometry for HoleDvDv {
         )
     }
 }
+impl DifferentiableGeometry for HoleDvDv {}
 
 struct HoleDuDv;
 impl Geometry for HoleDuDv {
@@ -90,3 +99,4 @@ impl Geometry for HoleDuDv {
         )
     }
 }
+impl DifferentiableGeometry for HoleDuDv {}

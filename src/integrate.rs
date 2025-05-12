@@ -1,15 +1,15 @@
 use nalgebra_glm::Vec2;
 
-use crate::geometry::{acceleration, Geometry};
+use crate::geometry::{acceleration, DifferentiableGeometry};
 
 
 // step functions
-pub fn euler(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
+pub fn euler(geometry: &impl DifferentiableGeometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
     let a = acceleration(geometry, position, &velocity);
     (position + velocity * dt, velocity + a * dt)
 }
 
-pub fn verlet(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
+pub fn verlet(geometry: &impl DifferentiableGeometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
     let a = acceleration(geometry, position, velocity);
     let new_position = position + velocity * dt + a * (dt * dt * 0.5);
     let new_a = acceleration(geometry, &new_position, &velocity);
@@ -19,7 +19,7 @@ pub fn verlet(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f3
 }
 
 // Fixed-point iteration (from ChatGPT)
-pub fn implicit_euler(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
+pub fn implicit_euler(geometry: &impl DifferentiableGeometry, position: &Vec2, velocity: &Vec2, dt: f32) -> (Vec2, Vec2) {
     // Initial guess using explicit Euler
     let x = *position;
     let v = *velocity;

@@ -1,5 +1,6 @@
 use nalgebra_glm::{Vec2, Vec3, Mat2x2};
 
+use crate::geometry::DifferentiableGeometry;
 use crate::{geometry::Geometry, sdf::SDF};
 use crate::geometries::zero::Zero;
 
@@ -15,13 +16,16 @@ impl Geometry for Plane {
         let (u, v) = (p.x, p.y);
         Vec3::new(u, v, 0.0)
     }
-    fn du(&self) -> impl Geometry {
+}
+
+impl DifferentiableGeometry for Plane {
+    fn du(&self) -> impl DifferentiableGeometry {
         PlaneDu {}
     }
-    fn dv(&self) -> impl Geometry {
+    fn dv(&self) -> impl DifferentiableGeometry {
         PlaneDv {}
     }
-    fn metric(&self, p: &Vec2) -> Mat2x2 {
+    fn metric(&self, _p: &Vec2) -> Mat2x2 {
         // override metric tensor with analytical expression
         return Mat2x2::new(
             1.0, 0.0,
@@ -42,8 +46,11 @@ impl Geometry for PlaneDu {
     fn evaluate(&self, _p: &Vec2) -> Vec3 {
         Vec3::new(1.0, 0.0, 0.0)
     }
-    fn du(&self) -> impl Geometry { Zero }
-    fn dv(&self) -> impl Geometry { Zero }
+}
+
+impl DifferentiableGeometry for PlaneDu {
+    fn du(&self) -> impl DifferentiableGeometry { Zero }
+    fn dv(&self) -> impl DifferentiableGeometry { Zero }
 }
 
 struct PlaneDv;
@@ -51,6 +58,8 @@ impl Geometry for PlaneDv {
     fn evaluate(&self, _p: &Vec2) -> Vec3 {
         Vec3::new(0.0, 1.0, 0.0)
     }
-    fn du(&self) -> impl Geometry { Zero }
-    fn dv(&self) -> impl Geometry { Zero }
+}
+impl DifferentiableGeometry for PlaneDv {
+    fn du(&self) -> impl DifferentiableGeometry { Zero }
+    fn dv(&self) -> impl DifferentiableGeometry { Zero }
 }

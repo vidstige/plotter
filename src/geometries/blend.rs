@@ -1,5 +1,5 @@
 use nalgebra_glm::{Vec2, Vec3};
-use crate::geometry::Geometry;
+use crate::geometry::{DifferentiableGeometry, Geometry};
 use crate::sdf::SDF;
 use crate::lerp::lerp;
 
@@ -38,8 +38,14 @@ where
         let vb = self.b.evaluate(p);
         lerp(va, vb, self.t)
     }
+}
 
-    fn du(&self) -> impl Geometry {
+impl<A, B> DifferentiableGeometry for Blend<A, B>
+where 
+    A: DifferentiableGeometry,
+    B: DifferentiableGeometry,
+{
+    fn du(&self) -> impl DifferentiableGeometry {
         Blend {
             a: self.a.du(),
             b: self.b.du(),
@@ -47,7 +53,7 @@ where
         }
     }
 
-    fn dv(&self) -> impl Geometry {
+    fn dv(&self) -> impl DifferentiableGeometry {
         Blend {
             a: self.a.dv(),
             b: self.b.dv(),

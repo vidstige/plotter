@@ -1,6 +1,6 @@
 use nalgebra_glm::{Mat2x2, Vec2, Vec3};
 
-use crate::{geometry::Geometry, sdf::SDF};
+use crate::{geometry::{DifferentiableGeometry, Geometry}, sdf::SDF};
 
 pub struct Torus {
     pub r: f32, // minor radius
@@ -27,12 +27,14 @@ impl Geometry for Torus {
             self.r * sin_u,
         )
     }
+}
 
-    fn du(&self) -> impl Geometry {
+impl DifferentiableGeometry for Torus {
+    fn du(&self) -> impl DifferentiableGeometry {
         TorusDu { r: self.r, R: self.R }
     }
 
-    fn dv(&self) -> impl Geometry {
+    fn dv(&self) -> impl DifferentiableGeometry {
         TorusDv { r: self.r, R: self.R }
     }
 
@@ -80,12 +82,14 @@ impl Geometry for TorusDu {
             self.r * cos_u,
         )
     }
+}
 
-    fn du(&self) -> impl Geometry {
+impl DifferentiableGeometry for TorusDu {
+    fn du(&self) -> impl DifferentiableGeometry {
         TorusDuDu { r: self.r, R: self.R }
     }
 
-    fn dv(&self) -> impl Geometry {
+    fn dv(&self) -> impl DifferentiableGeometry {
         TorusDuDv { r: self.r, R: self.R }
     }
 }
@@ -108,12 +112,13 @@ impl Geometry for TorusDv {
             0.0,
         )
     }
+}
 
-    fn du(&self) -> impl Geometry {
+impl DifferentiableGeometry for TorusDv {
+    fn du(&self) -> impl DifferentiableGeometry {
         TorusDuDv { r: self.r, R: self.R }
     }
-
-    fn dv(&self) -> impl Geometry {
+    fn dv(&self) -> impl DifferentiableGeometry {
         TorusDvDv { r: self.r, R: self.R }
     }
 }
@@ -139,6 +144,7 @@ impl Geometry for TorusDuDu {
         )
     }
 }
+impl DifferentiableGeometry for  TorusDuDu {}
 
 pub struct TorusDvDv {
     pub r: f32,
@@ -159,6 +165,7 @@ impl Geometry for TorusDvDv {
         )
     }
 }
+impl DifferentiableGeometry for TorusDvDv {}
 
 pub struct TorusDuDv {
     pub r: f32,
@@ -180,3 +187,4 @@ impl Geometry for TorusDuDv {
         )
     }
 }
+impl DifferentiableGeometry for TorusDuDv {}

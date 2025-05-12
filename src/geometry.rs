@@ -4,23 +4,27 @@ struct DerivativeNotImplemented {
 
 }
 impl Geometry for DerivativeNotImplemented {
-    fn evaluate(&self, _p: &Vec2) -> Vec3 {
+    fn evaluate(&self, p: &Vec2) -> Vec3 {
         todo!()
     }
-    fn du(&self) -> impl Geometry { DerivativeNotImplemented {} }
-    fn dv(&self) -> impl Geometry { DerivativeNotImplemented {} }
+}
+impl DifferentiableGeometry for DerivativeNotImplemented {
+    fn du(&self) -> impl DifferentiableGeometry { DerivativeNotImplemented {} }
+    fn dv(&self) -> impl DifferentiableGeometry { DerivativeNotImplemented {} }
 }
 
 pub trait Geometry {
     // maps a point on the surface p=(u,v) to a point in space (x, y, z)
     fn evaluate(&self, p: &Vec2) -> Vec3;
+}
 
+pub trait DifferentiableGeometry: Geometry {
     // returns the partial derivative (d/du) for the geometry
-    fn du(&self) -> impl Geometry {
+    fn du(&self) -> impl DifferentiableGeometry {
         DerivativeNotImplemented {}
     }
     // returns the partial derivative (d/dv) for the geometry
-    fn dv(&self) -> impl Geometry {
+    fn dv(&self) -> impl DifferentiableGeometry {
         DerivativeNotImplemented {}
     }
 
@@ -37,7 +41,7 @@ pub trait Geometry {
 }
 
 // return Christoffel symbols with index k, i, j
-pub fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
+pub fn compute_gamma(geometry: &impl DifferentiableGeometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
     let metric = geometry.metric(p);
     let maybe_inverse_metric = metric.try_inverse();
     if maybe_inverse_metric.is_none() {
@@ -69,7 +73,7 @@ pub fn compute_gamma(geometry: &impl Geometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
 
 // Compute acceleration: a^k = Γ^k_ij v^i v^j
 // This is the solution to the geodesic equation
-pub fn acceleration(geometry: &impl Geometry, position: &Vec2, velocity: &Vec2) -> Vec2 {
+pub fn acceleration(geometry: &impl DifferentiableGeometry, position: &Vec2, velocity: &Vec2) -> Vec2 {
     let gamma = compute_gamma(geometry, position);
     let mut a = Vec2::zeros();
     // tensor sum
