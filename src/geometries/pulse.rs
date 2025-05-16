@@ -1,6 +1,8 @@
 use nalgebra_glm::{Vec2, Vec3};
 
-use crate::{geometry::Geometry, sdf::SDF};
+use crate::sdf::SDF;
+
+use super::heightmap::Heightmap;
 
 #[derive(Clone)]
 pub struct Pulse {
@@ -12,8 +14,8 @@ pub struct Pulse {
     pub t: f32,         // Time
 }
 
-impl Pulse {
-    pub fn z(&self, p: &Vec2) -> f32 {
+impl Heightmap for Pulse {
+    fn z(&self, p: &Vec2) -> f32 {
         let r = p.norm();
         let omega = self.cycles * std::f32::consts::TAU * self.sigma;
         let r0 = -2.0 / self.sigma;
@@ -27,11 +29,5 @@ impl Pulse {
 impl SDF for Pulse {
     fn sdf(&self, position: &Vec3) -> f32 {
         self.z(&position.xy()) - position.z
-    }
-}
-
-impl Geometry for Pulse {
-    fn evaluate(&self, p: &Vec2) -> Vec3 {
-        Vec3::new(p.x, p.y, self.z(&p))
     }
 }
