@@ -21,7 +21,7 @@ pub fn generate_grid(
     let (v0, v1) = v_range;
     let mut lines = Vec::with_capacity(n_lines * 2);
     for i in 0..n_lines {
-        let t = i as f32 / (n_lines - 1) as f32;
+        let t = i as f32 / n_lines as f32;
         let u = (1.0 - t) * u0 + t * u1;
         let v = (1.0 - t) * v0 + t * v1;
 
