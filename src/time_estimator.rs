@@ -14,15 +14,15 @@ pub struct Estimator {
 impl Estimator {
     pub fn estimate(&self, paper: &Paper, draw_speed: f32, move_speed: f32) -> Duration {
         let (draw_length, move_length) = paper.length();
-        estimate_time(draw_length, move_length, draw_speed, move_speed)
+        self.estimate_time(draw_length, move_length, draw_speed, move_speed)
+    }
+    pub fn estimate_time(&self, draw_length: f32, move_length: f32, draw_speed: f32, move_speed: f32) -> Duration {
+        let draw_time = (draw_length / draw_speed) * self.c_draw;
+        let move_time = (move_length / move_speed) * self.c_move;
+        Duration::from_secs_f32(draw_time + move_time)
     }
 }
 
-pub fn estimate_time(draw_length: f32, move_length: f32, draw_speed: f32, move_speed: f32) -> Duration {
-    let draw_time = draw_length / draw_speed;
-    let move_time = move_length / move_speed;
-    Duration::from_secs_f32(draw_time + move_time)
-}
 
 pub fn fit_to(measurements: &[Measurement]) -> Estimator {
     let (mut sum_d2, mut sum_dm, mut sum_m2, mut sum_dt, mut sum_mt) = (0.0, 0.0, 0.0, 0.0, 0.0);
