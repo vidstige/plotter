@@ -1,7 +1,7 @@
 use std::{f32::consts::TAU, io};
 
 use nalgebra_glm::{look_at, perspective, Mat2x2, Vec2, Vec3, Vec4};
-use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, torus::Torus}, geometry::{DifferentiableGeometry}, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, uv2xy::reproject};
+use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, uv2xy::reproject};
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 
@@ -39,16 +39,7 @@ fn setup_torus(view_box: ViewBox, area: ViewBox, rng: &mut impl Rng) -> (Torus, 
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let camera = Camera { projection, model, viewport };
 
-    let a: f32 = 0.0;
-    let rotation = Mat2x2::new(
-        a.cos(), -a.sin(),
-        a.sin(), a.cos(),
-    );
-
-    let uv_polylines: Vec<_> = generate_grid((0.0, TAU), (0.0, TAU), 48, 128)
-        .iter()
-        .map(|line| line.transform(&rotation))
-        .collect();
+    let uv_polylines = generate_grid((0.0, TAU), (0.0, TAU), 48, 128);
 
     (geometry, camera, uv_polylines)
 }
@@ -93,6 +84,24 @@ fn setup_gaussian(view_box: ViewBox, area: ViewBox, rng: &mut impl Rng) -> (Gaus
     (geometry, camera, uv_polylines)
 }
 
+fn setup_hole(view_box: ViewBox, area: ViewBox) -> (Hole, Camera, Vec<Polyline2>) {
+    let geometry = Hole::new();
+
+    let eye = Vec3::new(-2.7, -1.8, -2.0);
+    let model = look_at(&eye, &Vec3::new(0.0, 0.0, 1.6), &Vec3::new(0.0, 0.0, 1.0));
+
+    let near = 0.1;
+    let far = 4.0;
+    let projection = perspective(viewbox_aspect(view_box), 45.0_f32.to_radians(), near, far);
+    let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
+    let camera = Camera { projection, model, viewport };
+    
+    let size = 3.0;
+    let uv_polylines = generate_grid((-size, size), (-size, size), 32, 256);
+
+    (geometry, camera, uv_polylines)
+}
+
 fn main() -> io::Result<()> {
     // set up paper
     let mut paper = Paper::new(A4_LANDSCAPE, 0.5);
@@ -101,40 +110,18 @@ fn main() -> io::Result<()> {
     // set up pseudo random generator
     let mut rng = rand::rngs::StdRng::seed_from_u64(17);
 
-    // set up uv-field
-    //let field = Spiral::new(Vec2::zeros());
-
-    // set up 3D geometry
-    //let geometry = Hole::new();
-    //let geometry = Gaussian::new();
-
-    // set up 3D camera
-    // hole & gaussian view
-    //let eye = Vec3::new(-1.8, -1.8, -0.8);
-    //let model = look_at(&eye, &Vec3::new(0.0, 0.0, 1.3), &Vec3::new(0.0, 0.0, 1.0));
-    // top-view
-    //let eye = Vec3::new(0.0, 0.0, -2.5);
-    //let model = look_at(&eye, &Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 1.0, 0.0));
-
     let near = 0.1;
     let far = 10.0;
 
-    let (geometry, camera, uv_polylines) = setup_torus(paper.view_box, area, &mut rng);
+    //let (geometry, camera, uv_polylines) = setup_torus(paper.view_box, area, &mut rng);
     //let (geometry, camera, uv_polylines) = setup_gaussian(paper.view_box, area, &mut rng);
+    let (geometry, camera, uv_polylines) = setup_hole(paper.view_box, area);
 
     for uv_polyline in uv_polylines {
         for polyline in reproject(&uv_polyline, &geometry, &camera, area, near, far) {
             paper.add(polyline);
         }
     }
-    
-    // integrate
-    /*let mut uv_polyline = Polyline2::new();
-    for _ in 0..20 {
-        uv_polyline.add(particle.position);
-        let dt = 0.1;
-        (particle.position, particle.velocity) = verlet(&geometry, &particle.position, &particle.velocity, dt);
-    }*/
     
     paper.optimize();
     let (dl, ml) = paper.length();

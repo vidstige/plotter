@@ -2,7 +2,7 @@ use std::ops::Sub;
 
 use nalgebra_glm::Vec2;
 
-fn cross2(vector: Vec2) -> Vec2 {
+pub fn cross2(vector: Vec2) -> Vec2 {
     Vec2::new(-vector.y, vector.x)
 }
 
