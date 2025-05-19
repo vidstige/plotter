@@ -1,6 +1,6 @@
 use std::{f32::consts::TAU, io, time::Duration};
 
-use nalgebra_glm::{look_at, perspective, Mat2x2, Vec2, Vec3, Vec4};
+use nalgebra_glm::{look_at, perspective, Vec2, Vec3, Vec4};
 use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator, uv2xy::reproject};
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
@@ -147,7 +147,7 @@ fn main() -> io::Result<()> {
         (11244.227, 2893.787, 2000.0, 8000.0, Duration::from_secs(3 * 60 + 52)),
     ];
     let estimator = time_estimator::fit_to(&measurements);
-    let duration = estimator.estimate_time(&paper, 2000.0, 8000.0);
+    let duration = estimator.estimate(&paper, 2000.0, 8000.0);
     println!("Estimated time: {}", format_duration(duration));
 
     Ok(())
