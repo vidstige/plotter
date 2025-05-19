@@ -12,6 +12,15 @@ pub struct Estimator {
 }
 
 impl Estimator {
+    pub fn best() -> Self{
+        let measurements = vec![
+            (24901.33, 7490.3813, 2000.0, 8000.0, Duration::from_secs(8 * 60)),
+            (20193.04, 5596.8086, 2000.0, 8000.0, Duration::from_secs(6 * 60 + 18)),
+            (11244.227, 2893.787, 2000.0, 8000.0, Duration::from_secs(3 * 60 + 52)),
+            (19574.28, 6561.491, 2000.0, 8000.0, Duration::from_secs(6 * 60 + 13)),
+        ];
+        fit_to(&measurements)
+    }
     pub fn estimate(&self, paper: &Paper, draw_speed: f32, move_speed: f32) -> Duration {
         let (draw_length, move_length) = paper.length();
         self.estimate_time(draw_length, move_length, draw_speed, move_speed)

@@ -1,7 +1,7 @@
 use std::{f32::consts::TAU, io, time::Duration};
 
 use nalgebra_glm::{look_at, perspective, Vec2, Vec3, Vec4};
-use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator::{self}, uv2xy::reproject};
+use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator::Estimator, uv2xy::reproject};
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 
@@ -141,13 +141,7 @@ fn main() -> io::Result<()> {
     paper.save("output.svg")?;
 
     // estimate plotting time
-    let measurements = vec![
-        (24901.33, 7490.3813, 2000.0, 8000.0, Duration::from_secs(8 * 60)),
-        (20193.04, 5596.8086, 2000.0, 8000.0, Duration::from_secs(6 * 60 + 18)),
-        (11244.227, 2893.787, 2000.0, 8000.0, Duration::from_secs(3 * 60 + 52)),
-        (19574.28, 6561.491, 2000.0, 8000.0, Duration::from_secs(6 * 60 + 13)),
-    ];
-    let estimator = time_estimator::fit_to(&measurements);
+    let estimator = Estimator::best();
     let duration = estimator.estimate(&paper, 2000.0, 8000.0);
     println!("Estimated time: {}", format_duration(duration));
 
