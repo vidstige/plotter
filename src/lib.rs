@@ -25,6 +25,7 @@ pub mod paper;
 pub mod polyline;
 pub mod raytracer;
 pub mod uv2xy;
+pub mod remeshing;
 pub mod time_estimator;
 
 #[cfg(test)]

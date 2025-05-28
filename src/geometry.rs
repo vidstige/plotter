@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec3, Vec2, Mat2x2};
+use nalgebra_glm::{cross, normalize, Mat2x2, Vec2, Vec3};
 
 struct DerivativeNotImplemented {
 
@@ -37,6 +37,12 @@ pub trait DifferentiableGeometry: Geometry {
             du.dot(&du), du.dot(&dv),
             dv.dot(&du), dv.dot(&dv),
         )
+    }
+    /// Computes the normal vector at a given UV coordinate for any DifferentiableGeometry.
+    fn normal(&self, uv: &Vec2) -> Vec3 {
+        let du = self.du().evaluate(uv);
+        let dv = self.dv().evaluate(uv);
+        normalize(&cross(&du, &dv))
     }
 }
 
