@@ -33,4 +33,15 @@ impl Mesh2 {
 
         Self { vertices, quads }
     }
+
+    pub fn edges(&self) -> Vec<[usize; 2]> {
+        let mut edges = Vec::new();
+        for quad in &self.quads {
+            for i in 0..quad.len() {
+                let next = (i + 1) % 4;
+                edges.push([quad[i], quad[next]]);
+            }
+        }
+        edges
+    }
 }

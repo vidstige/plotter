@@ -12,6 +12,12 @@ impl<const N: usize> Polyline<N> {
     pub fn new() -> Polyline<N> {
         Polyline { points: Vec::new() }
     }
+    pub fn segment(a: TVec<f32, N>, b: TVec<f32, N>) -> Polyline<N> {
+        let mut polyline = Polyline::new();
+        polyline.add(a);
+        polyline.add(b);
+        polyline
+    }
     pub fn add(&mut self, point: TVec<f32, N>) {
         self.points.push(point);
     }

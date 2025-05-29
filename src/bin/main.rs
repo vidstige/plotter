@@ -1,10 +1,9 @@
-use std::{f32::consts::TAU, io, time::Duration};
+use std::{collections::HashSet, f32::consts::TAU, io, time::Duration};
 
-use nalgebra_glm::{look_at, perspective, Vec2, Vec3, Vec4};
-use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator::Estimator, uv2xy::reproject};
+use nalgebra_glm::{look_at, perspective, vec2, Vec2, Vec3, Vec4};
+use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{DifferentiableGeometry, Geometry}, gridlines::generate_grid, integrate::euler, mesh2::Mesh2, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, remeshing::{initialize_orientation_field, optimize_orientation_field}, time_estimator::Estimator, uv2xy::reproject};
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
-
 
 fn simulate(
     geometry: &impl DifferentiableGeometry,
@@ -113,6 +112,28 @@ fn format_duration(duration: Duration) -> String {
     format!("{minutes}m {seconds}s")
 }
 
+fn debug_field(camera: &Camera, positions: &[Vec3], field: &[Vec3], length: f32) -> Vec<Polyline2> {
+    let mut uv_polylines = Vec::new();
+    for (position, vector) in positions.iter().zip(field.iter()) {
+        let mut uv_polyline = Polyline2::new();
+        uv_polyline.add(camera.project(*position).xy());
+        uv_polyline.add(camera.project(*position + length * *vector).xy());
+        uv_polylines.push(uv_polyline);
+    }
+    uv_polylines
+}
+
+fn to_uvlines(mesh: &Mesh2) -> Vec<Polyline2> {
+    let all_edges = mesh.edges();
+    let edges: HashSet<_> = all_edges.iter().collect();
+    // TODO: Find chains
+    edges.iter().map(|edge| {
+        let start = mesh.vertices[edge[0]];
+        let end = mesh.vertices[edge[1]];
+        Polyline2::segment(start, end)
+    }).collect()
+}
+
 fn main() -> io::Result<()> {
     // set up paper
     let mut paper = Paper::new(A4_LANDSCAPE, 0.5);
@@ -127,8 +148,20 @@ fn main() -> io::Result<()> {
     //let (geometry, camera) = setup_torus(paper.view_box, area, &mut rng);
     let (geometry, camera) = setup_gaussian(paper.view_box, area, &mut rng);
     //let (geometry, camera) = setup_hole(paper.view_box, area);
-    let uv_polylines = generate_grid((-2.0, 2.0), (-2.0, 2.0), 64, 256);
+    
+    //let uv_polylines = generate_grid((-2.0, 2.0), (-2.0, 2.0), 64, 256);
+    let mesh = Mesh2::from_grid(16, 16, vec2(-2.0, -2.0), vec2(2.0, 2.0));
+    let mut orientation_field = initialize_orientation_field(&geometry, &mesh.vertices);
+    optimize_orientation_field(&geometry, &mesh, &mut orientation_field, 100);
+    let vertices: Vec<_> = mesh.vertices.iter()
+        .map(|v| geometry.evaluate(v))
+        .collect();
+    let screen_lines = debug_field(&camera, &vertices, &orientation_field, 0.1);
+    for polyline in screen_lines {
+        paper.add(polyline);
+    }
 
+    let uv_polylines = to_uvlines(&mesh);
     for uv_polyline in uv_polylines {
         for polyline in reproject(&uv_polyline, &geometry, &camera, area, near, far) {
             paper.add(polyline);

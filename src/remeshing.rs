@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{geometry::{DifferentiableGeometry, Geometry}, mesh2::Mesh2};
+use crate::{geometries, geometry::{DifferentiableGeometry, Geometry}, mesh2::Mesh2};
 
 /// Builds a neighbor lookup table from the quads in `Mesh2`.
 /// Each vertex will be assigned the set of directly adjacent vertices (shared in a quad).
@@ -73,19 +73,22 @@ pub fn initialize_orientation_field(
 }
 
 /// Optimizes the orientation field to enforce 4-RoSy smoothness across the surface.
-pub fn optimize_orientation_field<D: DifferentiableGeometry>(
-    surface: &D,
-    uv_vertices: &[Vec2],
-    neighbors: &Vec<Vec<usize>>,
+pub fn optimize_orientation_field(
+    geometry: &impl DifferentiableGeometry,
+    mesh: &Mesh2,
     orientations: &mut Vec<Vec3>,
     iterations: usize,
 ) {
+    let neighbors = build_neighbor_lookup(mesh);
+    let uv_vertices = &mesh.vertices;
+    assert_eq!(uv_vertices.len(), orientations.len(), "UV vertices and orientations must match in length");
+
     for _ in 0..iterations {
         let old_orientations = orientations.clone();
 
         for (i, uv) in uv_vertices.iter().enumerate() {
             let o_i = old_orientations[i];
-            let n_i = surface.normal(uv);
+            let n_i = geometry.normal(uv);
 
             let mut avg = Vec3::new(0.0, 0.0, 0.0);
 
@@ -114,8 +117,46 @@ pub fn optimize_orientation_field<D: DifferentiableGeometry>(
             }
 
             if length(&avg) > 1e-6 {
-                orientations[i] = normalize(&avg);
+                // Project onto tangent plane
+                let projected = avg - n_i * dot(&n_i, &avg);
+
+                if length(&projected) > 1e-6 {
+                    orientations[i] = normalize(&projected);
+                }
             }
         }
     }
+}
+
+/// Initializes the position field aligned to the orientation field and snapped to the nearest grid point.
+///
+/// Returns a Vec<Vec3> of the same length as `uv_vertices`, representing position field p_i.
+pub fn initialize_position_field(
+    surface: &impl DifferentiableGeometry,
+    uv_vertices: &[Vec2],
+    orientations: &[Vec3],
+    rho: f32,
+) -> Vec<Vec3> {
+    uv_vertices
+        .iter()
+        .zip(orientations.iter())
+        .map(|(uv, o_i)| {
+            let pos_i = surface.evaluate(uv);
+            let n_i = surface.normal(uv);
+
+            let u_dir = *o_i;
+            let v_dir = normalize(&cross(&n_i, &u_dir));
+
+            // Project pos_i onto local tangent frame to get (du, dv)
+            let du = dot(&pos_i, &u_dir);
+            let dv = dot(&pos_i, &v_dir);
+
+            // Snap (du, dv) to nearest integer multiple of ρ
+            let snapped_u = (du / rho).round() * rho;
+            let snapped_v = (dv / rho).round() * rho;
+
+            // Convert back to 3D position field p_i
+            snapped_u * u_dir + snapped_v * v_dir
+        })
+        .collect()
 }
