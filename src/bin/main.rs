@@ -1,7 +1,7 @@
 use std::{collections::HashSet, f32::consts::TAU, io, time::Duration};
 
 use nalgebra_glm::{look_at, perspective, vec2, Vec2, Vec3, Vec4};
-use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{DifferentiableGeometry, Geometry}, gridlines::generate_grid, integrate::euler, mesh2::Mesh2, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, remeshing::{initialize_orientation_field, optimize_orientation_field}, time_estimator::Estimator, uv2xy::reproject};
+use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::{DifferentiableGeometry, Geometry}, gridlines::generate_grid, integrate::euler, mesh2::Mesh2, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, remeshing::{extract_quad_mesh, initialize_orientation_field, initialize_position_field, optimize_orientation_field, optimize_position_field, QuadMesh}, time_estimator::Estimator, uv2xy::reproject};
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 
@@ -134,6 +134,26 @@ fn to_uvlines(mesh: &Mesh2) -> Vec<Polyline2> {
     }).collect()
 }
 
+pub fn edges(mesh: &QuadMesh) -> Vec<[usize; 2]> {
+    let mut edges = HashSet::new();
+    for quad in &mesh.quads {
+        for i in 0..quad.len() {
+            let next = (i + 1) % 4;
+            edges.insert([quad[i], quad[next]]);
+        }
+    }
+    edges.into_iter().collect()
+}
+
+fn debug_mesh3(camera: &Camera, mesh: &QuadMesh) -> Vec<Polyline2> {
+    let edges = edges(mesh);
+    edges.iter().map(|&[a, b]| {
+        let start = mesh.vertices[a];
+        let end = mesh.vertices[b];
+        Polyline2::segment(camera.project(start).xy(), camera.project(end).xy())
+    }).collect()
+}
+
 fn main() -> io::Result<()> {
     // set up paper
     let mut paper = Paper::new(A4_LANDSCAPE, 0.5);
@@ -152,21 +172,31 @@ fn main() -> io::Result<()> {
     //let uv_polylines = generate_grid((-2.0, 2.0), (-2.0, 2.0), 64, 256);
     let mesh = Mesh2::from_grid(16, 16, vec2(-2.0, -2.0), vec2(2.0, 2.0));
     let mut orientation_field = initialize_orientation_field(&geometry, &mesh.vertices);
-    optimize_orientation_field(&geometry, &mesh, &mut orientation_field, 100);
-    let vertices: Vec<_> = mesh.vertices.iter()
+    optimize_orientation_field(&geometry, &mesh, &mut orientation_field, 20);
+
+    let rho = 0.3;
+    let mut position_field = initialize_position_field(&geometry, &mesh.vertices, &orientation_field, rho);
+    optimize_position_field(&geometry, &mesh, &orientation_field, &mut position_field, rho, 5);
+
+    /*let vertices: Vec<_> = mesh.vertices.iter()
         .map(|v| geometry.evaluate(v))
         .collect();
-    let screen_lines = debug_field(&camera, &vertices, &orientation_field, 0.1);
+    let screen_lines = debug_field(&camera, &vertices, &position_field, 0.1);
+    for polyline in screen_lines {
+        paper.add(polyline);
+    }*/
+    let quad_mesh = extract_quad_mesh(&geometry, &mesh, &position_field, &orientation_field, rho, rho * 0.3);
+    let screen_lines = debug_mesh3(&camera, &quad_mesh);
     for polyline in screen_lines {
         paper.add(polyline);
     }
 
-    let uv_polylines = to_uvlines(&mesh);
+    /*let uv_polylines = to_uvlines(&mesh);
     for uv_polyline in uv_polylines {
         for polyline in reproject(&uv_polyline, &geometry, &camera, area, near, far) {
             paper.add(polyline);
         }
-    }
+    }*/
     
     paper.optimize();
     let (dl, ml) = paper.length();
