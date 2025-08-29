@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pen-Plotter City Blocks</title>
+  <style>
+    :root { --bg:#fff; --fg:#111; --ui:#f2f2f2; }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .app{display:grid;grid-template-columns:320px 1fr;height:100vh}
+    .panel{padding:14px;border-right:1px solid #ddd;background:var(--ui);overflow:auto}
+    .panel h1{font-size:18px;margin:0 0 8px}
+    .row{margin:10px 0}
+    label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600}
+    input[type="range"]{width:100%}
+    input[type="text"]{width:140px;padding:6px}
+    button{cursor:pointer;padding:8px 10px;border:1px solid #000;background:#fff;color:#000;border-radius:8px}
+    .small{font-size:12px;opacity:.75}
+    .canvas-wrap{position:relative;width:100%;height:100%}
+    canvas{display:block;width:100%;height:100%;background:var(--bg)}
+    .hud{position:absolute;left:12px;bottom:12px;background:rgba(255,255,255,.85);color:#000;padding:6px 8px;border:1px solid #000;border-radius:8px;font-size:12px}
+    .group{border:1px dashed #bbb;padding:10px;border-radius:10px;background:#fff}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="panel">
+    <h1>Skyrise City — Pen-Plotter Lines</h1>
+
+    <div class="row group">
+      <div class="row"><label>Seed <input id="seed" type="text" value="city-42" /></label></div>
+      <div class="row" style="display:flex;gap:8px;">
+        <button id="btn-apply-seed">Apply seed</button>
+        <button id="btn-random-seed">Randomize</button>
+      </div>
+      <div class="small">Seed controls the building heights. Same seed ⇒ same city.</div>
+    </div>
+
+    <div class="row group" style="margin-top:10px;">
+      <div class="row"><label>Azimuth (°) <input id="azimuth" type="range" min="0" max="360" step="1" value="45" /></label></div>
+      <div class="row"><label>Elevation (°) <input id="elevation" type="range" min="5" max="85" step="1" value="35" /></label></div>
+      <div class="row"><label>Camera distance <input id="camDist" type="range" min="10" max="200" step="1" value="90" /></label></div>
+      <div class="row"><label>FOV (°) <input id="fov" type="range" min="20" max="120" step="1" value="55" /></label></div>
+      <div class="small">Tip: drag on canvas to orbit.</div>
+    </div>
+
+    <div class="row group" style="margin-top:10px;">
+      <div class="row"><label>Grid size <input id="gridN" type="range" min="6" max="50" step="1" value="18" /></label></div>
+      <div class="row"><label>Block spacing <input id="spacing" type="range" min="0" max="30" step="1" value="12" /></label></div>
+      <div class="row"><label>Max height <input id="maxH" type="range" min="10" max="200" step="1" value="120" /></label></div>
+      <div class="row"><label>Stroke width (px) <input id="strokeW" type="range" min="0.5" max="3" step="0.1" value="1.2" /></label></div>
+    </div>
+
+    <div class="row" style="margin-top:10px;display:flex;gap:8px;">
+      <button id="btn-reset-view">Reset view</button>
+      <button id="btn-save-svg">Save SVG</button>
+    </div>
+
+    <div class="small">Pen-plotter friendly: black lines, uniform stroke; preview uses white fills to hide hidden edges.</div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div class="hud" id="hud">—</div>
+  </div>
+</div>
+
+<script>
+  // --- Seeded PRNG ---
+  function xfnv1a(str){for(var i=0,h=2166136261>>>0;i<str.length;i++) h=Math.imul(h^str.charCodeAt(i),16777619);return()=>{h+=h<<13;h^=h>>>7;h+=h<<3;h^=h>>>17;return(h+=h<<5)>>>0}}
+  function mulberry32(a){return()=>{var t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+
+  // --- Vec/Mat helpers ---
+  const V={
+    add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+    sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+    dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+    cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+    norm:(a)=>{const d=Math.hypot(a[0],a[1],a[2]);return d?[a[0]/d,a[1]/d,a[2]/d]:[0,0,0]}
+  };
+  function lookAt(eye,target,up){
+    const z=V.norm(V.sub(eye,target)), x=V.norm(V.cross(up,z)), y=V.cross(z,x);
+    const tx=-(x[0]*eye[0]+x[1]*eye[1]+x[2]*eye[2]);
+    const ty=-(y[0]*eye[0]+y[1]*eye[1]+y[2]*eye[2]);
+    const tz=-(z[0]*eye[0]+z[1]*eye[1]+z[2]*eye[2]);
+    return [x[0],x[1],x[2],tx, y[0],y[1],y[2],ty, z[0],z[1],z[2],tz, 0,0,0,1];
+  }
+  function perspective(fovY,aspect,near,far){
+    const f=1/Math.tan((fovY*Math.PI/180)/2), nf=1/(near-far);
+    return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,2*far*near*nf, 0,0,-1,0];
+  }
+  function mulM4(a,b){
+    const o=new Array(16).fill(0);
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++)
+      o[r*4+c]=a[r*4+0]*b[0*4+c]+a[r*4+1]*b[1*4+c]+a[r*4+2]*b[2*4+c]+a[r*4+3]*b[3*4+c];
+    return o;
+  }
+  function transformPt(m,v){
+    const x=v[0],y=v[1],z=v[2];
+    const X=m[0]*x+m[1]*y+m[2]*z+m[3];
+    const Y=m[4]*x+m[5]*y+m[6]*z+m[7];
+    const Z=m[8]*x+m[9]*y+m[10]*z+m[11];
+    const W=m[12]*x+m[13]*y+m[14]*z+m[15];
+    return [X,Y,Z,W];
+  }
+  function transformPt4(m, v3){ // multiply 4x4 by [x,y,z,1]
+    const x=v3[0],y=v3[1],z=v3[2];
+    const X=m[0]*x+m[1]*y+m[2]*z+m[3];
+    const Y=m[4]*x+m[5]*y+m[6]*z+m[7];
+    const Z=m[8]*x+m[9]*y+m[10]*z+m[11];
+    const W=m[12]*x+m[13]*y+m[14]*z+m[15];
+    return [X,Y,Z,W];
+  }
+  function toScreen(pt,w,h){
+    const invW=1/pt[3]; const nx=pt[0]*invW, ny=pt[1]*invW, nz=pt[2]*invW;
+    return [(nx*.5+.5)*w, (1-(ny*.5+.5))*h, nz];
+  }
+
+  // --- Plane + 2D overlap helpers (view space) ---
+  function planeFrom3_orientedTowardEye(p0,p1,p2, center){
+    const ux=p1[0]-p0[0], uy=p1[1]-p0[1], uz=p1[2]-p0[2];
+    const vx=p2[0]-p0[0], vy=p2[1]-p0[1], vz=p2[2]-p0[2];
+    let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+    const toEyeX = -center[0], toEyeY = -center[1], toEyeZ = -center[2];
+    if (nx*toEyeX + ny*toEyeY + nz*toEyeZ < 0) { nx=-nx; ny=-ny; nz=-nz; }
+    const d  = -(nx*p0[0] + ny*p0[1] + nz*p0[2]);
+    return [nx,ny,nz,d];
+  }
+  function evalPlane(plane,p){ return plane[0]*p[0] + plane[1]*p[1] + plane[2]*p[2] + plane[3]; }
+  function planeEps(plane, scaleHint){
+    const nmag = Math.abs(plane[0]) + Math.abs(plane[1]) + Math.abs(plane[2]) + 1e-9;
+    return 1e-5 * (nmag*scaleHint + Math.abs(plane[3]) + 1.0);
+  }
+  function bbox2D(poly){
+    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+    for(const p of poly){ if(p[0]<minx)minx=p[0]; if(p[0]>maxx)maxx=p[0]; if(p[1]<miny)miny=p[1]; if(p[1]>maxy)maxy=p[1]; }
+    return [minx,miny,maxx,maxy];
+  }
+  function bboxesOverlap(a,b){ return !(a[2]<b[0] || b[2]<a[0] || a[3]<b[1] || b[3]<a[1]); }
+  function hasSeparatingAxis(a,b){
+    const test = (poly1, poly2) => {
+      for(let i=0;i<poly1.length;i++){
+        const j=(i+1)%poly1.length;
+        const ex = poly1[j][0]-poly1[i][0], ey = poly1[j][1]-poly1[i][1];
+        const ax = -ey, ay = ex;
+        let amin=Infinity, amax=-Infinity, bmin=Infinity, bmax=-Infinity;
+        for(const p of poly1){ const pr = p[0]*ax + p[1]*ay; if(pr<amin) amin=pr; if(pr>amax) amax=pr; }
+        for(const p of poly2){ const pr = p[0]*ax + p[1]*ay; if(pr<bmin) bmin=pr; if(pr>bmax) bmax=pr; }
+        if (amax < bmin || bmax < amin) return true;
+      }
+      return false;
+    };
+    return test(a,b) || test(b,a);
+  }
+  function polysOverlap2D(a,b){
+    if(!bboxesOverlap(bbox2D(a), bbox2D(b))) return false;
+    return !hasSeparatingAxis(a,b);
+  }
+
+  // --- Near-plane clipping in VIEW space (z_v <= -near) ---
+  function clipAgainstNearView(viewVerts, near){
+    const out=[];
+    const n=viewVerts.length;
+    const inside = (p)=> p[2] <= -near; // remember: camera looks down -Z
+    for(let i=0;i<n;i++){
+      const a=viewVerts[i], b=viewVerts[(i+1)%n];
+      const ina=inside(a), inb=inside(b);
+      if(ina && inb){
+        out.push(b);
+      } else if(ina && !inb){
+        // leaving: add intersection
+        const t = ( -near - a[2] ) / ( (b[2]-a[2]) || 1e-12 );
+        out.push([ a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]), -near ]);
+      } else if(!ina && inb){
+        // entering: add intersection, then b
+        const t = ( -near - a[2] ) / ( (b[2]-a[2]) || 1e-12 );
+        out.push([ a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]), -near ]);
+        out.push(b);
+      }
+      // else: both out → add nothing
+    }
+    return out;
+  }
+
+  // --- Canvas / UI ---
+  const canvas=document.getElementById('c'), ctx=canvas.getContext('2d'), hud=document.getElementById('hud');
+  let DPR=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+  function resize(){const r=canvas.getBoundingClientRect();canvas.width=Math.floor(r.width*DPR);canvas.height=Math.floor(r.height*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);draw()}
+  window.addEventListener('resize',resize);
+
+  const azimuth=document.getElementById('azimuth');
+  const elevation=document.getElementById('elevation');
+  const camDist=document.getElementById('camDist');
+  const fov=document.getElementById('fov');
+  const gridN=document.getElementById('gridN');
+  const spacing=document.getElementById('spacing');
+  const maxH=document.getElementById('maxH');
+  const strokeW=document.getElementById('strokeW');
+  const seedEl=document.getElementById('seed');
+  const btnApplySeed=document.getElementById('btn-apply-seed');
+  const btnRandomSeed=document.getElementById('btn-random-seed');
+  const btnResetView=document.getElementById('btn-reset-view');
+  const btnSaveSvg=document.getElementById('btn-save-svg');
+
+  [azimuth,elevation,camDist,fov,gridN,spacing,maxH,strokeW].forEach(el=>el.addEventListener('input',draw));
+  btnResetView.addEventListener('click',()=>{azimuth.value=45;elevation.value=35;camDist.value=90;fov.value=55;draw()});
+  btnSaveSvg.addEventListener('click', exportSVG);
+  function randomizeSeed(){seedEl.value='city-'+Math.random().toString(16).slice(2,8);regenerateHeights()}
+  btnRandomSeed.addEventListener('click',randomizeSeed);
+  btnApplySeed.addEventListener('click',regenerateHeights);
+  gridN.addEventListener('change',regenerateHeights);
+
+  // Orbit
+  let dragging=false,lastX=0,lastY=0;
+  canvas.addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY});
+  window.addEventListener('mouseup',()=>dragging=false);
+  window.addEventListener('mousemove',e=>{
+    if(!dragging) return;
+    const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
+    azimuth.value=((parseFloat(azimuth.value)+dx*0.5)%360+360)%360;
+    elevation.value=Math.min(85,Math.max(5,parseFloat(elevation.value)-dy*0.3));
+    draw();
+  });
+
+  // --- City data ---
+  let city={normHeights:[],n:parseInt(gridN.value)};
+
+  function regenerateHeights(){
+    const n=parseInt(gridN.value);
+    city.n=n;
+    const seedHash=xfnv1a(seedEl.value)();
+    const rng=mulberry32(seedHash);
+    const norm=new Array(n*n);
+    for(let j=0;j<n;j++){
+      for(let i=0;i<n;i++){
+        const idx=j*n+i;
+        const base=rng();               // 0..1 uniform
+        const power=Math.pow(base,2.2); // skew: mostly short buildings
+        norm[idx]=power;
+      }
+    }
+    city.normHeights=norm;
+    draw();
+  }
+
+  // --- Geometry ---
+  function buildFaces(n,spacingPx,H){
+    const cell=12, step=cell+spacingPx, half=(n-1)*step*0.5;
+    const faces=[];
+    for(let j=0;j<n;j++)for(let i=0;i<n;i++){
+      const h=city.normHeights[j*n+i]*H, cx=i*step-half, cy=j*step-half, s=cell;
+      const x1=cx-s*0.5,x2=cx+s*0.5,y1=cy-s*0.5,y2=cy+s*0.5,z0=0,z1=h;
+      const p000=[x1,y1,z0], p100=[x2,y1,z0], p110=[x2,y2,z0], p010=[x1,y2,z0];
+      const p001=[x1,y1,z1], p101=[x2,y1,z1], p111=[x2,y2,z1], p011=[x1,y2,z1];
+
+      // underside removed
+      const quads=[
+        [p001,p101,p111,p011], // top
+        [p000,p100,p101,p001], // side 1
+        [p100,p110,p111,p101], // side 2
+        [p110,p010,p011,p111], // side 3
+        [p010,p000,p001,p011], // side 4
+      ];
+
+      for(const q of quads){
+        const e1=[q[1][0]-q[0][0],q[1][1]-q[0][1],q[1][2]-q[0][2]];
+        const e2=[q[2][0]-q[0][0],q[2][1]-q[0][1],q[2][2]-q[0][2]];
+        const normal=V.norm([ e1[1]*e2[2]-e1[2]*e2[1], e1[2]*e2[0]-e1[0]*e2[2], e1[0]*e2[1]-e1[1]*e2[0] ]);
+        const center=[(q[0][0]+q[1][0]+q[2][0]+q[3][0])/4,(q[0][1]+q[1][1]+q[2][1]+q[3][1])/4,(q[0][2]+q[1][2]+q[2][2]+q[3][2])/4];
+        faces.push({v:q,normal,center});
+      }
+    }
+    return faces;
+  }
+
+  // --- Newell+DAG ordering utilities ---
+  function centroid3(verts){
+    let x=0,y=0,z=0; const n=verts.length;
+    for(const p of verts){ x+=p[0]; y+=p[1]; z+=p[2]; }
+    return [x/n,y/n,z/n];
+  }
+  function allBehind_withEps(Averts, Bplane, eps){
+    for(const p of Averts){ if (evalPlane(Bplane, p) >= -eps) return false; }
+    return true;
+  }
+  function buildOrder(prep){
+    const N = prep.length;
+    const edges = Array.from({length:N}, ()=>new Set());
+
+    for(let i=0;i<N;i++){
+      for(let j=i+1;j<N;j++){
+        const A=prep[i], B=prep[j];
+
+        // 2D projection overlap (bbox + SAT). If no overlap, no constraint.
+        if(!polysOverlap2D(A.s, B.s)) continue;
+
+        // Correct NDC range separation (bigger z == farther).
+        const epsZ = 1e-6;
+        if (A.zMin > B.zMax + epsZ){ edges[i].add(j); continue; } // A behind B
+        if (B.zMin > A.zMax + epsZ){ edges[j].add(i); continue; } // B behind A
+
+        // Newell plane-side tests in VIEW space (scale-aware eps).
+        const scaleHint = 0.5*(Math.abs(A.viewVerts[0][2]) + Math.abs(B.viewVerts[0][2])) + 1.0;
+        const epsA = planeEps(A.plane, scaleHint);
+        const epsB = planeEps(B.plane, scaleHint);
+
+        const AbehindB = allBehind_withEps(A.viewVerts, B.plane, epsB);
+        const BbehindA = allBehind_withEps(B.viewVerts, A.plane, epsA);
+
+        if (AbehindB && !BbehindA){ edges[i].add(j); continue; }
+        if (BbehindA && !AbehindB){ edges[j].add(i); continue; }
+
+        // Centroid tiebreak (heuristic).
+        const cA = centroid3(A.viewVerts);
+        const cB = centroid3(B.viewVerts);
+        const aRel = evalPlane(B.plane, cA);
+        const bRel = evalPlane(A.plane, cB);
+        if (aRel < -epsB && bRel >  epsA) { edges[i].add(j); continue; }
+        if (bRel < -epsA && aRel >  epsB) { edges[j].add(i); continue; }
+
+        // Else leave unconstrained; topo sort will order by farthest-first.
+      }
+    }
+    return edges;
+  }
+  function topoSort(prep, edges){
+    const N = prep.length;
+    const indeg = new Array(N).fill(0);
+    for(let i=0;i<N;i++) for(const j of edges[i]) indeg[j]++;
+    const q = [];
+    for(let i=0;i<N;i++) if(indeg[i]===0) q.push(i);
+    q.sort((a,b)=> prep[b].sortZ - prep[a].sortZ); // farthest-first painter baseline
+    const out = [];
+    while(q.length){
+      const u = q.shift();
+      out.push(u);
+      for(const v of edges[u]){
+        indeg[v]--;
+        if(indeg[v]===0){
+          q.push(v);
+          q.sort((a,b)=> prep[b].sortZ - prep[a].sortZ);
+        }
+      }
+    }
+    if(out.length===N) return out;
+    // Cycle fallback (shouldn't happen for disjoint boxes): append by farthest-first.
+    const remain=[];
+    const used=new Array(N).fill(false); for(const k of out) used[k]=true;
+    for(let i=0;i<N;i++) if(!used[i]) remain.push(i);
+    remain.sort((a,b)=> prep[b].sortZ - prep[a].sortZ);
+    return out.concat(remain);
+  }
+
+  // Compute screen-space polygons (ordered) shared by canvas and SVG
+  function computeDrawList(w,h){
+    const n=parseInt(gridN.value), space=parseFloat(spacing.value);
+    const r=parseFloat(camDist.value), az=parseFloat(azimuth.value)*Math.PI/180, el=parseFloat(elevation.value)*Math.PI/180;
+    const eye=[r*Math.cos(el)*Math.cos(az), r*Math.cos(el)*Math.sin(az), r*Math.sin(el)];
+    const Vw=lookAt(eye,[0,0,0],[0,0,1]);
+
+    const near=0.1, far=2000;
+    const P=perspective(parseFloat(fov.value), w/h, near, far);
+
+    const faces=buildFaces(n,space,parseFloat(maxH.value));
+
+    const prepared = [];
+    for(const f of faces){
+      // Back-face (visibility) test in world space against eye vector
+      const viewDir = V.norm([eye[0]-f.center[0],eye[1]-f.center[1],eye[2]-f.center[2]]);
+      const facing = (f.normal[0]*viewDir[0]+f.normal[1]*viewDir[1]+f.normal[2]*viewDir[2])>0;
+      if(!facing) continue;
+
+      // View-space verts
+      const viewVertsOrig = f.v.map(p=>transformPt(Vw,p)).map(q=>[q[0],q[1],q[2]]);
+
+      // Clip against near plane in VIEW space
+      const viewVerts = clipAgainstNearView(viewVertsOrig, near);
+      if(viewVerts.length < 3) continue;
+
+      // Plane oriented toward eye (use unclipped winding’s first 3 clipped verts)
+      const vc = centroid3(viewVerts);
+      const plane = planeFrom3_orientedTowardEye(viewVerts[0], viewVerts[1], viewVerts[2], vc);
+
+      // To clip space (projection) and compute ndc z-range
+      const clip = viewVerts.map(p=>transformPt4(P,p));
+      const ndcZ = clip.map(pt=>pt[2]/pt[3]);
+      const zMin = Math.min(...ndcZ), zMax = Math.max(...ndcZ);
+      const sortZ = zMax; // farthest-vertex key
+
+      // Screen poly for drawing and overlap tests
+      const s = clip.map(pt=>toScreen(pt,w,h));
+      const bbox = bbox2D(s);
+
+      prepared.push({ f, sortZ, clip, ndcZ, zMin, zMax, viewVerts, plane, s, bbox });
+    }
+
+    // Newell + range tests → DAG, then topo sort
+    const edges = buildOrder(prepared);
+    const order = topoSort(prepared, edges);
+
+    const sPolys = order.map(k => prepared[k].s);
+    return sPolys;
+  }
+
+  function draw(){
+    const w=canvas.clientWidth,h=canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);
+    ctx.save();
+    ctx.lineWidth=parseFloat(strokeW.value);
+    ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle='#000';
+
+    const sPolys = computeDrawList(w,h);
+
+    for(const spts of sPolys){
+      ctx.beginPath();
+      ctx.moveTo(spts[0][0],spts[0][1]);
+      for(let i=1;i<spts.length;i++) ctx.lineTo(spts[i][0],spts[i][1]);
+      ctx.closePath();
+      ctx.fillStyle='#fff';
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    ctx.restore();
+    const n=parseInt(gridN.value);
+    hud.textContent=`az ${parseInt(azimuth.value)}°  el ${parseInt(elevation.value)}°  dist ${parseInt(camDist.value)}  fov ${parseInt(fov.value)}°  grid ${n}×${n}  order Newell+DAG  maxH ${parseInt(maxH.value)}`;
+  }
+
+  // SVG export using the same screen-space polygons
+  function exportSVG(){
+    const w=canvas.clientWidth,h=canvas.clientHeight;
+    const sPolys = computeDrawList(w,h);
+    const sw=parseFloat(strokeW.value);
+
+    const xmlns='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(xmlns,'svg');
+    svg.setAttribute('xmlns',xmlns);
+    svg.setAttribute('width',String(w));
+    svg.setAttribute('height',String(h));
+    svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+
+    // Background to emulate the canvas white occlusion
+    const bg=document.createElementNS(xmlns,'rect');
+    bg.setAttribute('x','0'); bg.setAttribute('y','0'); bg.setAttribute('width',String(w)); bg.setAttribute('height',String(h));
+    bg.setAttribute('fill','#ffffff');
+    svg.appendChild(bg);
+
+    const toPathD=(poly)=>{
+      let d=`M ${poly[0][0]} ${poly[0][1]}`;
+      for(let i=1;i<poly.length;i++) d += ` L ${poly[i][0]} ${poly[i][1]}`;
+      return d+' Z';
+    };
+
+    for(const poly of sPolys){
+      const fill=document.createElementNS(xmlns,'path');
+      fill.setAttribute('d',toPathD(poly));
+      fill.setAttribute('fill','#ffffff');
+      svg.appendChild(fill);
+
+      const stroke=document.createElementNS(xmlns,'path');
+      stroke.setAttribute('d',toPathD(poly));
+      stroke.setAttribute('fill','none');
+      stroke.setAttribute('stroke','#000000');
+      stroke.setAttribute('stroke-width',String(sw));
+      stroke.setAttribute('stroke-linejoin','round');
+      stroke.setAttribute('stroke-linecap','round');
+      svg.appendChild(stroke);
+    }
+
+    const blob=new Blob([new XMLSerializer().serializeToString(svg)],{type:'image/svg+xml'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='city.svg'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),0);
+  }
+
+  // Init
+  function init(){regenerateHeights(); resize();}
+  window.addEventListener('load',init);
+</script>
+</body>
+</html>
