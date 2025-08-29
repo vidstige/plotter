@@ -40,7 +40,7 @@
     <div class="row group" style="margin-top:10px;">
       <div class="row"><label>Azimuth (°) <input id="azimuth" type="range" min="0" max="360" step="1" value="45" /></label></div>
       <div class="row"><label>Elevation (°) <input id="elevation" type="range" min="5" max="85" step="1" value="35" /></label></div>
-      <div class="row"><label>Camera distance <input id="camDist" type="range" min="10" max="200" step="1" value="90" /></label></div>
+      <div class="row"><label>Camera distance <input id="camDist" type="range" min="20" max="320" step="1" value="90" /></label></div>
       <div class="row"><label>FOV (°) <input id="fov" type="range" min="20" max="120" step="1" value="55" /></label></div>
       <div class="small">Tip: drag on canvas to orbit.</div>
     </div>
@@ -219,9 +219,23 @@
     if(!dragging) return;
     const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
     azimuth.value=((parseFloat(azimuth.value)+dx*0.5)%360+360)%360;
-    elevation.value=Math.min(85,Math.max(5,parseFloat(elevation.value)-dy*0.3));
+    elevation.value=Math.min(85,Math.max(5,parseFloat(elevation.value) + dy*0.3));
     draw();
   });
+  // Zoom
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault(); // keep focus on the canvas, no page scroll
+    const min = parseFloat(camDist.min), max = parseFloat(camDist.max);
+    const cur = parseFloat(camDist.value);
+
+    // Gentle when pinch-zoom (ctrlKey), otherwise a bit stronger
+    const k = e.ctrlKey ? 0.02 : 0.1;
+
+    // deltaY > 0 → zoom out (increase distance), deltaY < 0 → zoom in
+    const next = Math.min(max, Math.max(min, cur + e.deltaY * k));
+    camDist.value = String(next);
+    draw();
+  }, { passive:false });
 
   // --- City data ---
   let city={normHeights:[],n:parseInt(gridN.value)};
