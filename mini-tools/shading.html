@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Icosahedron – Per‑Face U‑Hatching with Shaded Spacing</title>
+  <style>
+    :root { --bg:#fff; --fg:#111; --ui:#f4f4f4; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    #controls { position: absolute; top:0; left:0; bottom:0; width:260px; background: var(--ui); border-right:1px solid #ccc; padding:12px; overflow:auto; }
+    #controls h2 { margin:8px 0 6px; font-size:14px; }
+    #controls label { display:block; margin-top:10px; font-size:12px; }
+    #controls .row { display:flex; align-items:center; gap:8px; margin-top:10px; }
+    #wrap { position: absolute; left:260px; top:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; }
+    canvas { display:block; }
+    button { cursor:pointer; padding:6px 10px; border:1px solid #bbb; border-radius:6px; background:#fff; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h2>Camera</h2>
+    <label for="az">Azimuth <span id="azVal">30°</span></label>
+    <input id="az" type="range" min="0" max="360" value="30" step="1" />
+    <label for="el">Elevation <span id="elVal">15°</span></label>
+    <input id="el" type="range" min="-89" max="89" value="15" step="1" />
+
+    <h2>Hatching (spacing by shade)</h2>
+    <label for="hBlack">Black spacing <span id="hBlackVal">2 px</span></label>
+    <input id="hBlack" type="range" min="1" max="12" value="2" step="1" />
+    <label for="hWhite">White spacing <span id="hWhiteVal">14 px</span></label>
+    <input id="hWhite" type="range" min="6" max="30" value="14" step="1" />
+
+    <div class="row">
+      <input id="strokeOutlines" type="checkbox" checked />
+      <label for="strokeOutlines" style="margin:0">Stroke outlines</label>
+    </div>
+    <div class="row">
+      <button id="saveSvg">Save SVG</button>
+      <span style="font-size:12px; opacity:.7">exports current view</span>
+    </div>
+  </div>
+  <div id="wrap"><canvas id="c"></canvas></div>
+
+  <script>
+  (function(){
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const wrap = document.getElementById('wrap');
+
+    // Controls
+    const az = document.getElementById('az');
+    const el = document.getElementById('el');
+    const azVal = document.getElementById('azVal');
+    const elVal = document.getElementById('elVal');
+    const hBlack = document.getElementById('hBlack');
+    const hBlackVal = document.getElementById('hBlackVal');
+    const hWhite = document.getElementById('hWhite');
+    const hWhiteVal = document.getElementById('hWhiteVal');
+    const strokeOutlines = document.getElementById('strokeOutlines');
+    const saveSvgBtn = document.getElementById('saveSvg');
+
+    // Fit canvas to available space using A4 landscape aspect ratio (W/H = 297/210 ≈ 1.414)
+    function resizeCanvas(){
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrap.getBoundingClientRect();
+      const aspect = 297/210; // width / height
+      let targetW = rect.width;
+      let targetH = targetW / aspect;
+      if (targetH > rect.height) { // too tall, clamp by height instead
+        targetH = rect.height;
+        targetW = targetH * aspect;
+      }
+      // Apply CSS size and backing store with DPR
+      canvas.style.width = Math.floor(targetW) + 'px';
+      canvas.style.height = Math.floor(targetH) + 'px';
+      canvas.width = Math.max(1, Math.floor(targetW * dpr));
+      canvas.height = Math.max(1, Math.floor(targetH * dpr));
+
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.scale(dpr, dpr);
+      render();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // ===== Icosahedron geometry =====
+    const PHI = (1 + Math.sqrt(5)) / 2; // golden ratio
+    const rawVerts = [
+      [-1,  PHI,  0], [ 1,  PHI,  0], [-1, -PHI,  0], [ 1, -PHI,  0],
+      [ 0, -1,  PHI], [ 0,  1,  PHI], [ 0, -1, -PHI], [ 0,  1, -PHI],
+      [  PHI,  0, -1], [  PHI,  0,  1], [ -PHI,  0, -1], [ -PHI,  0,  1]
+    ];
+
+    const len3 = ([x,y,z]) => Math.hypot(x,y,z);
+
+    // Normalize to unit radius
+    const k = 1 / len3(rawVerts[0]);
+    const V = rawVerts.map(([x,y,z]) => [x*k, y*k, z*k]);
+
+    // Faces (20 triangles)
+    const F = [
+      [0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+      [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+      [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+      [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]
+    ];
+
+    // Rotations
+    const rotY = ([x,y,z],a)=>{ const c=Math.cos(a), s=Math.sin(a); return [ c*x + s*z, y, -s*x + c*z ]; };
+    const rotX = ([x,y,z],a)=>{ const c=Math.cos(a), s=Math.sin(a); return [ x, c*y - s*z, s*y + c*z ]; };
+
+    // Camera / projection
+    let fov = 60 * Math.PI/180;
+    let zOffset = 3.0; // push model in front of camera
+    let near = 0.1;
+
+    function project([x,y,z], cw, ch){
+      const scale = ch / (2 * Math.tan(fov/2));
+      return [ cw*0.5 + (x/z)*scale, ch*0.5 - (y/z)*scale ];
+    }
+
+    // Lighting (your darker rig, no ambient)
+    const norm3 = (v)=>{ const L = Math.hypot(v[0],v[1],v[2])||1; return [v[0]/L, v[1]/L, v[2]/L]; };
+    const lights = [
+      { dir: norm3([-0.5,  1.7,  0.4]), intensity: 1.1 }, // key (up-left-front, higher)
+      { dir: norm3([ 1.0,  0.05, 0.2]), intensity: 0.1 }, // fill (barely there)
+    ];
+
+    // --- Hatch drawing on canvas (rotate context, long lines, clipped to triangle) ---
+    function hatchTriangleCanvas(ax,ay,bx,by,cx,cy, angleDeg, spacing){
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.lineTo(cx,cy); ctx.closePath();
+      ctx.clip();
+      const theta = angleDeg * Math.PI / 180;
+      ctx.rotate(theta);
+      const big = Math.hypot(canvas.clientWidth, canvas.clientHeight) + 4;
+      ctx.beginPath();
+      for (let y = -big; y <= big; y += spacing){ ctx.moveTo(-big, y); ctx.lineTo(big, y); }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Compute visible faces with screen coords, per-face angle, spacing, and depth
+    function computeFaces(){
+      const cw = canvas.clientWidth|0, ch = canvas.clientHeight|0;
+      const ay = (parseFloat(az.value)||0) * Math.PI/180;
+      const ax = (parseFloat(el.value)||0) * Math.PI/180;
+      let blackSpacing = (parseFloat(hBlack.value)||2);
+      let whiteSpacing = (parseFloat(hWhite.value)||14);
+      if (whiteSpacing < blackSpacing) { const t = whiteSpacing; whiteSpacing = blackSpacing; blackSpacing = t; }
+
+      // Transform vertices to camera space
+      const TV = V.map(v => { let r = rotY(v, ay); r = rotX(r, ax); return [r[0], r[1], r[2] + zOffset]; });
+
+      const faces = [];
+      for (const [i,j,k] of F){
+        const a = TV[i], b = TV[j], c = TV[k];
+        if (a[2]<=near||b[2]<=near||c[2]<=near) continue;
+        const ux=b[0]-a[0], uy=b[1]-a[1], uz=b[2]-a[2];
+        const vx=c[0]-a[0], vy=c[1]-a[1], vz=c[2]-a[2];
+        const nx = uy*vz - uz*vy;
+        const ny = uz*vx - ux*vz;
+        const nz = ux*vy - uy*vx;
+        const mx = (a[0]+b[0]+c[0])/3, my = (a[1]+b[1]+c[1])/3, mz = (a[2]+b[2]+c[2])/3;
+        const facing = nx*mx + ny*my + nz*mz;
+        if (facing >= 0) continue; // backface culling
+
+        // Shade (0..1)
+        const NL = Math.hypot(nx,ny,nz) || 1;
+        const nxf = nx/NL, nyf = ny/NL, nzf = nz/NL;
+        let shade = 0.0;
+        for (const L of lights){
+          const ndotl = nxf*L.dir[0] + nyf*L.dir[1] + nzf*L.dir[2];
+          if (ndotl > 0) shade += L.intensity * ndotl;
+        }
+        shade = Math.max(0, Math.min(1, shade));
+        const spacing = blackSpacing + (whiteSpacing - blackSpacing) * shade;
+
+        // Screen projection
+        const [axp, ayp] = project(a, cw, ch);
+        const [bxp, byp] = project(b, cw, ch);
+        const [cxp, cyp] = project(c, cw, ch);
+
+        // Per-face u-direction from edge AB in screen space
+        const ux2 = bxp - axp;
+        const uy2 = byp - ayp;
+        const angleDeg = Math.atan2(uy2, ux2) * 180 / Math.PI;
+
+        const zAvg = (a[2]+b[2]+c[2])/3;
+        faces.push({ axp,ayp,bxp,byp,cxp,cyp, angleDeg, spacing, z:zAvg });
+      }
+      faces.sort((A,B)=> B.z - A.z);
+      return { faces, cw, ch };
+    }
+
+    function render(){
+      const { faces, cw, ch } = computeFaces();
+      ctx.clearRect(0,0,cw,ch);
+      ctx.lineWidth = 1; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+      // UI text
+      azVal.textContent = `${Math.round(parseFloat(az.value)||0)}°`;
+      elVal.textContent = `${Math.round(parseFloat(el.value)||0)}°`;
+      hBlackVal.textContent = `${Math.round(parseFloat(hBlack.value)||2)} px`;
+      hWhiteVal.textContent = `${Math.round(parseFloat(hWhite.value)||14)} px`;
+
+      for (const f of faces){
+        hatchTriangleCanvas(f.axp,f.ayp,f.bxp,f.byp,f.cxp,f.cyp, f.angleDeg, f.spacing);
+        if (strokeOutlines.checked){
+          ctx.beginPath();
+          ctx.moveTo(f.axp, f.ayp); ctx.lineTo(f.bxp, f.byp); ctx.lineTo(f.cxp, f.cyp); ctx.closePath();
+          ctx.stroke();
+        }
+      }
+    }
+
+    // --- SVG Export ---
+    function svgEscape(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+    function exportSVG(){
+      const { faces, cw, ch } = computeFaces();
+      const big = Math.hypot(cw, ch) + 4; // line extent
+      const lines = [];
+      const clips = [];
+
+      // Build clipPaths and line groups per face
+      faces.forEach((f, idx) => {
+        const clipId = `cp${idx}`;
+        clips.push(`<clipPath id="${clipId}"><polygon points="${f.axp},${f.ayp} ${f.bxp},${f.byp} ${f.cxp},${f.cyp}"/></clipPath>`);
+        const theta = f.angleDeg * Math.PI / 180;
+        const ux = Math.cos(theta),  uy = Math.sin(theta);
+        const vx = -Math.sin(theta), vy = Math.cos(theta);
+        // Project vertices onto v to get range
+        const p1 = f.axp*vx + f.ayp*vy;
+        const p2 = f.bxp*vx + f.byp*vy;
+        const p3 = f.cxp*vx + f.cyp*vy;
+        let minP = Math.min(p1,p2,p3), maxP = Math.max(p1,p2,p3);
+        const start = Math.floor((minP - big) / f.spacing) * f.spacing;
+        const end   = Math.ceil ((maxP + big) / f.spacing) * f.spacing;
+        const segs = [];
+        for (let t = start; t <= end; t += f.spacing){
+          const x1 = ux*(-big) + vx*t;
+          const y1 = uy*(-big) + vy*t;
+          const x2 = ux*( big) + vx*t;
+          const y2 = uy*( big) + vy*t;
+          segs.push(`<line x1="${x1.toFixed(3)}" y1="${y1.toFixed(3)}" x2="${x2.toFixed(3)}" y2="${y2.toFixed(3)}"/>`);
+        }
+        lines.push(`<g clip-path="url(#${clipId})">${segs.join('')}</g>`);
+      });
+
+      const svg = `<?xml version="1.0" encoding="UTF-8"?>
+`+
+`<svg xmlns="http://www.w3.org/2000/svg" width="${cw}" height="${ch}" viewBox="0 0 ${cw} ${ch}" fill="none" stroke="#111" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">`+
+`<defs>${clips.join('')}</defs>`+
+`${lines.join('')}`+
+`${strokeOutlines.checked ? faces.map(f=>`<path d="M ${f.axp} ${f.ayp} L ${f.bxp} ${f.byp} L ${f.cxp} ${f.cyp} Z"/>`).join('') : ''}`+
+`</svg>`;
+
+      const blob = new Blob([svg], {type:'image/svg+xml'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'icosahedron_hatched.svg';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Initialize and hook events
+    function hook(){
+      [az, el, hBlack, hWhite, strokeOutlines].forEach(elm => elm.addEventListener('input', render));
+      saveSvgBtn.addEventListener('click', exportSVG);
+    }
+
+    resizeCanvas();
+    hook();
+  })();
+  </script>
+</body>
+</html>
