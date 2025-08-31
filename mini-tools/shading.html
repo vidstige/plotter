@@ -213,46 +213,83 @@
       }
     }
 
-    // --- SVG Export ---
-    function svgEscape(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-
+    // --- SVG Export (pre-clipped segments; no clipPaths) ---
     function exportSVG(){
       const { faces, cw, ch } = computeFaces();
-      const big = Math.hypot(cw, ch) + 4; // line extent
-      const lines = [];
-      const clips = [];
+      const big = Math.hypot(cw, ch) + 4; // untrimmed segment extent along u
 
-      // Build clipPaths and line groups per face
-      faces.forEach((f, idx) => {
-        const clipId = `cp${idx}`;
-        clips.push(`<clipPath id="${clipId}"><polygon points="${f.axp},${f.ayp} ${f.bxp},${f.byp} ${f.cxp},${f.cyp}"/></clipPath>`);
-        const theta = f.angleDeg * Math.PI / 180;
-        const ux = Math.cos(theta),  uy = Math.sin(theta);
-        const vx = -Math.sin(theta), vy = Math.cos(theta);
-        // Project vertices onto v to get range
+      // Helper: build inward half-planes for triangle and clip a segment
+      function makePlanes(tri){
+        const [A,B,C] = tri;
+        const planes = [];
+        const edges = [[A,B,C],[B,C,A],[C,A,B]];
+        for (const [P,Q,R] of edges){
+          const ex = Q.x - P.x, ey = Q.y - P.y;
+          let nx = ey, ny = -ex; // one perpendicular
+          // Flip so that R is INSIDE: n·(R-P) <= 0
+          if (nx*(R.x-P.x) + ny*(R.y-P.y) > 0){ nx = -nx; ny = -ny; }
+          planes.push({nx, ny, ax:P.x, ay:P.y});
+        }
+        return planes;
+      }
+      function clipSegment(p0, p1, planes){
+        let t0 = 0, t1 = 1;
+        const dx = p1.x - p0.x, dy = p1.y - p0.y;
+        for (const pl of planes){
+          const f0 = pl.nx*(p0.x - pl.ax) + pl.ny*(p0.y - pl.ay); // n·(p0 - A)
+          const f1 = pl.nx*(p1.x - pl.ax) + pl.ny*(p1.y - pl.ay);
+          const r = pl.nx*dx + pl.ny*dy; // n·d
+          if (Math.abs(r) < 1e-9){ // parallel
+            if (f0 > 0) return null; // entirely outside
+            else continue; // inside wrt this plane
+          }
+          const t = -f0 / r; // intersection
+          if (r > 0){ // entering
+            t1 = Math.min(t1, t);
+          } else {    // leaving
+            t0 = Math.max(t0, t);
+          }
+          if (t0 > t1) return null;
+        }
+        return { x0: p0.x + dx*t0, y0: p0.y + dy*t0, x1: p0.x + dx*t1, y1: p0.y + dy*t1 };
+      }
+
+      const segs = [];
+      for (const f of faces){
+        // Axes from angle
+        const theta = f.angleDeg * Math.PI/180;
+        const ux = Math.cos(theta),  uy = Math.sin(theta);   // along hatch line
+        const vx = -Math.sin(theta), vy = Math.cos(theta);   // normal to hatch lines
+        const tri = [
+          {x:f.axp, y:f.ayp},
+          {x:f.bxp, y:f.byp},
+          {x:f.cxp, y:f.cyp},
+        ];
+        const planes = makePlanes(tri);
+        // Range along v that overlaps the triangle
         const p1 = f.axp*vx + f.ayp*vy;
         const p2 = f.bxp*vx + f.byp*vy;
         const p3 = f.cxp*vx + f.cyp*vy;
         let minP = Math.min(p1,p2,p3), maxP = Math.max(p1,p2,p3);
         const start = Math.floor((minP - big) / f.spacing) * f.spacing;
         const end   = Math.ceil ((maxP + big) / f.spacing) * f.spacing;
-        const segs = [];
         for (let t = start; t <= end; t += f.spacing){
-          const x1 = ux*(-big) + vx*t;
-          const y1 = uy*(-big) + vy*t;
-          const x2 = ux*( big) + vx*t;
-          const y2 = uy*( big) + vy*t;
-          segs.push(`<line x1="${x1.toFixed(3)}" y1="${y1.toFixed(3)}" x2="${x2.toFixed(3)}" y2="${y2.toFixed(3)}"/>`);
+          const pA = { x: ux*(-big) + vx*t, y: uy*(-big) + vy*t };
+          const pB = { x: ux*( big) + vx*t, y: uy*( big) + vy*t };
+          const clipped = clipSegment(pA, pB, planes);
+          if (clipped){
+            segs.push(`<line x1="${clipped.x0.toFixed(3)}" y1="${clipped.y0.toFixed(3)}" x2="${clipped.x1.toFixed(3)}" y2="${clipped.y1.toFixed(3)}"/>`);
+          }
         }
-        lines.push(`<g clip-path="url(#${clipId})">${segs.join('')}</g>`);
-      });
+        if (strokeOutlines.checked){
+          segs.push(`<path d="M ${f.axp.toFixed(3)} ${f.ayp.toFixed(3)} L ${f.bxp.toFixed(3)} ${f.byp.toFixed(3)} L ${f.cxp.toFixed(3)} ${f.cyp.toFixed(3)} Z"/>`);
+        }
+      }
 
       const svg = `<?xml version="1.0" encoding="UTF-8"?>
 `+
 `<svg xmlns="http://www.w3.org/2000/svg" width="${cw}" height="${ch}" viewBox="0 0 ${cw} ${ch}" fill="none" stroke="#111" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">`+
-`<defs>${clips.join('')}</defs>`+
-`${lines.join('')}`+
-`${strokeOutlines.checked ? faces.map(f=>`<path d="M ${f.axp} ${f.ayp} L ${f.bxp} ${f.byp} L ${f.cxp} ${f.cyp} Z"/>`).join('') : ''}`+
+segs.join('')+
 `</svg>`;
 
       const blob = new Blob([svg], {type:'image/svg+xml'});
