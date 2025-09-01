@@ -113,6 +113,15 @@ function bevelRect(x,y,w,h,up=true, light=COLORS.panel_light, dark=COLORS.panel_
     rect(x+w-1, y, 1, h, light);           // right
   }
 }
+function drawBevelLine(x, y, w, down = true, light = COLORS.panel_light, dark = COLORS.panel_dark) {
+  if (down) { // inset: dark on top, light below
+    rect(x, y,     w, 1, dark);
+    rect(x, y + 1, w, 1, light);
+  } else {    // raised: light on top, dark below
+    rect(x, y,     w, 1, light);
+    rect(x, y + 1, w, 1, dark);
+  }
+}
 function mixColor(c1, c2, t){
   const r1=(c1>>16)&0xff, g1=(c1>>8)&0xff, b1=c1&0xff;
   const r2=(c2>>16)&0xff, g2=(c2>>8)&0xff, b2=c2&0xff;
@@ -266,6 +275,7 @@ function setMenu(spec){
       shortcut: it.shortcut ? String(it.shortcut) : null,
       disabled: !!it.disabled,
       selected: !!it.selected,
+      divider: !!it?.divider,
     })) : null,
   }));
 }
@@ -275,15 +285,17 @@ let menuModel = [];
 setMenu([
   { icon: DOWN, open:false, items: [
     { label:"0" }, { label:"1" }, { label:"2" }, { label:"3" }, { label:"4" },
-    { label:"5" }, { label:"6" }, { label:"7" }, { label:"8" }, { label:"9" }, { label:"10" },
+    { label:"5" }, { label:"6" }, { label:"7" }, { label:"8" }, { label:"9" },
   ]},
   { label:"GAME", open:false, items:[
     { label:"LOAD" },
     { label:"RUN", disabled:true, shortcut:"ESC" },
     { label:"RESET" },
+    { divider:true },
     { label:"SAVE STATE", disabled:true },
     { label:"OPEN STATE", disabled:true },
     { label:"PICK STATE", disabled:true },
+    { divider:true },
     { label:"QUIT" },
   ]},
   { label:"CONFIG", open:false, items:[
@@ -352,7 +364,7 @@ function drawTopBarChrome(){
 
     const gx = cx + Math.floor((innerW - 5)/2) + 1;
     const gy = cy + Math.floor((innerH - 5)/2) + 1;
-    drawBitmapGlyph(gx, gy, ICONS5[btn.name], COLORS.btnText);
+    drawBitmapGlyph(gx, gy, ICONS5[btn.name], COLORS.text_dark, COLORS.text_light);
 
     ctrlRegions.push({ x: cx, y: cy, w: ctrlW, h: ctrlH, index: i });
     cx += ctrlW + ctrlGap;
@@ -384,6 +396,7 @@ function drawDropdown(){
   const itemH = 10;
   const leftPad = 6, rightPad = 6;
   for (const it of m.items) {
+    if (it.divider) continue;
     const kbd = it.shortcut ? ` [${it.shortcut}]` : '';
     maxW = Math.max(maxW, textWidth5x7(it.label + kbd));
   }
@@ -398,6 +411,14 @@ function drawDropdown(){
   for (let row=0; row<m.items.length; row++){
     const it = m.items[row];
     const iy = py + PAD + row*itemH;
+
+    if (it.divider) {
+      // centered 2-px beveled line inside the row
+      const ymid = iy + Math.floor(itemH / 2) - 1;
+      drawBevelLine(px + 2, ymid, listW - 4, /*down*/ true);
+      continue;
+    }
+
     const hover = (mouseX>=px && mouseX<px+listW && mouseY>=iy && mouseY<iy+itemH && !it.disabled);
 
     if (it.selected || hover) {
