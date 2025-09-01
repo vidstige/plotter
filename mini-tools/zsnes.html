@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ZSNES-style Pixel UI (configurable menu)</title>
+<style>
+  :root { background:#2f2675; }
+  html,body{height:100%;margin:0}
+  body{
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    user-select:none;
+  }
+  canvas{
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    outline: none;
+    background:#3a2f87;
+    box-shadow: 0 0 0 2px #1a1450, 0 0 120px rgba(0,0,0,0.45) inset;
+  }
+</style>
+</head>
+<body>
+<canvas id="screen" tabindex="0" aria-label="ZSNES-style pixel UI"></canvas>
+
+<script>
+/* ================== CONFIG ================== */
+const VIRTUAL_W = 320;
+const VIRTUAL_H = 240;
+const BAR_H = 18;
+const PAD = 4;
+
+const COLORS = {
+  space: 0x3D2D7B,
+  star:  0x8A8D9E,
+
+  // copperbar anchors
+  copper_dark: 0x0f2a5a,
+  copper_lite: 0x3c7dd8,
+
+  hot: 0x921C4F,
+  hotDark: 0x7C164F,
+  black: 0x000000,
+  white: 0xffffff,
+
+  // text colors
+  text_light: 0xEAEAE9,
+  text_dark: 0xA9ACA8,
+  
+  disabled_text_dark: 0x80807D,
+  disabled_text_light: 0xBDBEBD,
+
+  // shared gray panel palette (flat fill)
+  panel_light: 0x797B78,
+  panel_mid: 0x595C58,
+  panel_dark: 0x393C38,
+
+  shadow: 0x303848,
+};
+
+// right-side control buttons (keep)
+const ctrlButtons = [
+  { name: "down",   pressed: false },
+  { name: "square", pressed: false },
+  { name: "cross",  pressed: false },
+];
+
+/* ================== CANVAS ================== */
+const cvs = document.getElementById('screen');
+const ctx = cvs.getContext('2d', { alpha:false });
+const back = document.createElement('canvas');      // low-res backbuffer
+back.width = VIRTUAL_W; back.height = VIRTUAL_H;
+// Allow alpha on backbuffer (for shadows)
+const g = back.getContext('2d', { alpha:true });
+g.imageSmoothingEnabled = false;
+
+let scale = 1;
+function fitCanvas() {
+  const sx = Math.floor(window.innerWidth  / VIRTUAL_W);
+  const sy = Math.floor(window.innerHeight / VIRTUAL_H);
+  scale = Math.max(1, Math.min(sx, sy));
+  cvs.width  = VIRTUAL_W * scale;
+  cvs.height = VIRTUAL_H * scale;
+  // important: keep smoothing off after resize
+  ctx.imageSmoothingEnabled = false;
+  ctx.mozImageSmoothingEnabled = false;
+  ctx.webkitImageSmoothingEnabled = false;
+}
+window.addEventListener('resize', fitCanvas);
+fitCanvas();
+
+/* ================== PIXEL HELPERS ================== */
+function col(c){ return `#${(c>>>0).toString(16).padStart(6,'0')}`; }
+function pset(x,y,c){ g.fillStyle = col(c); g.fillRect(x|0,y|0,1,1); }
+function rect(x,y,w,h,c){ g.fillStyle = col(c); g.fillRect(x|0,y|0,w|0,h|0); }
+function rectA(x,y,w,h,c,a=1){ g.save(); g.globalAlpha=a; g.fillStyle=col(c); g.fillRect(x|0,y|0,w|0,h|0); g.restore(); }
+function frame(x,y,w,h,c){ g.fillStyle = col(c);
+  g.fillRect(x,y,w,1); g.fillRect(x,y+h-1,w,1);
+  g.fillRect(x,y,1,h); g.fillRect(x+w-1,y,1,h);
+}
+function bevelRect(x,y,w,h,up=true, light=COLORS.panel_light, dark=COLORS.panel_dark) {
+  if(up){
+    rect(x, y, w, 1, light);               // top
+    rect(x, y, 1, h, light);               // left
+    rect(x, y+h-1, w, 1, dark);            // bottom
+    rect(x+w-1, y, 1, h, dark);            // right
+  } else {
+    rect(x, y, w, 1, dark);                // top
+    rect(x, y, 1, h, dark);                // left
+    rect(x, y+h-1, w, 1, light);           // bottom
+    rect(x+w-1, y, 1, h, light);           // right
+  }
+}
+function drawBevelLine(x, y, w, down = true, light = COLORS.panel_light, dark = COLORS.panel_dark) {
+  if (down) { // inset: dark on top, light below
+    rect(x, y,     w, 1, dark);
+    rect(x, y + 1, w, 1, light);
+  } else {    // raised: light on top, dark below
+    rect(x, y,     w, 1, light);
+    rect(x, y + 1, w, 1, dark);
+  }
+}
+function mixColor(c1, c2, t){
+  const r1=(c1>>16)&0xff, g1=(c1>>8)&0xff, b1=c1&0xff;
+  const r2=(c2>>16)&0xff, g2=(c2>>8)&0xff, b2=c2&0xff;
+  const r = (r1 + (r2 - r1) * t)|0;
+  const g = (g1 + (g2 - g1) * t)|0;
+  const b = (b1 + (b2 - b1) * t)|0;
+  return (r<<16)|(g<<8)|b;
+}
+
+function diagT(px, py, w, h){
+  const vx = (w - 1), vy = (h - 1);
+  const denom = vx*vx + vy*vy || 1;
+  let t = (px * vx + py * vy) / denom;
+  if (t < 0) t = 0; else if (t > 1) t = 1;
+  return t;
+}
+
+/* ================== FONT 5x7 ================== */
+const FONT5x7 = (() => {
+  const raw = {
+    "A":[0x1E,0x05,0x05,0x1E,0x00], "B":[0x1F,0x15,0x15,0x0A,0x00],
+    "C":[0x0E,0x11,0x11,0x0A,0x00], "D":[0x1F,0x11,0x11,0x0E,0x00],
+    "E":[0x1F,0x15,0x15,0x11,0x00], "F":[0x1F,0x05,0x05,0x01,0x00],
+    "G":[0x0E,0x11,0x15,0x1D,0x00], "H":[0x1F,0x04,0x04,0x1F,0x00],
+    "I":[0x11,0x1F,0x11,0x00,0x00], "J":[0x08,0x10,0x10,0x0F,0x00],
+    "K":[0x1F,0x04,0x0A,0x11,0x00], "L":[0x1F,0x10,0x10,0x10,0x00],
+    "M":[0x1F,0x02,0x04,0x02,0x1F], "N":[0x1F,0x02,0x04,0x1F,0x00],
+    "O":[0x0E,0x11,0x11,0x0E,0x00], "P":[0x1F,0x05,0x05,0x02,0x00],
+    "Q":[0x0E,0x11,0x19,0x1E,0x00], "R":[0x1F,0x05,0x0D,0x12,0x00],
+    "S":[0x12,0x15,0x15,0x09,0x00], "T":[0x01,0x1F,0x01,0x01,0x00],
+    "U":[0x0F,0x10,0x10,0x0F,0x00], "V":[0x07,0x08,0x10,0x08,0x07],
+    "W":[0x1F,0x08,0x04,0x08,0x1F], "X":[0x11,0x0A,0x04,0x0A,0x11],
+    "Y":[0x01,0x02,0x1C,0x02,0x01], "Z":[0x19,0x15,0x13,0x11,0x00],
+    "0":[0x0E,0x11,0x11,0x0E,0x00], "1":[0x00,0x12,0x1F,0x10,0x00],
+    "2":[0x12,0x19,0x15,0x12,0x00], "3":[0x11,0x15,0x15,0x0A,0x00],
+    "4":[0x07,0x04,0x04,0x1F,0x00], "5":[0x17,0x15,0x15,0x09,0x00],
+    "6":[0x0E,0x15,0x15,0x08,0x00], "7":[0x01,0x01,0x1D,0x03,0x00],
+    "8":[0x0A,0x15,0x15,0x0A,0x00], "9":[0x02,0x15,0x15,0x0E,0x00],
+    " ":[0,0,0,0,0], "[":[0x00,0x1F,0x11,0x00,0x00],
+    "]":[0x00,0x11,0x1F,0x00,0x00], ":":[0x00,0x0A,0x00,0x00,0x00],
+    "-":[0x04,0x04,0x04,0x04,0x00]
+  };
+  return raw;
+})();
+
+function drawChar5x7(x,y,ch,clr0,clr1){
+  const glyph = FONT5x7[ch];
+  if(!glyph) return 6;
+
+  // shadow
+  g.save(); g.globalAlpha = 0.55;
+  for(let cx=0; cx<5; cx++){
+    const bits = glyph[cx];
+    for(let cy=0; cy<7; cy++){
+      if(bits & (1<<cy)) pset(x+cx+1, y+cy+1, COLORS.shadow);
+    }
+  }
+  g.restore();
+
+  // true diagonal gradient per pixel
+  for(let cx=0; cx<5; cx++){
+    const bits = glyph[cx];
+    for(let cy=0; cy<7; cy++){
+      if(bits & (1<<cy)) {
+        const t = diagT(cx, cy, 5, 7);
+        const c = mixColor(clr0, clr1, t);
+        pset(x+cx, y+cy, c);
+      }
+    }
+  }
+  return 6;  // advance
+}
+function text5x7(x,y,str,clr0,clr1){
+  let dx=0; str = String(str).toUpperCase();
+  for(const ch of str) dx += drawChar5x7(x+dx,y,ch,clr0,clr1);
+  return dx;
+}
+function textWidth5x7(str){ return (String(str).length)*6; }
+
+/* ================== ICONS 5×5 ================== */
+const ICONS5 = {
+  down: [
+    ".....",
+    "..#..",
+    ".###.",
+    "#####",
+    ".....",
+  ],
+  square: [
+    "#####",
+    "#...#",
+    "#...#",
+    "#...#",
+    "#####",
+  ],
+  cross: [
+    "#...#",
+    ".#.#.",
+    "..#..",
+    ".#.#.",
+    "#...#",
+  ],
+};
+function drawBitmapGlyph(x, y, rows, clr0, clr1) {
+  const h = rows.length, w = rows[0].length;
+  // shadow
+  g.save(); g.globalAlpha = 0.55;
+  for (let yy = 0; yy < h; yy++)
+    for (let xx = 0; xx < w; xx++)
+      if (rows[yy][xx] === '#') pset(x + xx + 1, y + yy + 1, COLORS.shadow);
+  g.restore();
+  // gradient fill
+  for (let yy = 0; yy < h; yy++){
+    for (let xx = 0; xx < w; xx++){
+      if (rows[yy][xx] !== '#') continue;
+      const t = diagT(xx, yy, w, h);
+      const c = mixColor(clr0, clr1, t);
+      pset(x + xx, y + yy, c);
+    }
+  }
+}
+
+/* ================== PANELS + BEVELS ================== */
+function drawPanel(x, y, w, h, pressed=false) {
+  rect(x, y, w, h, COLORS.panel_mid);                // flat opaque
+  bevelRect(x, y, w, h, !pressed, COLORS.panel_light, COLORS.panel_dark);
+}
+function drawShadow(x, y, w, h, s){
+  rectA(x+s, y+s, w, h, COLORS.black, 0.27);
+}
+
+/* ================== STARFIELD ================== */
+const stars = [];
+for(let i=0;i<220;i++){
+  stars.push({ x: Math.random()*VIRTUAL_W,
+               y: Math.random()*VIRTUAL_H,
+               v: 0.15 + Math.random()*0.4 });
+}
+
+/* ================== MENU MODEL (CONFIGURABLE) ================== */
+// simple icon constants so your spec can say { icon: DOWN }
+const DOWN = 'down';
+
+function setMenu(spec){
+  menuModel = spec.map(m => ({
+    label: m.label ?? null,
+    icon:  m.icon  ?? null,   // 'down' for the quick menu button
+    open:  !!m.open,
+    items: Array.isArray(m.items) ? m.items.map(it => ({
+      label: String(it.label ?? ''),
+      shortcut: it.shortcut ? String(it.shortcut) : null,
+      disabled: !!it.disabled,
+      selected: !!it.selected,
+      divider: !!it?.divider,
+    })) : null,
+  }));
+}
+let menuModel = [];
+
+// your example spec
+setMenu([
+  { icon: DOWN, open:false, items: [
+    { label:"0" }, { label:"1" }, { label:"2" }, { label:"3" }, { label:"4" },
+    { label:"5" }, { label:"6" }, { label:"7" }, { label:"8" }, { label:"9" },
+  ]},
+  { label:"GAME", open:false, items:[
+    { label:"LOAD" },
+    { label:"RUN", disabled:true, shortcut:"ESC" },
+    { label:"RESET" },
+    { divider:true },
+    { label:"SAVE STATE", disabled:true },
+    { label:"OPEN STATE", disabled:true },
+    { label:"PICK STATE", disabled:true },
+    { divider:true },
+    { label:"QUIT" },
+  ]},
+  { label:"CONFIG", open:false, items:[
+    { label:"LOAD" }, { label:"SAVE" },
+  ]},
+  { label:"CHEAT",  open:false },
+  { label:"NETPLAY",open:false },
+  { label:"MISC",   open:false },
+]);
+
+/* ================== LAYOUT + INTERACTION ================== */
+let topRegions = [];   // hit regions for top menus
+let ctrlRegions = [];  // hit regions for right-side controls
+
+function measureButtonW(m){
+  if (m.label) return textWidth5x7(m.label) + 12;
+  // icon-only button width
+  return 12;
+}
+function drawCopperBar(){
+  for (let y = 0; y < BAR_H; y++) {
+    const v = (y + 0.5) / BAR_H;
+    const arch = (1 - Math.cos(2 * Math.PI * v)) * 0.5;
+    const c = mixColor(COLORS.copper_dark, COLORS.copper_lite, arch);
+    rect(0, y, VIRTUAL_W, 1, c);
+  }
+}
+
+function drawTopBarChrome(){
+  drawCopperBar();
+
+  // left menus (dynamic)
+  topRegions = [];
+  let x = PAD;
+  for (let i = 0; i < menuModel.length; i++){
+    const m = menuModel[i];
+    const w = measureButtonW(m);
+    drawPanel(x, 4, w, BAR_H - 8, /*pressed*/ m.open);
+
+    if (m.label) {
+      text5x7(x + 6, 6, m.label, COLORS.text_dark, COLORS.text_light);
+    } else if (m.icon) {
+      const innerW = w - 2, innerH = BAR_H - 8 - 2;
+      const gx = x + Math.floor((innerW - 5)/2) + 1;
+      const gy = 4 + Math.floor((innerH - 5)/2) + 1;
+      drawBitmapGlyph(gx, gy, ICONS5[m.icon], COLORS.text_dark, COLORS.text_light);
+    }
+
+    topRegions.push({ x, y:0, w, h:BAR_H, index:i });
+    x += w + 6;
+  }
+
+  // right controls
+  const ctrlGap = 4;
+  const ctrlW = 12;
+  const ctrlH = BAR_H - 8;
+  const innerW = ctrlW - 2;
+  const innerH = ctrlH - 2;
+  let cx = VIRTUAL_W - PAD - (ctrlW*ctrlButtons.length + ctrlGap*(ctrlButtons.length-1));
+  const cy = 4;
+
+  ctrlRegions = [];
+  for (let i = 0; i < ctrlButtons.length; i++) {
+    const btn = ctrlButtons[i];
+    drawPanel(cx, cy, ctrlW, ctrlH, btn.pressed);
+
+    const gx = cx + Math.floor((innerW - 5)/2) + 1;
+    const gy = cy + Math.floor((innerH - 5)/2) + 1;
+    drawBitmapGlyph(gx, gy, ICONS5[btn.name], COLORS.text_dark, COLORS.text_light);
+
+    ctrlRegions.push({ x: cx, y: cy, w: ctrlW, h: ctrlH, index: i });
+    cx += ctrlW + ctrlGap;
+  }
+}
+
+function dropdownForOpen(){
+  // Only one open at a time (enforced in click handler)
+  for (let i=0;i<menuModel.length;i++){
+    if (menuModel[i].open && menuModel[i].items && menuModel[i].items.length) {
+      return { idx:i, menu:menuModel[i] };
+    }
+  }
+  return null;
+}
+function drawDropdown(){
+  const dd = dropdownForOpen();
+  if (!dd) return;
+
+  const i = dd.idx, m = dd.menu;
+
+  // anchor under its button
+  const anchor = topRegions[i];
+  const px = anchor.x;
+  const py = BAR_H - 8 + 6; // 6 pixels below button bottom
+
+  // measure width from items (label + optional [shortcut])
+  let maxW = 0;
+  const itemH = 10;
+  const leftPad = 6, rightPad = 6;
+  for (const it of m.items) {
+    if (it.divider) continue;
+    const kbd = it.shortcut ? ` [${it.shortcut}]` : '';
+    maxW = Math.max(maxW, textWidth5x7(it.label + kbd));
+  }
+  const listW = Math.max(80, leftPad + maxW + rightPad);
+  const listH = itemH * m.items.length + PAD*2;
+
+  // shadow + panel
+  drawShadow(px, py, listW, listH, 5);
+  drawPanel(px, py, listW, listH, false);
+
+  // rows
+  for (let row=0; row<m.items.length; row++){
+    const it = m.items[row];
+    const iy = py + PAD + row*itemH;
+
+    if (it.divider) {
+      // centered 2-px beveled line inside the row
+      const ymid = iy + Math.floor(itemH / 2) - 1;
+      drawBevelLine(px + 2, ymid, listW - 4, /*down*/ true);
+      continue;
+    }
+
+    const hover = (mouseX>=px && mouseX<px+listW && mouseY>=iy && mouseY<iy+itemH && !it.disabled);
+
+    if (it.selected || hover) {
+      // red highlight for both selected and hover
+      rect(px+1, iy, listW-2, itemH, COLORS.hot);
+      frame(px+1, iy, listW-2, itemH, COLORS.hotDark);
+      text5x7(px+leftPad, iy+2, it.label, COLORS.white, COLORS.white);
+    } else {
+      const clr0 = it.disabled ? COLORS.disabled_text_dark : COLORS.text_dark;
+      const clr1 = it.disabled ? COLORS.disabled_text_light : COLORS.text_light;
+      text5x7(px+leftPad, iy+2, it.label, clr0, clr1);
+    }
+
+    // right-aligned [shortcut]
+    if (it.shortcut){
+      const s = `[${it.shortcut}]`;
+      const sw = textWidth5x7(s);
+      const sx = px + listW - rightPad - sw;
+      const clr0 = it.disabled ? COLORS.disabled_text_dark : COLORS.text_dark;
+      const clr1 = it.disabled ? COLORS.disabled_text_light : COLORS.text_light;
+      text5x7(sx, iy+2, s, clr0, clr1);
+    }
+  }
+}
+
+/* ================== INPUT ================== */
+let mouseX = 0, mouseY = 0, mouseDown = false;
+function toVirtual(e){
+  const rect = cvs.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / scale);
+  const y = Math.floor((e.clientY - rect.top ) / scale);
+  return [x,y];
+}
+cvs.addEventListener('mousemove', e => ([mouseX, mouseY] = toVirtual(e)));
+cvs.addEventListener('mousedown', () => { mouseDown = true; handleClick(); });
+cvs.addEventListener('mouseup',   () => { mouseDown = false; });
+
+function closeAll(){ menuModel.forEach(m=>m.open=false); }
+
+function handleClick(){
+  // controls first
+  for (const r of ctrlRegions){
+    if(mouseX>=r.x && mouseX<r.x+r.w && mouseY>=r.y && mouseY<r.y+r.h){
+      const b = ctrlButtons[r.index];
+      b.pressed = true; setTimeout(()=>b.pressed=false, 120);
+      // demo actions could go here
+      return;
+    }
+  }
+  // top menus
+  for (const r of topRegions){
+    if(mouseX>=r.x && mouseX<r.x+r.w && mouseY>=r.y && mouseY<r.y+r.h){
+      // toggle clicked, close others
+      menuModel.forEach((m,i)=> m.open = (i===r.index ? !m.open : false));
+      return;
+    }
+  }
+  // click outside -> close menus
+  closeAll();
+}
+
+/* ================== MAIN LOOP ================== */
+let lastT = 0;
+function loop(t){
+  const dt = Math.min(33, t - lastT); lastT = t;
+
+  // background
+  rect(0,0,VIRTUAL_W,VIRTUAL_H, COLORS.space);
+
+  // stars (drift down-right) with top/left respawn
+  for (const s of stars) {
+    s.x += 0.20 * (dt/16) * s.v;
+    s.y += 0.35 * (dt/16) * s.v;
+    if (s.x >= VIRTUAL_W || s.y >= VIRTUAL_H) {
+      if (Math.random() < 0.5) { s.x = Math.random()*VIRTUAL_W; s.y = 0; }
+      else { s.x = 0; s.y = Math.random()*VIRTUAL_H; }
+    }
+    pset(s.x|0, s.y|0, COLORS.star);
+  }
+
+  // layers: top-bar shadow -> dropdown -> bar chrome -> cursor
+  drawShadow(0, 0, VIRTUAL_W, BAR_H, 5);
+  drawTopBarChrome();
+  drawDropdown();
+  
+
+  // present
+  ctx.drawImage(back, 0, 0, VIRTUAL_W*scale, VIRTUAL_H*scale);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+
+// close menus on Esc
+window.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeAll();
+});
+</script>
+</body>
+</html>
