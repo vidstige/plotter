@@ -32,28 +32,31 @@ const VIRTUAL_H = 240;
 const BAR_H = 16;
 const PAD = 4;
 
-const COL = {
-  space: 0x3a2f87,
-  star:  0xcfd6ff,
+const COLORS = {
+  space: 0x3D2D7B,
+  star:  0x8A8D9E,
   // copperbar base anchors
   barDark: 0x0a2a5a,
   COPPER_DARK: 0x0f2a5a,
   COPPER_LITE: 0x3c7dd8,
+
   btnText: 0xe7eefb,
   dropText: 0xd7dde7,
   dropMuted: 0x9aa3ad,
-  hot: 0xcf1630,
-  hotDark: 0x7d0e24,
-  violet: 0x25418a,
-  orange: 0xf56b2a,
+  hot: 0x921C4F,
+  hotDark: 0x7C164F,
   black: 0x000000,
   white: 0xffffff,
-};
 
-// shared gray panel palette (flat fill)
-const PANEL_LIGHT = 0x9aaac0;
-const PANEL_MID   = 0x485260;
-const PANEL_DARK  = 0x2a3244;
+  // TODO: Use these
+  text_light: 0xEAEAE9,
+  text_dark: 0xA9ACA8,
+
+  // shared gray panel palette (flat fill)
+  panel_light: 0x797B78,
+  panel_mid: 0x595C58,
+  panel_dark: 0x393C38,
+};
 
 // right-side control buttons (keep)
 const ctrlButtons = [
@@ -95,7 +98,7 @@ function frame(x,y,w,h,c){ g.fillStyle = col(c);
   g.fillRect(x,y,w,1); g.fillRect(x,y+h-1,w,1);
   g.fillRect(x,y,1,h); g.fillRect(x+w-1,y,1,h);
 }
-function bevelRect(x,y,w,h,up=true, light=PANEL_LIGHT, dark=PANEL_DARK) {
+function bevelRect(x,y,w,h,up=true, light=COLORS.panel_light, dark=COLORS.panel_dark) {
   if(up){
     rect(x, y, w, 1, light);               // top
     rect(x, y, 1, h, light);               // left
@@ -236,8 +239,8 @@ function drawBitmapGlyph(x, y, rows, baseColor) {
 
 /* ================== PANELS + SHADOWS ================== */
 function drawPanel(x, y, w, h, pressed=false) {
-  rect(x, y, w, h, PANEL_MID);                // flat opaque
-  bevelRect(x, y, w, h, !pressed, PANEL_LIGHT, PANEL_DARK);
+  rect(x, y, w, h, COLORS.panel_mid);                // flat opaque
+  bevelRect(x, y, w, h, !pressed, COLORS.panel_light, COLORS.panel_dark);
 }
 function drawTopBarShadow(){
   rectA(0, BAR_H, VIRTUAL_W, 2, 0x000000, 0.30);
@@ -284,7 +287,7 @@ setMenu([
   { label:"GAME", open:false, items:[
     { label:"LOAD" },
     { label:"RUN", disabled:true, shortcut:"ESC" },
-    { label:"RESET", selected:true },
+    { label:"RESET" },
     { label:"SAVE STATE", disabled:true },
     { label:"OPEN STATE", disabled:true },
     { label:"PICK STATE", disabled:true },
@@ -311,11 +314,11 @@ function drawCopperBar(){
   for (let y = 0; y < BAR_H; y++) {
     const v = (y + 0.5) / BAR_H;
     const arch = (1 - Math.cos(2 * Math.PI * v)) * 0.5;
-    const c = mixColor(COL.COPPER_DARK, COL.COPPER_LITE, arch);
+    const c = mixColor(COLORS.COPPER_DARK, COLORS.COPPER_LITE, arch);
     rect(0, y, VIRTUAL_W, 1, c);
   }
-  rect(0, 0, VIRTUAL_W, 1, COL.barDark);
-  rect(0, BAR_H-1, VIRTUAL_W, 1, COL.barDark);
+  rect(0, 0, VIRTUAL_W, 1, COLORS.barDark);
+  rect(0, BAR_H-1, VIRTUAL_W, 1, COLORS.barDark);
 }
 
 function drawTopBarChrome(){
@@ -330,12 +333,12 @@ function drawTopBarChrome(){
     drawPanel(x, 4, w, BAR_H - 8, /*pressed*/ m.open);
 
     if (m.label) {
-      text5x7(x + 6, 6, m.label, COL.btnText);
+      text5x7(x + 6, 6, m.label, COLORS.btnText);
     } else if (m.icon) {
       const innerW = w - 2, innerH = BAR_H - 8 - 2;
       const gx = x + Math.floor((innerW - 5)/2) + 1;
       const gy = 4 + Math.floor((innerH - 5)/2) + 1;
-      drawBitmapGlyph(gx, gy, ICONS5[m.icon], COL.btnText);
+      drawBitmapGlyph(gx, gy, ICONS5[m.icon], COLORS.btnText);
     }
 
     topRegions.push({ x, y:0, w, h:BAR_H, index:i });
@@ -358,7 +361,7 @@ function drawTopBarChrome(){
 
     const gx = cx + Math.floor((innerW - 5)/2) + 1;
     const gy = cy + Math.floor((innerH - 5)/2) + 1;
-    drawBitmapGlyph(gx, gy, ICONS5[btn.name], COL.btnText);
+    drawBitmapGlyph(gx, gy, ICONS5[btn.name], COLORS.btnText);
 
     ctrlRegions.push({ x: cx, y: cy, w: ctrlW, h: ctrlH, index: i });
     cx += ctrlW + ctrlGap;
@@ -406,15 +409,13 @@ function drawDropdown(){
     const iy = py + PAD + row*itemH;
     const hover = (mouseX>=px && mouseX<px+listW && mouseY>=iy && mouseY<iy+itemH && !it.disabled);
 
-    if (it.selected){
-      rect(px+1, iy, listW-2, itemH, COL.hot);
-      frame(px+1, iy, listW-2, itemH, COL.hotDark);
-      text5x7(px+leftPad, iy+2, it.label, COL.white);
-    } else if (hover){
-      rect(px+1, iy, listW-2, itemH, 0x6a7788);
-      text5x7(px+leftPad, iy+2, it.label, COL.white);
+    if (it.selected || hover) {
+      // red highlight for both selected and hover
+      rect(px+1, iy, listW-2, itemH, COLORS.hot);
+      frame(px+1, iy, listW-2, itemH, COLORS.hotDark);
+      text5x7(px+leftPad, iy+2, it.label, COLORS.white);
     } else {
-      text5x7(px+leftPad, iy+2, it.label, it.disabled ? COL.dropMuted : COL.dropText);
+      text5x7(px+leftPad, iy+2, it.label, it.disabled ? COLORS.dropMuted : COLORS.dropText);
     }
 
     // right-aligned [shortcut]
@@ -422,7 +423,16 @@ function drawDropdown(){
       const s = `[${it.shortcut}]`;
       const sw = textWidth5x7(s);
       const sx = px + listW - rightPad - sw;
-      const sc = (it.selected || hover) ? COL.white : (it.disabled ? COL.dropMuted : COL.dropText);
+      const sc = (it.selected || hover) ? COLORS.white : (it.disabled ? COLORS.dropMuted : COLORS.dropText);
+      text5x7(sx, iy+2, s, sc);
+    }
+
+    // right-aligned [shortcut]
+    if (it.shortcut){
+      const s = `[${it.shortcut}]`;
+      const sw = textWidth5x7(s);
+      const sx = px + listW - rightPad - sw;
+      const sc = (it.selected || hover) ? COLORS.white : (it.disabled ? COLORS.dropMuted : COLORS.dropText);
       text5x7(sx, iy+2, s, sc);
     }
   }
@@ -470,7 +480,7 @@ function loop(t){
   const dt = Math.min(33, t - lastT); lastT = t;
 
   // background
-  rect(0,0,VIRTUAL_W,VIRTUAL_H, COL.space);
+  rect(0,0,VIRTUAL_W,VIRTUAL_H, COLORS.space);
 
   // stars (drift down-right) with top/left respawn (your tweak)
   for (const s of stars) {
@@ -480,7 +490,7 @@ function loop(t){
       if (Math.random() < 0.5) { s.x = Math.random()*VIRTUAL_W; s.y = 0; }
       else { s.x = 0; s.y = Math.random()*VIRTUAL_H; }
     }
-    pset(s.x|0, s.y|0, COL.star);
+    pset(s.x|0, s.y|0, COLORS.star);
   }
 
   // layers: top-bar shadow -> dropdown -> bar chrome -> cursor
@@ -498,13 +508,15 @@ function loop(t){
 requestAnimationFrame(loop);
 
 /* ================== CURSOR ================== */
+const violet = 0x25418a; 
+const orange = 0xf56b2a;
 const cursorSprite = [
-  [0,0,COL.orange],[1,0,COL.orange],[2,1,COL.orange],[3,2,COL.orange],
-  [4,3,COL.orange],[5,4,COL.orange],[4,5,COL.orange],[3,6,COL.orange],
-  [2,7,COL.orange],[1,8,COL.orange],[0,9,COL.orange],[1,6,COL.orange],
-  [2,5,COL.orange],[1,4,COL.orange],[0,3,COL.orange],
-  [2,2,COL.violet],[3,3,COL.violet],[4,4,COL.violet],[3,5,COL.violet],
-  [2,6,COL.violet]
+  [0,0,orange],[1,0,orange],[2,1,orange],[3,2,orange],
+  [4,3,orange],[5,4,orange],[4,5,orange],[3,6,orange],
+  [2,7,orange],[1,8,orange],[0,9,orange],[1,6,orange],
+  [2,5,orange],[1,4,orange],[0,3,orange],
+  [2,2,violet],[3,3,violet],[4,4,violet],[3,5,violet],
+  [2,6,violet]
 ];
 function drawCursor(x,y){
   for(const [dx,dy,c] of cursorSprite) pset(x+dx,y+dy,c);
