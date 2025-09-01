@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ZSNES-style Pixel UI (shadows & bevel)</title>
+<style>
+  :root { background:#2f2675; }
+  html,body{height:100%;margin:0}
+  body{
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    user-select:none;
+  }
+  canvas{
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    outline: none;
+    background:#3a2f87;
+    box-shadow: 0 0 0 2px #1a1450, 0 0 120px rgba(0,0,0,0.45) inset;
+  }
+</style>
+</head>
+<body>
+<canvas id="screen" tabindex="0" aria-label="ZSNES-style pixel UI"></canvas>
+
+<script>
+/* ================== CONFIG ================== */
+const VIRTUAL_W = 320;
+const VIRTUAL_H = 240;
+
+const COL = {
+  space: 0x3a2f87,
+  star:  0xcfd6ff,
+  bar:   0x163a78,
+  barDark: 0x0a2a5a,
+  barHi: 0x2b6fb9,
+  btnBot: 0x123f7c,
+  btnTop: 0x245da8,
+  btnText: 0xe7eefb,
+  drop: 0x56606d,
+  dropFrame: 0x212632,
+  dropText: 0xd7dde7,
+  dropMuted: 0x9aa3ad,
+  hot: 0xcf1630,
+  hotDark: 0x7d0e24,
+  violet: 0x25418a,
+  orange: 0xf56b2a,
+  black: 0x000000,
+  white: 0xffffff,
+};
+
+// Shared gray panel palette (dropdown + buttons)
+const PANEL_DARK  = 0x2a3244;  // darkest steel-gray (right/bottom & edges)
+const PANEL_MID   = 0x485260;  // body mid-tone
+const PANEL_LIGHT = 0x9aaac0;  // light bevel (left/top)
+
+const COPPER_DARK = 0x0f2a5a;  // darker steel-blue
+const COPPER_LITE = 0x3c7dd8;  // bright center-blue
+
+/* ================== CANVAS ================== */
+const cvs = document.getElementById('screen');
+const ctx = cvs.getContext('2d', { alpha:false });
+
+const back = document.createElement('canvas');      // low-res backbuffer
+back.width = VIRTUAL_W; back.height = VIRTUAL_H;
+// IMPORTANT: allow transparency on backbuffer so shadows show the stars through
+const g = back.getContext('2d', { alpha:true });
+g.imageSmoothingEnabled = false;
+
+let scale = 1;
+function fitCanvas() {
+  const sx = Math.floor(window.innerWidth  / VIRTUAL_W);
+  const sy = Math.floor(window.innerHeight / VIRTUAL_H);
+  scale = Math.max(1, Math.min(sx, sy));
+  cvs.width  = VIRTUAL_W * scale;
+  cvs.height = VIRTUAL_H * scale;
+}
+window.addEventListener('resize', fitCanvas);
+fitCanvas();
+
+/* ================== PIXEL HELPERS ================== */
+function col(c){ return `#${(c>>>0).toString(16).padStart(6,'0')}`; }
+function pset(x,y,c){ g.fillStyle = col(c); g.fillRect(x|0,y|0,1,1); }
+function rect(x,y,w,h,c){ g.fillStyle = col(c); g.fillRect(x|0,y|0,w|0,h|0); }
+function rectA(x,y,w,h,c,a=1){               // alpha rectangle
+  g.save(); g.globalAlpha = a;
+  g.fillStyle = col(c);
+  g.fillRect(x|0,y|0,w|0,h|0);
+  g.restore();
+}
+function frame(x,y,w,h,c){ g.fillStyle = col(c);
+  g.fillRect(x,y,w,1); g.fillRect(x,y+h-1,w,1);
+  g.fillRect(x,y,1,h); g.fillRect(x+w-1,y,1,h);
+}
+function bevelRect(x,y,w,h,up=true, light=UI_LIGHT, dark=UI_DARK) {
+  if(up){
+    rect(x, y, w, 1, light);               // top
+    rect(x, y, 1, h, light);               // left
+    rect(x, y+h-1, w, 1, dark);            // bottom
+    rect(x+w-1, y, 1, h, dark);            // right
+  } else {
+    rect(x, y, w, 1, dark);                // top
+    rect(x, y, 1, h, dark);                // left
+    rect(x, y+h-1, w, 1, light);           // bottom
+    rect(x+w-1, y, 1, h, light);           // right
+  }
+}
+
+/* =================== ICONS ==================== */
+const ICONS5 = {
+  down: [
+    ".....",
+    "..#..",
+    ".###.",
+    "#####",
+    ".....",
+  ],
+  square: [
+    "#####",
+    "#...#",
+    "#...#",
+    "#...#",
+    "#####",
+  ],
+  cross: [
+    "#...#",
+    ".#.#.",
+    "..#..",
+    ".#.#.",
+    "#...#",
+  ],
+};
+
+// Draw a icon with the SAME style as text:
+//  - 1px drop shadow (alpha)
+//  - subtle top/bottom-right darkening
+function drawIcon(x, y, rows, baseColor) {
+  const h = rows.length, w = rows[0].length;
+
+  // shadow (offset +1,+1), dark blue-ish, semi-transparent
+  const shadowCol = 0x0b1a3d;
+  g.save(); g.globalAlpha = 0.55;
+  for (let yy = 0; yy < h; yy++) {
+    for (let xx = 0; xx < w; xx++) {
+      if (rows[yy][xx] === '#') pset(x + xx + 1, y + yy + 1, shadowCol);
+    }
+  }
+  g.restore();
+
+  // shaded pixels
+  for (let yy = 0; yy < h; yy++) {
+    for (let xx = 0; xx < w; xx++) {
+      if (rows[yy][xx] !== '#') continue;
+      let c = baseColor;
+      if (yy <= Math.floor(h * 0.35)) c = darken(c, 0.15);     // top band darker
+      if (xx >= w - 2 && yy >= h - 2) c = darken(c, 0.25);     // bottom-right corner darker
+      pset(x + xx, y + yy, c);
+    }
+  }
+}
+
+/* ================== FONT 5x7 ================== */
+const FONT5x7 = (() => {
+  const raw = {
+    "A":[0x1E,0x05,0x05,0x1E,0x00], "B":[0x1F,0x15,0x15,0x0A,0x00],
+    "C":[0x0E,0x11,0x11,0x0A,0x00], "D":[0x1F,0x11,0x11,0x0E,0x00],
+    "E":[0x1F,0x15,0x15,0x11,0x00], "F":[0x1F,0x05,0x05,0x01,0x00],
+    "G":[0x0E,0x11,0x15,0x1D,0x00], "H":[0x1F,0x04,0x04,0x1F,0x00],
+    "I":[0x11,0x1F,0x11,0x00,0x00], "J":[0x08,0x10,0x10,0x0F,0x00],
+    "K":[0x1F,0x04,0x0A,0x11,0x00], "L":[0x1F,0x10,0x10,0x10,0x00],
+    "M":[0x1F,0x02,0x04,0x02,0x1F], "N":[0x1F,0x02,0x04,0x1F,0x00],
+    "O":[0x0E,0x11,0x11,0x0E,0x00], "P":[0x1F,0x05,0x05,0x02,0x00],
+    "Q":[0x0E,0x11,0x19,0x1E,0x00], "R":[0x1F,0x05,0x0D,0x12,0x00],
+    "S":[0x12,0x15,0x15,0x09,0x00], "T":[0x01,0x1F,0x01,0x01,0x00],
+    "U":[0x0F,0x10,0x10,0x0F,0x00], "V":[0x07,0x08,0x10,0x08,0x07],
+    "W":[0x1F,0x08,0x04,0x08,0x1F], "X":[0x11,0x0A,0x04,0x0A,0x11],
+    "Y":[0x01,0x02,0x1C,0x02,0x01], "Z":[0x19,0x15,0x13,0x11,0x00],
+    "0":[0x0E,0x11,0x11,0x0E,0x00], "1":[0x00,0x12,0x1F,0x10,0x00],
+    "2":[0x12,0x19,0x15,0x12,0x00], "3":[0x11,0x15,0x15,0x0A,0x00],
+    "4":[0x07,0x04,0x04,0x1F,0x00], "5":[0x17,0x15,0x15,0x09,0x00],
+    "6":[0x0E,0x15,0x15,0x08,0x00], "7":[0x01,0x01,0x1D,0x03,0x00],
+    "8":[0x0A,0x15,0x15,0x0A,0x00], "9":[0x02,0x15,0x15,0x0E,0x00],
+    " ":[0,0,0,0,0], "[":[0x00,0x1F,0x11,0x00,0x00],
+    "]":[0x00,0x11,0x1F,0x00,0x00], ":":[0x00,0x0A,0x00,0x00,0x00],
+    "-":[0x04,0x04,0x04,0x04,0x00]
+  };
+  return raw;
+})();
+
+function darken(color, amt) {
+  let r = (color >> 16) & 0xff;
+  let g = (color >> 8) & 0xff;
+  let b = (color) & 0xff;
+  r = Math.max(0, r - amt*255)|0;
+  g = Math.max(0, g - amt*255)|0;
+  b = Math.max(0, b - amt*255)|0;
+  return (r<<16)|(g<<8)|b;
+}
+
+// Text with 1px drop-shadow and per-pixel shading
+function drawChar5x7(x,y,ch,baseColor){
+  const glyph = FONT5x7[ch];
+  if(!glyph) return 6;
+
+  // subtle shadow color (dark blue-ish) with alpha
+  const shadowCol = 0x0b1a3d;
+
+  // shadow (offset +1,+1)
+  g.save(); g.globalAlpha = 0.55;
+  for(let cx=0; cx<5; cx++){
+    const colBits = glyph[cx];
+    for(let cy=0; cy<7; cy++){
+      if(colBits & (1<<cy)) pset(x+cx+1, y+cy+1, shadowCol);
+    }
+  }
+  g.restore();
+
+  // shaded glyph
+  for(let cx=0; cx<5; cx++){
+    const colBits = glyph[cx];
+    for(let cy=0; cy<7; cy++){
+      if(colBits & (1<<cy)) {
+        let c = baseColor;
+        if(cy <= 2) c = darken(c,0.15);            // top rows darker
+        if(cx >= 3 && cy >= 4) c = darken(c,0.25); // bottom-right darker
+        pset(x+cx, y+cy, c);
+      }
+    }
+  }
+  return 6;
+}
+function text5x7(x,y,str,color){
+  let dx=0; str = String(str).toUpperCase();
+  for(const ch of str) dx += drawChar5x7(x+dx,y,ch,color);
+  return dx;
+}
+function textWidth5x7(str){ return (String(str).length)*6; }
+
+/* ================== STARFIELD ================== */
+const stars = [];
+for(let i=0;i<220;i++){
+  stars.push({ x: Math.random()*VIRTUAL_W,
+               y: Math.random()*VIRTUAL_H,
+               v: 0.15 + Math.random()*0.4 });
+}
+
+/* ================== MENU MODEL ================== */
+const topMenus = [
+  { label:"GAME",   open:true },
+  { label:"CONFIG", open:false },
+  { label:"CHEAT",  open:false },
+  { label:"NETPLAY",open:false },
+  { label:"MISC",   open:false },
+];
+
+const gameItems = [
+  { label:"LOAD" },
+  { label:"RUN  [ESC]", disabled:true },
+  { label:"RESET", hot:true },
+  { label:"SAVE STATE", disabled:true },
+  { label:"OPEN STATE", disabled:true },
+  { label:"PICK STATE", disabled:true },
+  { label:"QUIT" },
+];
+
+const BAR_H = 16;
+const PAD = 4;
+
+/* ================== INPUT ================== */
+let mouseX = 0, mouseY = 0, mouseDown = false;
+function toVirtual(e){
+  const rect = cvs.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / scale);
+  const y = Math.floor((e.clientY - rect.top ) / scale);
+  return [x,y];
+}
+cvs.addEventListener('mousemove', e => ([mouseX, mouseY] = toVirtual(e)));
+cvs.addEventListener('mousedown', () => { mouseDown = true; handleClick(); });
+cvs.addEventListener('mouseup',   () => { mouseDown = false; });
+
+let topRegions = [];
+
+/* ================== UI DRAW ================== */
+function lerp(a,b,t){ return a + (b - a) * t; }
+function mixColor(c1, c2, t){
+  const r1=(c1>>16)&0xff, g1=(c1>>8)&0xff, b1=c1&0xff;
+  const r2=(c2>>16)&0xff, g2=(c2>>8)&0xff, b2=c2&0xff;
+  const r = lerp(r1, r2, t)|0, g = lerp(g1, g2, t)|0, b = lerp(b1, b2, t)|0;
+  return (r<<16)|(g<<8)|b;
+}
+
+function drawTopBarShadow(){
+  // transparent bar shadow below bar (2 px fade)
+  rectA(0, BAR_H, VIRTUAL_W, 2, 0x000000, 0.30);
+  rectA(0, BAR_H+2, VIRTUAL_W, 1, 0x000000, 0.15);
+}
+
+function drawTopBarChrome(){
+  // === Copperbar body (cosine arch across height) ===
+  // y in [0..BAR_H-1], arch peaks in the middle
+  for (let y = 0; y < BAR_H; y++) {
+    const v = (y + 0.5) / BAR_H;             // 0..1
+    const arch = (1 - Math.cos(2 * Math.PI * v)) * 0.5; // 0 at edges, 1 at middle
+    const c = mixColor(COPPER_DARK, COPPER_LITE, arch);
+    rect(0, y, VIRTUAL_W, 1, c);
+  }
+
+  // hairlines on top/bottom (keeps that crisp ZSNES chrome)
+  rect(0, 0, VIRTUAL_W, 1, COL.barDark);
+  rect(0, BAR_H-1, VIRTUAL_W, 1, COL.barDark);
+
+  // === Buttons ===
+  topRegions = [];
+  let x = PAD;
+  for (let i = 0; i < topMenus.length; i++) {
+    const m = topMenus[i];
+    const w = textWidth5x7(m.label) + 12;
+
+    // Gray panel widget (pressed when open)
+    drawPanel(x, 4, w, BAR_H - 8, /* pressed: */ m.open);
+
+    // Text (shadow + shaded glyphs already handled by text5x7/char)
+    text5x7(x + 6, 6, m.label, COL.btnText);
+
+    topRegions.push({ x, y: 0, w, h: BAR_H, index: i });
+    x += w + 6;
+  }
+}
+
+function drawPanel(x, y, w, h, pressed=false) {
+  rect(x, y, w, h, PANEL_MID);  // solid gray fill
+  // 1-px bevel: raised (up=true) unless pressed (down)
+  bevelRect(x, y, w, h, !pressed, PANEL_LIGHT, PANEL_DARK);
+}
+
+function drawDropdownGameShadow(px, py, w, h){
+  // soft offset shadow (down-right), transparent
+  rectA(px+3, py+3, w, h, 0x000000, 0.38);
+  rectA(px+4, py+4, w, h, 0x000000, 0.22);
+}
+
+function drawDropdownGame(){
+  const m = topMenus[0];
+  if(!m.open) return;
+
+  const itemH = 10;
+  const listW = 120;
+  const listH = itemH * gameItems.length + PAD*2;
+  const px = PAD;
+  const py = BAR_H + 4;
+
+  // shadow first so it sits under the panel and under the bar chrome
+  drawDropdownGameShadow(px, py, listW, listH);
+
+  // panel
+  drawPanel(px, py, listW, listH, /* pressed: */ false); // dropdown is raised
+
+  // items
+  let mx = mouseX, my = mouseY;
+  for(let i=0;i<gameItems.length;i++){
+    const it = gameItems[i];
+    const iy = py + PAD + i*itemH;
+    const hot = (mx>=px && mx<px+listW && my>=iy && my<iy+itemH && !it.disabled);
+
+    if(it.hot){
+      rect(px+1, iy, listW-2, itemH, COL.hot);
+      frame(px+1, iy, listW-2, itemH, COL.hotDark);
+      text5x7(px+6, iy+2, it.label, COL.white);
+    } else if(hot){
+      rect(px+1, iy, listW-2, itemH, 0x6a7788);
+      text5x7(px+6, iy+2, it.label, COL.white);
+    } else {
+      text5x7(px+6, iy+2, it.label, it.disabled ? COL.dropMuted : COL.dropText);
+    }
+  }
+}
+
+/* ================== CURSOR ================== */
+const cursorSprite = [
+  [0,0,COL.orange],[1,0,COL.orange],[2,1,COL.orange],[3,2,COL.orange],
+  [4,3,COL.orange],[5,4,COL.orange],[4,5,COL.orange],[3,6,COL.orange],
+  [2,7,COL.orange],[1,8,COL.orange],[0,9,COL.orange],[1,6,COL.orange],
+  [2,5,COL.orange],[1,4,COL.orange],[0,3,COL.orange],
+  [2,2,COL.violet],[3,3,COL.violet],[4,4,COL.violet],[3,5,COL.violet],
+  [2,6,COL.violet]
+];
+function drawCursor(x,y){
+  for(const [dx,dy,c] of cursorSprite) pset(x+dx,y+dy,c);
+}
+
+/* ================== CLICK ================== */
+function handleClick(){
+  for(const r of topRegions){
+    if(mouseX>=r.x && mouseX<r.x+r.w && mouseY>=r.y && mouseY<r.y+r.h){
+      topMenus.forEach((m,i)=> m.open = (i===r.index ? !m.open : false));
+      return;
+    }
+  }
+  topMenus.forEach(m=>m.open=false);
+}
+
+/* ================== MAIN LOOP ================== */
+let lastT = 0;
+function loop(t){
+  const dt = Math.min(33, t - lastT); lastT = t;
+
+  // background
+  rect(0,0,VIRTUAL_W,VIRTUAL_H, COL.space);
+
+  // stars (drift down-right)
+  for(const s of stars){
+    s.x += 0.20 * (dt/16);
+    s.y += 0.35 * (dt/16);
+    if(s.x >= VIRTUAL_W+4 || s.y >= VIRTUAL_H+4){
+      if (Math.random() < 0.5) {
+        s.x = Math.random()*VIRTUAL_W;
+        s.y = 0;
+      } else {
+        s.x = 0
+        s.y = Math.random()*VIRTUAL_H;
+      }
+    }
+    pset(s.x|0, s.y|0, COL.star);
+  }
+
+  // LAYERS:
+  // 1) Top-bar shadow (under everything)
+  drawTopBarShadow();
+  // 2) Dropdown (shadow + panel/items)
+  drawDropdownGame();
+  // 3) Top-bar chrome & text (drawn after dropdown so dropdown is visually on top where they overlap)
+  drawTopBarChrome();
+  // 4) Cursor
+  drawCursor(mouseX, mouseY);
+
+  // present
+  ctx.drawImage(back, 0, 0, VIRTUAL_W*scale, VIRTUAL_H*scale);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// close menus on Esc
+window.addEventListener('keydown', e => {
+  if(e.key === 'Escape') topMenus.forEach(m=>m.open=false);
+});
+</script>
+</body>
+</html>
