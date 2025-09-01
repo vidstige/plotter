@@ -35,27 +35,29 @@ const PAD = 4;
 const COLORS = {
   space: 0x3D2D7B,
   star:  0x8A8D9E,
-  // copperbar base anchors
-  barDark: 0x0a2a5a,
-  COPPER_DARK: 0x0f2a5a,
-  COPPER_LITE: 0x3c7dd8,
 
-  btnText: 0xe7eefb,
-  dropText: 0xd7dde7,
-  dropMuted: 0x9aa3ad,
+  // copperbar anchors
+  copper_dark: 0x0f2a5a,
+  copper_lite: 0x3c7dd8,
+
   hot: 0x921C4F,
   hotDark: 0x7C164F,
   black: 0x000000,
   white: 0xffffff,
 
-  // TODO: Use these
+  // text colors
   text_light: 0xEAEAE9,
   text_dark: 0xA9ACA8,
+  
+  disabled_text_dark: 0x80807D,
+  disabled_text_light: 0xBDBEBD,
 
   // shared gray panel palette (flat fill)
   panel_light: 0x797B78,
   panel_mid: 0x595C58,
   panel_dark: 0x393C38,
+
+  shadow: 0x303848,
 };
 
 // right-side control buttons (keep)
@@ -119,14 +121,13 @@ function mixColor(c1, c2, t){
   const b = (b1 + (b2 - b1) * t)|0;
   return (r<<16)|(g<<8)|b;
 }
-function darken(color, amt) {
-  let r = (color >> 16) & 0xff;
-  let g = (color >> 8) & 0xff;
-  let b = (color) & 0xff;
-  r = Math.max(0, r - amt*255)|0;
-  g = Math.max(0, g - amt*255)|0;
-  b = Math.max(0, b - amt*255)|0;
-  return (r<<16)|(g<<8)|b;
+
+function diagT(px, py, w, h){
+  const vx = (w - 1), vy = (h - 1);
+  const denom = vx*vx + vy*vy || 1;
+  let t = (px * vx + py * vy) / denom;
+  if (t < 0) t = 0; else if (t > 1) t = 1;
+  return t;
 }
 
 /* ================== FONT 5x7 ================== */
@@ -157,38 +158,36 @@ const FONT5x7 = (() => {
   return raw;
 })();
 
-function drawChar5x7(x,y,ch,baseColor){
+function drawChar5x7(x,y,ch,clr0,clr1){
   const glyph = FONT5x7[ch];
   if(!glyph) return 6;
-  const shadowCol = 0x0b1a3d;
 
   // shadow
   g.save(); g.globalAlpha = 0.55;
   for(let cx=0; cx<5; cx++){
     const bits = glyph[cx];
     for(let cy=0; cy<7; cy++){
-      if(bits & (1<<cy)) pset(x+cx+1, y+cy+1, shadowCol);
+      if(bits & (1<<cy)) pset(x+cx+1, y+cy+1, COLORS.shadow);
     }
   }
   g.restore();
 
-  // shaded glyph
+  // true diagonal gradient per pixel
   for(let cx=0; cx<5; cx++){
     const bits = glyph[cx];
     for(let cy=0; cy<7; cy++){
       if(bits & (1<<cy)) {
-        let c = baseColor;
-        if(cy <= 2) c = darken(c,0.15);            // top rows darker
-        if(cx >= 3 && cy >= 4) c = darken(c,0.25); // bottom-right darker
+        const t = diagT(cx, cy, 5, 7);
+        const c = mixColor(clr0, clr1, t);
         pset(x+cx, y+cy, c);
       }
     }
   }
-  return 6;
+  return 6;  // advance
 }
-function text5x7(x,y,str,color){
+function text5x7(x,y,str,clr0,clr1){
   let dx=0; str = String(str).toUpperCase();
-  for(const ch of str) dx += drawChar5x7(x+dx,y,ch,color);
+  for(const ch of str) dx += drawChar5x7(x+dx,y,ch,clr0,clr1);
   return dx;
 }
 function textWidth5x7(str){ return (String(str).length)*6; }
@@ -217,38 +216,32 @@ const ICONS5 = {
     "#...#",
   ],
 };
-function drawBitmapGlyph(x, y, rows, baseColor) {
+function drawBitmapGlyph(x, y, rows, clr0, clr1) {
   const h = rows.length, w = rows[0].length;
-  const shadowCol = 0x0b1a3d;
   // shadow
   g.save(); g.globalAlpha = 0.55;
   for (let yy = 0; yy < h; yy++)
     for (let xx = 0; xx < w; xx++)
-      if (rows[yy][xx] === '#') pset(x + xx + 1, y + yy + 1, shadowCol);
+      if (rows[yy][xx] === '#') pset(x + xx + 1, y + yy + 1, COLORS.shadow);
   g.restore();
-  // shaded pixels
-  for (let yy = 0; yy < h; yy++)
-    for (let xx = 0; xx < w; xx++)
-      if (rows[yy][xx] === '#') {
-        let c = baseColor;
-        if (yy <= Math.floor(h * 0.35)) c = darken(c, 0.15);
-        if (xx >= w - 2 && yy >= h - 2) c = darken(c, 0.25);
-        pset(x + xx, y + yy, c);
-      }
+  // gradient fill
+  for (let yy = 0; yy < h; yy++){
+    for (let xx = 0; xx < w; xx++){
+      if (rows[yy][xx] !== '#') continue;
+      const t = diagT(xx, yy, w, h);
+      const c = mixColor(clr0, clr1, t);
+      pset(x + xx, y + yy, c);
+    }
+  }
 }
 
-/* ================== PANELS + SHADOWS ================== */
+/* ================== PANELS + BEVELS ================== */
 function drawPanel(x, y, w, h, pressed=false) {
   rect(x, y, w, h, COLORS.panel_mid);                // flat opaque
   bevelRect(x, y, w, h, !pressed, COLORS.panel_light, COLORS.panel_dark);
 }
-function drawTopBarShadow(){
-  rectA(0, BAR_H, VIRTUAL_W, 2, 0x000000, 0.30);
-  rectA(0, BAR_H+2, VIRTUAL_W, 1, 0x000000, 0.15);
-}
-function drawPanelShadow(px, py, w, h){       // dropdown shadow
-  rectA(px+3, py+3, w, h, 0x000000, 0.38);
-  rectA(px+4, py+4, w, h, 0x000000, 0.22);
+function drawShadow(x, y, w, h, s){
+  rectA(x+s, y+s, w, h, COLORS.black, 0.27);
 }
 
 /* ================== STARFIELD ================== */
@@ -314,11 +307,9 @@ function drawCopperBar(){
   for (let y = 0; y < BAR_H; y++) {
     const v = (y + 0.5) / BAR_H;
     const arch = (1 - Math.cos(2 * Math.PI * v)) * 0.5;
-    const c = mixColor(COLORS.COPPER_DARK, COLORS.COPPER_LITE, arch);
+    const c = mixColor(COLORS.copper_dark, COLORS.copper_lite, arch);
     rect(0, y, VIRTUAL_W, 1, c);
   }
-  rect(0, 0, VIRTUAL_W, 1, COLORS.barDark);
-  rect(0, BAR_H-1, VIRTUAL_W, 1, COLORS.barDark);
 }
 
 function drawTopBarChrome(){
@@ -333,12 +324,12 @@ function drawTopBarChrome(){
     drawPanel(x, 4, w, BAR_H - 8, /*pressed*/ m.open);
 
     if (m.label) {
-      text5x7(x + 6, 6, m.label, COLORS.btnText);
+      text5x7(x + 6, 6, m.label, COLORS.text_dark, COLORS.text_light);
     } else if (m.icon) {
       const innerW = w - 2, innerH = BAR_H - 8 - 2;
       const gx = x + Math.floor((innerW - 5)/2) + 1;
       const gy = 4 + Math.floor((innerH - 5)/2) + 1;
-      drawBitmapGlyph(gx, gy, ICONS5[m.icon], COLORS.btnText);
+      drawBitmapGlyph(gx, gy, ICONS5[m.icon], COLORS.text_dark, COLORS.text_light);
     }
 
     topRegions.push({ x, y:0, w, h:BAR_H, index:i });
@@ -400,7 +391,7 @@ function drawDropdown(){
   const listH = itemH * m.items.length + PAD*2;
 
   // shadow + panel
-  drawPanelShadow(px, py, listW, listH);
+  drawShadow(px, py, listW, listH, 5);
   drawPanel(px, py, listW, listH, false);
 
   // rows
@@ -413,9 +404,11 @@ function drawDropdown(){
       // red highlight for both selected and hover
       rect(px+1, iy, listW-2, itemH, COLORS.hot);
       frame(px+1, iy, listW-2, itemH, COLORS.hotDark);
-      text5x7(px+leftPad, iy+2, it.label, COLORS.white);
+      text5x7(px+leftPad, iy+2, it.label, COLORS.white, COLORS.white);
     } else {
-      text5x7(px+leftPad, iy+2, it.label, it.disabled ? COLORS.dropMuted : COLORS.dropText);
+      const clr0 = it.disabled ? COLORS.disabled_text_dark : COLORS.text_dark;
+      const clr1 = it.disabled ? COLORS.disabled_text_light : COLORS.text_light;
+      text5x7(px+leftPad, iy+2, it.label, clr0, clr1);
     }
 
     // right-aligned [shortcut]
@@ -423,17 +416,9 @@ function drawDropdown(){
       const s = `[${it.shortcut}]`;
       const sw = textWidth5x7(s);
       const sx = px + listW - rightPad - sw;
-      const sc = (it.selected || hover) ? COLORS.white : (it.disabled ? COLORS.dropMuted : COLORS.dropText);
-      text5x7(sx, iy+2, s, sc);
-    }
-
-    // right-aligned [shortcut]
-    if (it.shortcut){
-      const s = `[${it.shortcut}]`;
-      const sw = textWidth5x7(s);
-      const sx = px + listW - rightPad - sw;
-      const sc = (it.selected || hover) ? COLORS.white : (it.disabled ? COLORS.dropMuted : COLORS.dropText);
-      text5x7(sx, iy+2, s, sc);
+      const clr0 = it.disabled ? COLORS.disabled_text_dark : COLORS.text_dark;
+      const clr1 = it.disabled ? COLORS.disabled_text_light : COLORS.text_light;
+      text5x7(sx, iy+2, s, clr0, clr1);
     }
   }
 }
@@ -482,7 +467,7 @@ function loop(t){
   // background
   rect(0,0,VIRTUAL_W,VIRTUAL_H, COLORS.space);
 
-  // stars (drift down-right) with top/left respawn (your tweak)
+  // stars (drift down-right) with top/left respawn
   for (const s of stars) {
     s.x += 0.20 * (dt/16) * s.v;
     s.y += 0.35 * (dt/16) * s.v;
@@ -494,12 +479,9 @@ function loop(t){
   }
 
   // layers: top-bar shadow -> dropdown -> bar chrome -> cursor
-  drawTopBarShadow();
+  drawShadow(0, 0, VIRTUAL_W, BAR_H, 5);
   drawDropdown();
   drawTopBarChrome();
-
-  // cursor
-  drawCursor(mouseX, mouseY);
 
   // present
   ctx.drawImage(back, 0, 0, VIRTUAL_W*scale, VIRTUAL_H*scale);
@@ -507,20 +489,6 @@ function loop(t){
 }
 requestAnimationFrame(loop);
 
-/* ================== CURSOR ================== */
-const violet = 0x25418a; 
-const orange = 0xf56b2a;
-const cursorSprite = [
-  [0,0,orange],[1,0,orange],[2,1,orange],[3,2,orange],
-  [4,3,orange],[5,4,orange],[4,5,orange],[3,6,orange],
-  [2,7,orange],[1,8,orange],[0,9,orange],[1,6,orange],
-  [2,5,orange],[1,4,orange],[0,3,orange],
-  [2,2,violet],[3,3,violet],[4,4,violet],[3,5,violet],
-  [2,6,violet]
-];
-function drawCursor(x,y){
-  for(const [dx,dy,c] of cursorSprite) pset(x+dx,y+dy,c);
-}
 
 // close menus on Esc
 window.addEventListener('keydown', e => {
