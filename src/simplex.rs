@@ -72,19 +72,15 @@ fn corner_contribution(t: f32, gradient: &Vec3, offset: &Vec3) -> f32 {
 }
 
 pub fn simplex3(p: &Vec3) -> f32 {
-    let x = p[0];
-    let y = p[1];
-    let z = p[2];
-
-    let s = (x + y + z) * F3;
-    let i = fast_floor(x + s);
-    let j = fast_floor(y + s);
-    let k = fast_floor(z + s);
+    let s = (p.x + p.y + p.z) * F3;
+    let i = fast_floor(p.x + s);
+    let j = fast_floor(p.y + s);
+    let k = fast_floor(p.z + s);
 
     let t = ((i + j + k) as f32) * G3;
-    let x0 = x - (i as f32 - t);
-    let y0 = y - (j as f32 - t);
-    let z0 = z - (k as f32 - t);
+    let x0 = p.x - (i as f32 - t);
+    let y0 = p.y - (j as f32 - t);
+    let z0 = p.z - (k as f32 - t);
 
     let (i1, j1, k1, i2, j2, k2) = if x0 >= y0 {
         if y0 >= z0 {
