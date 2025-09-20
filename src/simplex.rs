@@ -1,21 +1,21 @@
-use nalgebra_glm::Vec3;
+use nalgebra_glm::{dot, Vec3};
 
 const F3: f32 = 1.0 / 3.0;
 const G3: f32 = 1.0 / 6.0;
 
-const GRAD3: [[f32; 3]; 12] = [
-    [1.0, 1.0, 0.0],
-    [-1.0, 1.0, 0.0],
-    [1.0, -1.0, 0.0],
-    [-1.0, -1.0, 0.0],
-    [1.0, 0.0, 1.0],
-    [-1.0, 0.0, 1.0],
-    [1.0, 0.0, -1.0],
-    [-1.0, 0.0, -1.0],
-    [0.0, 1.0, 1.0],
-    [0.0, -1.0, 1.0],
-    [0.0, 1.0, -1.0],
-    [0.0, -1.0, -1.0],
+const GRAD3: [Vec3; 12] = [
+    Vec3::new(1.0, 1.0, 0.0),
+    Vec3::new(-1.0, 1.0, 0.0),
+    Vec3::new(1.0, -1.0, 0.0),
+    Vec3::new(-1.0, -1.0, 0.0),
+    Vec3::new(1.0, 0.0, 1.0),
+    Vec3::new(-1.0, 0.0, 1.0),
+    Vec3::new(1.0, 0.0, -1.0),
+    Vec3::new(-1.0, 0.0, -1.0),
+    Vec3::new(0.0, 1.0, 1.0),
+    Vec3::new(0.0, -1.0, 1.0),
+    Vec3::new(0.0, 1.0, -1.0),
+    Vec3::new(0.0, -1.0, -1.0),
 ];
 
 // Standard permutation table duplicated to avoid wrapping logic.
@@ -61,11 +61,6 @@ fn fast_floor(x: f32) -> i32 {
     }
 }
 
-#[inline]
-fn dot(g: [f32; 3], x: f32, y: f32, z: f32) -> f32 {
-    g[0] * x + g[1] * y + g[2] * z
-}
-
 pub fn simplex3(p: &Vec3) -> f32 {
     let x = p[0];
     let y = p[1];
@@ -107,11 +102,15 @@ pub fn simplex3(p: &Vec3) -> f32 {
     let y3 = y0 - 1.0 + 3.0 * G3;
     let z3 = z0 - 1.0 + 3.0 * G3;
 
+    let offset0 = Vec3::new(x0, y0, z0);
+    let offset1 = Vec3::new(x1, y1, z1);
+    let offset2 = Vec3::new(x2, y2, z2);
+    let offset3 = Vec3::new(x3, y3, z3);
+
     let ii = (i & 255) as usize;
     let jj = (j & 255) as usize;
     let kk = (k & 255) as usize;
 
-    
     let gi0 = (PERM[ii + PERM[jj + PERM[kk] as usize] as usize] % 12) as usize;
     let gi1 = (PERM[ii + i1 as usize + PERM[jj + j1 as usize + PERM[kk + k1 as usize] as usize] as usize] % 12) as usize;
     let gi2 = (PERM[ii + i2 as usize + PERM[jj + j2 as usize + PERM[kk + k2 as usize] as usize] as usize] % 12) as usize;
@@ -121,28 +120,28 @@ pub fn simplex3(p: &Vec3) -> f32 {
     let mut t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
     if t0 > 0.0 {
         t0 *= t0;
-        n0 = t0 * t0 * dot(GRAD3[gi0], x0, y0, z0);
+        n0 = t0 * t0 * dot(&GRAD3[gi0], &offset0);
     }
 
     let mut n1 = 0.0;
     let mut t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
     if t1 > 0.0 {
         t1 *= t1;
-        n1 = t1 * t1 * dot(GRAD3[gi1], x1, y1, z1);
+        n1 = t1 * t1 * dot(&GRAD3[gi1], &offset1);
     }
 
     let mut n2 = 0.0;
     let mut t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
     if t2 > 0.0 {
         t2 *= t2;
-        n2 = t2 * t2 * dot(GRAD3[gi2], x2, y2, z2);
+        n2 = t2 * t2 * dot(&GRAD3[gi2], &offset2);
     }
 
     let mut n3 = 0.0;
     let mut t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
     if t3 > 0.0 {
         t3 *= t3;
-        n3 = t3 * t3 * dot(GRAD3[gi3], x3, y3, z3);
+        n3 = t3 * t3 * dot(&GRAD3[gi3], &offset3);
     }
 
     32.0 * (n0 + n1 + n2 + n3)
