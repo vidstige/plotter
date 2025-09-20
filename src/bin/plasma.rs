@@ -15,20 +15,25 @@ fn main() -> io::Result<()> {
     let resolution = Resolution::new(720, 720);
     let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
 
-    for i in 0..pixmap.height() {
-        for j in 0..pixmap.width() {
-            let x = j as f32;
-            let y = i as f32;
-            let p = Vec3::new(x, y, 0.0);
-            let intensity = simplex3(&p);
-            let index = (i * pixmap.width() + j) as usize;
-            let color = gray(intensity);
-            pixmap.pixels_mut()[index] = color;
+    let frames = 512;
+    let speed = 4.0;
+    for frame in 0..frames {
+        let t = frame as f32 / frames as f32;
+        let z = speed * t;
+        for i in 0..pixmap.height() {
+            for j in 0..pixmap.width() {
+                let x = j as f32 / pixmap.width() as f32;
+                let y = i as f32 / pixmap.height() as f32;
+                let p = Vec3::new(x, y, z);
+                let intensity = simplex3(&p);
+                let index = (i * pixmap.width() + j) as usize;
+                let color = gray(intensity);
+                pixmap.pixels_mut()[index] = color;
+            }
         }
+        output.write_all(pixmap.data())?;
+        output.flush()?;
     }
-
-    output.write_all(pixmap.data())?;
-    output.flush()?;
 
     Ok(())
 }
