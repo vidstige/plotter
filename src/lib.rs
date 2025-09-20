@@ -12,6 +12,7 @@ pub mod geometries {
 }
 pub mod camera;
 pub mod lerp;
+pub mod field;
 pub mod fields;
 pub mod integrate;
 pub mod sdf;
@@ -19,6 +20,7 @@ pub mod gridlines;
 pub mod resolution;
 pub mod eq;
 pub mod buffer;
+pub mod marching_squares;
 pub mod mesh2;
 pub mod netbm;
 pub mod paper;

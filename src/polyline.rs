@@ -1,4 +1,4 @@
-use std::ops::Sub;
+use std::{iter::FromIterator, ops::Sub};
 
 //use nalgebra_glm::Vec2;
 use nalgebra_glm::TVec;
@@ -23,6 +23,14 @@ impl<const N: usize> Polyline<N> {
             length += pi.sub(&pj).norm();
         }
         length
+    }
+}
+
+impl<const N: usize> FromIterator<TVec<f32, N>> for Polyline<N> {
+    fn from_iter<T: IntoIterator<Item = TVec<f32, N>>>(iter: T) -> Self {
+        Polyline {
+            points: iter.into_iter().collect(),
+        }
     }
 }
 
