@@ -15,23 +15,35 @@ pub fn linesearch<F: Fn(f32) -> f32>(f: F, lo: f32, hi: f32, steps: usize) -> Op
     None
 }
 
-pub fn newton_raphson<F: Fn(f32) -> f32>(f: F, x0: f32) -> Option<f32> {
-    let epsilon = 0.001; // for numerical diffrentiation
-    let tol = 0.0001; // for considering roots
+pub struct NewtonRaphsonOptions {
+    epsilon: f32, // for numerical diffrentiation
+    atol: f32, // for considering roots
+    dtol: f32, // for bailing out on vanishing differentials
+    max_steps: usize,
+}
+
+impl Default for NewtonRaphsonOptions {
+    fn default() -> Self {
+        Self { epsilon: 0.001, atol: 0.0001, dtol: 0.001, max_steps: 20 }
+    }
+}
+
+pub fn newton_raphson<F: Fn(f32) -> f32>(f: F, x0: f32, options: NewtonRaphsonOptions) -> Option<f32> {
+    let epsilon = options.epsilon;
     let mut x = x0; 
     
-    for _ in 0..20 {
+    for _ in 0..options.max_steps {
         // compute df/dt using forward diffrentiation
         let dfdt = (f(x + epsilon) - f(x - epsilon)) / (2.0 * epsilon);
-        if dfdt.abs() < 0.001 {
+        if dfdt.abs() < options.dtol {
             break;
         }
         x = x - f(x) / dfdt;
         // exit early if root found
-        if f(x).abs() < tol {
+        if f(x).abs() < options.atol {
             break;
         }
     }
     // if we're close enough a root was found
-    (f(x).abs() < tol).then_some(x)
+    (f(x).abs() < options.atol).then_some(x)
 }

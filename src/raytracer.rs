@@ -3,6 +3,7 @@ use std::ops::{Add, Sub};
 use nalgebra_glm::{Mat4, Vec2, Vec3, Vec4};
 use nalgebra_glm::unproject;
 
+use crate::eq::NewtonRaphsonOptions;
 use crate::{eq::{linesearch, newton_raphson}, sdf::SDF};
 
 
@@ -31,7 +32,7 @@ pub fn trace<S: SDF>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
     let f = |t| surface.sdf(&ray.at(t));
     if let Some((lo, hi)) = linesearch(f, lo, hi, 200) {
         // fine tune with newton_raphson
-        if let Some(t) = newton_raphson(f, 0.5 * (hi + lo)) {
+        if let Some(t) = newton_raphson(f, 0.5 * (hi + lo), NewtonRaphsonOptions::default()) {
         //if let Some(t) = newton_raphson(f, lo) {
             return Some(ray.at(t));
         }
