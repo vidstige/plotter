@@ -61,6 +61,16 @@ fn fast_floor(x: f32) -> i32 {
     }
 }
 
+#[inline]
+fn corner_contribution(t: f32, gradient: &Vec3, offset: &Vec3) -> f32 {
+    if t <= 0.0 {
+        0.0
+    } else {
+        let t2 = t * t;
+        t2 * t2 * dot(gradient, offset)
+    }
+}
+
 pub fn simplex3(p: &Vec3) -> f32 {
     let x = p[0];
     let y = p[1];
@@ -112,37 +122,20 @@ pub fn simplex3(p: &Vec3) -> f32 {
     let kk = (k & 255) as usize;
 
     let gi0 = (PERM[ii + PERM[jj + PERM[kk] as usize] as usize] % 12) as usize;
+    let t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
+    let n0 = corner_contribution(t0, &GRAD3[gi0], &offset0);
+
     let gi1 = (PERM[ii + i1 as usize + PERM[jj + j1 as usize + PERM[kk + k1 as usize] as usize] as usize] % 12) as usize;
+    let t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
+    let n1 = corner_contribution(t1, &GRAD3[gi1], &offset1);
+
     let gi2 = (PERM[ii + i2 as usize + PERM[jj + j2 as usize + PERM[kk + k2 as usize] as usize] as usize] % 12) as usize;
+    let t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
+    let n2 = corner_contribution(t2, &GRAD3[gi2], &offset2);
+
     let gi3 = (PERM[ii + 1 + PERM[jj + 1 + PERM[kk + 1] as usize] as usize] % 12) as usize;
-
-    let mut n0 = 0.0;
-    let mut t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
-    if t0 > 0.0 {
-        t0 *= t0;
-        n0 = t0 * t0 * dot(&GRAD3[gi0], &offset0);
-    }
-
-    let mut n1 = 0.0;
-    let mut t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
-    if t1 > 0.0 {
-        t1 *= t1;
-        n1 = t1 * t1 * dot(&GRAD3[gi1], &offset1);
-    }
-
-    let mut n2 = 0.0;
-    let mut t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
-    if t2 > 0.0 {
-        t2 *= t2;
-        n2 = t2 * t2 * dot(&GRAD3[gi2], &offset2);
-    }
-
-    let mut n3 = 0.0;
-    let mut t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
-    if t3 > 0.0 {
-        t3 *= t3;
-        n3 = t3 * t3 * dot(&GRAD3[gi3], &offset3);
-    }
+    let t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
+    let n3 = corner_contribution(t3, &GRAD3[gi3], &offset3);
 
     32.0 * (n0 + n1 + n2 + n3)
 }
