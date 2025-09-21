@@ -28,6 +28,7 @@ pub mod resolution;
 pub mod sdf;
 pub mod sdf_transform;
 pub mod simplex;
+pub mod skia_utils;
 pub mod time_estimator;
 pub mod uv2xy;
 

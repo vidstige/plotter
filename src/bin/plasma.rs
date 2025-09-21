@@ -2,10 +2,10 @@ use std::io::{self, Write};
 
 use nalgebra_glm::Vec3;
 use plotter::{
-    field::Field, marching_squares::find_contours, polyline::Polyline2, resolution::Resolution,
-    sdf_transform::sdf_from_pixmap, simplex::simplex3,
+    field::Field, marching_squares::find_contours, resolution::Resolution,
+    sdf_transform::sdf_from_pixmap, simplex::simplex3, skia_utils::draw_polyline,
 };
-use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
+use tiny_skia::{Color, Paint, Pixmap, Stroke};
 
 fn sample_at(resolution: &Resolution, z: f32) -> Field<f32> {
     let mut values = Vec::with_capacity(resolution.area());
@@ -19,20 +19,6 @@ fn sample_at(resolution: &Resolution, z: f32) -> Field<f32> {
         }
     }
     Field { resolution: resolution.clone(), values }
-}
-
-fn draw_polyline(pixmap: &mut Pixmap, polyline: Polyline2, paint: &Paint, stroke: &Stroke) {
-    let mut pb = PathBuilder::new();
-    for (index, point) in polyline.points.iter().enumerate() {
-        if index == 0 {
-            pb.move_to(point.x, point.y);
-        } else {
-            pb.line_to(point.x, point.y);
-        }
-    }
-    if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
-    }
 }
 
 fn linspace(lo: f32, hi: f32, n: usize) -> Vec<f32> {

@@ -4,7 +4,7 @@ use std::{
     io::{self, Write},
 };
 
-use plotter::polyline::Polyline2;
+use plotter::skia_utils::draw_polyline;
 use plotter::resolution::Resolution;
 use plotter::{
     camera::Camera,
@@ -18,7 +18,7 @@ use plotter::{
 use nalgebra_glm::{identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
 use rand::{distributions::Distribution, rngs::ThreadRng};
 use rand_distr::{StandardNormal, Uniform};
-use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
+use tiny_skia::{Color, Paint, Pixmap, Stroke};
 
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> Vec2 {
     Vec2::new(distribution.sample(rng), distribution.sample(rng))
@@ -35,20 +35,6 @@ fn initialize_camera(resolution: &Resolution) -> Camera {
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
     Camera { projection, model: identity(), viewport }
-}
-
-fn draw_polyline(pixmap: &mut Pixmap, polyline: Polyline2, paint: &Paint, stroke: &Stroke) {
-    let mut pb = PathBuilder::new();
-    for (index, point) in polyline.points.iter().enumerate() {
-        if index == 0 {
-            pb.move_to(point.x, point.y);
-        } else {
-            pb.line_to(point.x, point.y);
-        }
-    }
-    if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
-    }
 }
 
 fn camera_at(t: f32) -> Mat4x4 {
