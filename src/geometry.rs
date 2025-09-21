@@ -4,7 +4,7 @@ struct DerivativeNotImplemented {
 
 }
 impl Geometry for DerivativeNotImplemented {
-    fn evaluate(&self, p: &Vec2) -> Vec3 {
+    fn evaluate(&self, _p: &Vec2) -> Vec3 {
         todo!()
     }
 }
