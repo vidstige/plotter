@@ -54,6 +54,11 @@ fn main() -> io::Result<()> {
     let mut stroke = Stroke::default();
     stroke.width = 8.0;
 
+    let transform = Transform::from_scale(
+        resolution.width as f32 / pattern.width() as f32,
+        resolution.height as f32 / pattern.height() as f32,
+    );
+
     let levels = linspace(-1.0, 1.0, level_count);
     let frames = 256;
     let speed = 4.0;
@@ -70,7 +75,7 @@ fn main() -> io::Result<()> {
         pixmap.fill(Color::WHITE);
         for level in &levels {
             let polylines = find_contours(&field, *level);
-            draw_polylines(&mut pixmap, &polylines, &paint, &stroke, Transform::identity());
+            draw_polylines(&mut pixmap, &polylines, &paint, &stroke, transform);
         }
 
         output.write_all(pixmap.data())?;
