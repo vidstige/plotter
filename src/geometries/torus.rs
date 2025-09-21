@@ -1,6 +1,9 @@
 use nalgebra_glm::{Mat2x2, Vec2, Vec3};
 
-use crate::{geometry::{DifferentiableGeometry, Geometry}, sdf::SDF};
+use crate::{
+    geometry::{DifferentiableGeometry, Geometry},
+    sdf::SDF,
+};
 
 pub struct Torus {
     pub r: f32, // minor radius
@@ -22,9 +25,9 @@ impl Geometry for Torus {
         let sin_v = v.sin();
         let ring = self.R + self.r * cos_u;
         Vec3::new(
-            ring * cos_v,
-            ring * sin_v,
-            self.r * sin_u,
+            ring * cos_v,   //
+            ring * sin_v,   //
+            self.r * sin_u, //
         )
     }
 }
@@ -44,10 +47,8 @@ impl DifferentiableGeometry for Torus {
         let sin_u = u.sin();
         let ring = self.R + self.r * cos_u;
         Mat2x2::new(
-            self.r * self.r,                   // E
-            0.0,                                // F
-            0.0,
-            ring * ring                         // G
+            self.r * self.r, 0.0,  // E, F
+            0.0, ring * ring,      // F, G
         )
     }
 }
@@ -77,9 +78,9 @@ impl Geometry for TorusDu {
         let sin_v = v.sin();
         let d_ring = -self.r * sin_u;
         Vec3::new(
-            d_ring * cos_v,
-            d_ring * sin_v,
-            self.r * cos_u,
+            d_ring * cos_v, //
+            d_ring * sin_v, //
+            self.r * cos_u, //
         )
     }
 }
@@ -107,9 +108,9 @@ impl Geometry for TorusDv {
         let sin_v = v.sin();
         let ring = self.R + self.r * cos_u;
         Vec3::new(
-            -ring * sin_v,
-            ring * cos_v,
-            0.0,
+            -ring * sin_v, //
+            ring * cos_v,  //
+            0.0,           //
         )
     }
 }
@@ -138,13 +139,13 @@ impl Geometry for TorusDuDu {
         let sin_v = v.sin();
         let d2_ring = -self.r * cos_u;
         Vec3::new(
-            d2_ring * cos_v,
-            d2_ring * sin_v,
-            -self.r * sin_u,
+            d2_ring * cos_v, //
+            d2_ring * sin_v, //
+            -self.r * sin_u, //
         )
     }
 }
-impl DifferentiableGeometry for  TorusDuDu {}
+impl DifferentiableGeometry for TorusDuDu {}
 
 pub struct TorusDvDv {
     pub r: f32,
@@ -159,9 +160,9 @@ impl Geometry for TorusDvDv {
         let sin_v = v.sin();
         let ring = self.R + self.r * cos_u;
         Vec3::new(
-            -ring * cos_v,
-            -ring * sin_v,
-            0.0,
+            -ring * cos_v, //
+            -ring * sin_v, //
+            0.0,           //
         )
     }
 }
@@ -181,9 +182,9 @@ impl Geometry for TorusDuDv {
         let sin_v = v.sin();
         let d_ring = -self.r * sin_u;
         Vec3::new(
-            -d_ring * sin_v,
-            d_ring * cos_v,
-            0.0,
+            -d_ring * sin_v, //
+            d_ring * cos_v,  //
+            0.0,             //
         )
     }
 }

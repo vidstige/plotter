@@ -1,10 +1,20 @@
 use std::{f32::consts::TAU, io, time::Duration};
 
 use nalgebra_glm::{look_at, perspective, Vec2, Vec3, Vec4};
-use plotter::{camera::Camera, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator::Estimator, uv2xy::reproject};
+use plotter::{
+    camera::Camera,
+    fields::cross2,
+    geometries::{gaussian::Gaussian, hole::Hole, torus::Torus},
+    geometry::DifferentiableGeometry,
+    gridlines::generate_grid,
+    integrate::euler,
+    paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE},
+    polyline::Polyline2,
+    time_estimator::Estimator,
+    uv2xy::reproject,
+};
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
-
 
 fn simulate(
     geometry: &impl DifferentiableGeometry,
@@ -27,7 +37,11 @@ fn simulate(
     uv_polylines
 }
 
-fn setup_torus(view_box: ViewBox, area: ViewBox, rng: &mut impl Rng) -> (Torus, Camera, Vec<Polyline2>) {
+fn setup_torus(
+    view_box: ViewBox,
+    area: ViewBox,
+    rng: &mut impl Rng,
+) -> (Torus, Camera, Vec<Polyline2>) {
     let geometry = Torus::new(0.5, 1.0);
 
     let eye = Vec3::new(-2.2, -2.2, -1.2);
@@ -45,13 +59,14 @@ fn setup_torus(view_box: ViewBox, area: ViewBox, rng: &mut impl Rng) -> (Torus, 
 }
 
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut impl Rng) -> Vec2 {
-    Vec2::new(
-        distribution.sample(rng),
-        distribution.sample(rng),
-    )
+    Vec2::new(distribution.sample(rng), distribution.sample(rng))
 }
 
-fn setup_gaussian(view_box: ViewBox, area: ViewBox, rng: &mut impl Rng) -> (Gaussian, Camera, Vec<Polyline2>) {
+fn setup_gaussian(
+    view_box: ViewBox,
+    area: ViewBox,
+    rng: &mut impl Rng,
+) -> (Gaussian, Camera, Vec<Polyline2>) {
     let geometry = Gaussian;
 
     let eye = Vec3::new(-1.8, -1.8, -1.2);
@@ -95,7 +110,7 @@ fn setup_hole(view_box: ViewBox, area: ViewBox) -> (Hole, Camera, Vec<Polyline2>
     let projection = perspective(viewbox_aspect(view_box), 45.0_f32.to_radians(), near, far);
     let viewport = Vec4::new(area.0 as f32, area.1 as f32, area.2 as f32, area.3 as f32);
     let camera = Camera { projection, model, viewport };
-    
+
     let size = 3.0;
     let uv_polylines = generate_grid((-size, size), (-size, size), 32, 256);
 
@@ -134,7 +149,7 @@ fn main() -> io::Result<()> {
             paper.add(polyline);
         }
     }
-    
+
     paper.optimize();
     let (dl, ml) = paper.length();
     println!("draw: {dl} mm, move: {ml} mm");

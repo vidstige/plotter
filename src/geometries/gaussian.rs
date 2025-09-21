@@ -1,5 +1,8 @@
+use crate::{
+    geometry::{DifferentiableGeometry, Geometry},
+    sdf::SDF,
+};
 use nalgebra_glm::{Vec2, Vec3};
-use crate::{geometry::{DifferentiableGeometry, Geometry}, sdf::SDF};
 
 use super::heightmap::Heightmap;
 
@@ -66,7 +69,7 @@ impl Geometry for GaussianDuDu {
         Vec3::new(0.0, 0.0, dz)
     }
 }
-impl DifferentiableGeometry for GaussianDuDu { }
+impl DifferentiableGeometry for GaussianDuDu {}
 
 struct GaussianDvDv;
 impl Geometry for GaussianDvDv {
@@ -78,7 +81,7 @@ impl Geometry for GaussianDvDv {
         Vec3::new(0.0, 0.0, dz)
     }
 }
-impl DifferentiableGeometry for GaussianDvDv { }
+impl DifferentiableGeometry for GaussianDvDv {}
 
 struct GaussianDuDv;
 impl Geometry for GaussianDuDv {
@@ -89,4 +92,4 @@ impl Geometry for GaussianDuDv {
         Vec3::new(0.0, 0.0, dz)
     }
 }
-impl DifferentiableGeometry for GaussianDuDv { }
+impl DifferentiableGeometry for GaussianDuDv {}

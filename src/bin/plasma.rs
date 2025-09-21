@@ -1,7 +1,10 @@
 use std::io::{self, Write};
 
 use nalgebra_glm::Vec3;
-use plotter::{field::Field, marching_squares::find_contours, polyline::Polyline2, resolution::Resolution, sdf_transform::sdf_from_pixmap, simplex::simplex3};
+use plotter::{
+    field::Field, marching_squares::find_contours, polyline::Polyline2, resolution::Resolution,
+    sdf_transform::sdf_from_pixmap, simplex::simplex3,
+};
 use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 fn sample_at(resolution: &Resolution, z: f32) -> Field<f32> {
@@ -62,7 +65,7 @@ fn main() -> io::Result<()> {
         let field = sample_at(&resolution, z);
         for level in &levels {
             let polylines = find_contours(&field, *level);
-            
+
             for polyline in polylines {
                 draw_polyline(&mut pixmap, polyline, &paint, &stroke);
             }

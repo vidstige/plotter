@@ -1,7 +1,7 @@
-use nalgebra_glm::{Vec2, Vec3};
 use crate::geometry::{DifferentiableGeometry, Geometry};
-use crate::sdf::SDF;
 use crate::lerp::lerp;
+use crate::sdf::SDF;
+use nalgebra_glm::{Vec2, Vec3};
 
 /// A surface blending two geometries A and B with interpolation factor t ∈ [0, 1]
 pub struct Blend<A, B> {
@@ -41,23 +41,15 @@ where
 }
 
 impl<A, B> DifferentiableGeometry for Blend<A, B>
-where 
+where
     A: DifferentiableGeometry,
     B: DifferentiableGeometry,
 {
     fn du(&self) -> impl DifferentiableGeometry {
-        Blend {
-            a: self.a.du(),
-            b: self.b.du(),
-            t: self.t,
-        }
+        Blend { a: self.a.du(), b: self.b.du(), t: self.t }
     }
 
     fn dv(&self) -> impl DifferentiableGeometry {
-        Blend {
-            a: self.a.dv(),
-            b: self.b.dv(),
-            t: self.t,
-        }
+        Blend { a: self.a.dv(), b: self.b.dv(), t: self.t }
     }
 }

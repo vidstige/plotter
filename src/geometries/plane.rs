@@ -1,13 +1,13 @@
-use nalgebra_glm::{Vec2, Vec3, Mat2x2};
+use nalgebra_glm::{Mat2x2, Vec2, Vec3};
 
+use crate::geometries::zero::Zero;
 use crate::geometry::DifferentiableGeometry;
 use crate::{geometry::Geometry, sdf::SDF};
-use crate::geometries::zero::Zero;
 
 pub struct Plane;
 impl Plane {
     pub fn new() -> Plane {
-        Plane { }
+        Plane {}
     }
 }
 
@@ -27,9 +27,9 @@ impl DifferentiableGeometry for Plane {
     }
     fn metric(&self, _p: &Vec2) -> Mat2x2 {
         // override metric tensor with analytical expression
-        return Mat2x2::new(
-            1.0, 0.0,
-            0.0, 1.0,
+        Mat2x2::new(
+            1.0, 0.0, //
+            0.0, 1.0, //
         )
     }
 }

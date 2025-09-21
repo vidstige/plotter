@@ -1,6 +1,9 @@
 use nalgebra_glm::{Vec2, Vec3};
 
-use crate::{geometry::{DifferentiableGeometry, Geometry}, sdf::SDF};
+use crate::{
+    geometry::{DifferentiableGeometry, Geometry},
+    sdf::SDF,
+};
 
 use super::heightmap::Heightmap;
 
@@ -33,11 +36,7 @@ struct HoleDu;
 // first order derivatives
 impl Geometry for HoleDu {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
-        Vec3::new(
-            1.0,
-            0.0,
-            -(2.0 * p.x) / (p.x * p.x + p.y * p.y).powi(2),
-        )
+        Vec3::new(1.0, 0.0, -(2.0 * p.x) / (p.x * p.x + p.y * p.y).powi(2))
     }
 }
 
@@ -62,7 +61,6 @@ impl DifferentiableGeometry for HoleDv {
     fn du(&self) -> impl DifferentiableGeometry { HoleDuDv } // order of diffrentiation does not matter
     fn dv(&self) -> impl DifferentiableGeometry { HoleDvDv }
 }
-
 
 // second order partial derivatives
 struct HoleDuDu;

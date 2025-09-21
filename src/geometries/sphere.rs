@@ -1,6 +1,9 @@
-use nalgebra_glm::{Vec2, Vec3, Mat2x2};
+use nalgebra_glm::{Mat2x2, Vec2, Vec3};
 
-use crate::{geometry::{DifferentiableGeometry, Geometry}, sdf::SDF};
+use crate::{
+    geometry::{DifferentiableGeometry, Geometry},
+    sdf::SDF,
+};
 
 pub struct Sphere;
 impl Sphere {
@@ -11,9 +14,9 @@ impl Geometry for Sphere {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
         Vec3::new(
-            v.cos() * u.sin(),
-            v.sin() * u.sin(),
-            u.cos(),
+            v.cos() * u.sin(), //
+            v.sin() * u.sin(), //
+            u.cos(),           //
         )
     }
 }
@@ -24,8 +27,8 @@ impl DifferentiableGeometry for Sphere {
     fn metric(&self, p: &Vec2) -> Mat2x2 {
         // override metric tensor with analytical expression
         Mat2x2::new(
-            1.0, 0.0,
-            0.0, p.x.sin().powi(2)
+            1.0, 0.0,               //
+            0.0, p.x.sin().powi(2), //
         )
     }
 }
@@ -41,10 +44,10 @@ struct SphereDu;
 impl Geometry for SphereDu {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
-        return Vec3::new(
-            v.cos() * u.cos(),
-            v.sin() * u.cos(),
-            -u.sin(),
+        Vec3::new(
+            v.cos() * u.cos(), //
+            v.sin() * u.cos(), //
+            -u.sin(),          //
         )
     }
 }
@@ -58,10 +61,10 @@ struct SphereDv;
 impl Geometry for SphereDv {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
-        return Vec3::new(
-            -v.sin() * u.sin(),
-            v.cos() * u.sin(),
-            0.0,
+        Vec3::new(
+            -v.sin() * u.sin(), //
+            v.cos() * u.sin(),  //
+            0.0,                //
         )
     }
 }
@@ -77,10 +80,10 @@ struct SphereDuDu;
 impl Geometry for SphereDuDu {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
-        return Vec3::new(
-           -v.cos() * u.sin(),
-           -v.sin() * u.sin(),
-           -u.cos(),
+        Vec3::new(
+            -v.cos() * u.sin(), //
+            -v.sin() * u.sin(), //
+            -u.cos(),           //
         )
     }
 }
@@ -90,10 +93,10 @@ struct SphereDvDv;
 impl Geometry for SphereDvDv {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
-        return Vec3::new(
-          -v.cos() * u.sin(),
-          -v.sin() * u.sin(),
-          0.0,
+        Vec3::new(
+            -v.cos() * u.sin(), //
+            -v.sin() * u.sin(), //
+            0.0,                //
         )
     }
 }
@@ -104,10 +107,10 @@ struct SphereDuDv;
 impl Geometry for SphereDuDv {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
-        return Vec3::new(
-            -v.sin() * u.cos(),
-            v.cos() * u.cos(),
-            0.0,
+        Vec3::new(
+            -v.sin() * u.cos(), //
+            v.cos() * u.cos(),  //
+            0.0,                //
         )
     }
 }

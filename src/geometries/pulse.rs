@@ -6,7 +6,7 @@ use super::heightmap::Heightmap;
 
 #[derive(Clone)]
 pub struct Pulse {
-    pub amplitude: f32,         // Amplitude
+    pub amplitude: f32, // Amplitude
     pub sigma: f32,     // Envelope sharpness
     pub c: f32,         // Propagation speed
     pub lambda: f32,    // Exponential decay
@@ -20,9 +20,10 @@ impl Heightmap for Pulse {
         let omega = self.cycles * std::f32::consts::TAU * self.sigma;
         let r0 = -2.0 / self.sigma;
         let rt = r - r0 - self.c * self.t;
-        self.amplitude * (omega * r).sin()
-             * (-self.sigma * self.sigma * rt * rt).exp()
-             * (-self.lambda * r).exp()
+        self.amplitude
+            * (omega * r).sin()
+            * (-self.sigma * self.sigma * rt * rt).exp()
+            * (-self.lambda * r).exp()
     }
 }
 

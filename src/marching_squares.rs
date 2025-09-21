@@ -46,7 +46,11 @@ fn interpolate_edge(
 }
 
 fn next_non_empty(residual: &Vec<Vec<usize>>) -> Option<usize> {
-    residual.iter().enumerate().filter_map(|(i, rs)| (!rs.is_empty()).then_some(i)).next()
+    residual
+        .iter()
+        .enumerate()
+        .filter_map(|(i, rs)| (!rs.is_empty()).then_some(i))
+        .next()
 }
 
 fn continuation(residual: &Vec<Vec<usize>>, vertex: Option<&usize>) -> Option<usize> {
@@ -60,7 +64,9 @@ fn continuation(residual: &Vec<Vec<usize>>, vertex: Option<&usize>) -> Option<us
 // [[0, 1, 2]]
 fn find_chains(edges: &[Edge]) -> Vec<Vec<usize>> {
     // 1. Find top edge value and use a vector instead of hash table
-    let Some(&top) = edges.iter().map(|(e0, e1)| e0.max(e1)).max() else { return Vec::new(); };
+    let Some(&top) = edges.iter().map(|(e0, e1)| e0.max(e1)).max() else {
+        return Vec::new();
+    };
 
     // 2. Create lookup table for edges left to process (todo)
     let mut residual: Vec<Vec<usize>> = vec![Vec::new(); top + 1];
@@ -161,5 +167,8 @@ pub fn find_contours(grid: &Field<f32>, level: f32) -> Vec<Polyline2> {
     // just dump all line segments
     //lines.iter().map(|(i0, i1)| vec![vertices[*i0], vertices[*i1]]).collect()
     // find chains and convert vertex ids to cordinates
-    find_chains(&lines).iter().map(|chain| chain.iter().map(|&v| vertices[v]).collect()).collect()
+    find_chains(&lines)
+        .iter()
+        .map(|chain| chain.iter().map(|&v| vertices[v]).collect())
+        .collect()
 }

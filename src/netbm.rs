@@ -1,4 +1,7 @@
-use std::{fs::File, io::{Write, self}};
+use std::{
+    fs::File,
+    io::{self, Write},
+};
 
 use crate::buffer::Buffer;
 
