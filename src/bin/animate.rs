@@ -18,7 +18,7 @@ use plotter::{
 use nalgebra_glm::{identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
 use rand::{distributions::Distribution, rngs::ThreadRng};
 use rand_distr::{StandardNormal, Uniform};
-use tiny_skia::{Color, Paint, Pixmap, Stroke};
+use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
 
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> Vec2 {
     Vec2::new(distribution.sample(rng), distribution.sample(rng))
@@ -137,7 +137,7 @@ fn main() -> io::Result<()> {
         }*/
         // render to pixmap
         let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
-        draw_polylines(&mut pixmap, &polylines, &paint, &stroke);
+        draw_polylines(&mut pixmap, &polylines, &paint, &stroke, Transform::identity());
 
         //pixmap.save_png("image.png")?;
         output.write_all(pixmap.data())?;

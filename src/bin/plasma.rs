@@ -5,7 +5,7 @@ use plotter::{
     field::Field, marching_squares::find_contours, resolution::Resolution,
     sdf_transform::sdf_from_pixmap, simplex::simplex3, skia_utils::draw_polylines,
 };
-use tiny_skia::{Color, Paint, Pixmap, Stroke};
+use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
 
 fn sample_at(resolution: &Resolution, z: f32) -> Field<f32> {
     let mut values = Vec::with_capacity(resolution.area());
@@ -70,7 +70,7 @@ fn main() -> io::Result<()> {
         pixmap.fill(Color::WHITE);
         for level in &levels {
             let polylines = find_contours(&field, *level);
-            draw_polylines(&mut pixmap, &polylines, &paint, &stroke);
+            draw_polylines(&mut pixmap, &polylines, &paint, &stroke, Transform::identity());
         }
 
         output.write_all(pixmap.data())?;
