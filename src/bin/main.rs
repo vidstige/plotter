@@ -2,16 +2,7 @@ use std::{f32::consts::TAU, io, time::Duration};
 
 use nalgebra_glm::{look_at, perspective, Vec2, Vec3, Vec4};
 use plotter::{
-    camera::Camera,
-    fields::cross2,
-    geometries::{gaussian::Gaussian, hole::Hole, torus::Torus},
-    geometry::DifferentiableGeometry,
-    gridlines::generate_grid,
-    integrate::euler,
-    paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE},
-    polyline::Polyline2,
-    time_estimator::Estimator,
-    uv2xy::reproject,
+    camera::Camera, duration_extras::format_duration, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator::Estimator, uv2xy::reproject
 };
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
@@ -115,18 +106,6 @@ fn setup_hole(view_box: ViewBox, area: ViewBox) -> (Hole, Camera, Vec<Polyline2>
     let uv_polylines = generate_grid((-size, size), (-size, size), 32, 256);
 
     (geometry, camera, uv_polylines)
-}
-
-fn format_duration(duration: Duration) -> String {
-    let seconds = duration.as_secs();
-    let minutes = seconds / 60;
-    let seconds = seconds % 60;
-    let hours = minutes / 60;
-    let minutes = minutes % 60;
-    if hours > 0 {
-        return format!("{hours}h {minutes}m {seconds}s");
-    }
-    format!("{minutes}m {seconds}s")
 }
 
 fn main() -> io::Result<()> {

@@ -12,6 +12,7 @@ pub mod geometries {
 }
 pub mod buffer;
 pub mod camera;
+pub mod duration_extras;
 pub mod eq;
 pub mod field;
 pub mod fields;
