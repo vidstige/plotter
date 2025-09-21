@@ -6,13 +6,13 @@ use crate::{
 };
 
 pub struct Torus {
-    pub r: f32, // minor radius
-    pub R: f32, // major radius
+    pub radius_minor: f32,
+    pub radius_major: f32,
 }
 
 impl Torus {
-    pub fn new(r: f32, R: f32) -> Self {
-        Torus { r, R }
+    pub fn new(radius_minor: f32, radius_major: f32) -> Self {
+        Torus { radius_minor, radius_major }
     }
 }
 
@@ -23,32 +23,34 @@ impl Geometry for Torus {
         let sin_u = u.sin();
         let cos_v = v.cos();
         let sin_v = v.sin();
-        let ring = self.R + self.r * cos_u;
+        let ring = self.radius_major + self.radius_minor * cos_u;
+        let r = self.radius_minor;
         Vec3::new(
-            ring * cos_v,   //
-            ring * sin_v,   //
-            self.r * sin_u, //
+            ring * cos_v,  //
+            ring * sin_v,  //
+            r * sin_u,     //
         )
     }
 }
 
 impl DifferentiableGeometry for Torus {
     fn du(&self) -> impl DifferentiableGeometry {
-        TorusDu { r: self.r, R: self.R }
+        TorusDu { radius_minor: self.radius_minor, radius_major: self.radius_major }
     }
 
     fn dv(&self) -> impl DifferentiableGeometry {
-        TorusDv { r: self.r, R: self.R }
+        TorusDv { radius_minor: self.radius_minor, radius_major: self.radius_major }
     }
 
     fn metric(&self, p: &Vec2) -> Mat2x2 {
         let u = p.x;
         let cos_u = u.cos();
-        let sin_u = u.sin();
-        let ring = self.R + self.r * cos_u;
+        //let sin_u = u.sin();
+        let ring = self.radius_major + self.radius_minor * cos_u;
+        let r = self.radius_minor;
         Mat2x2::new(
-            self.r * self.r, 0.0,  // E, F
-            0.0, ring * ring,      // F, G
+            r * r, 0.0,       // E, F
+            0.0, ring * ring, // F, G
         )
     }
 }
@@ -59,14 +61,14 @@ impl SDF for Torus {
         let y = position.y;
         let z = position.z;
         let xy_len = (x * x + y * y).sqrt();
-        ((xy_len - self.R).powi(2) + z * z).sqrt() - self.r
+        ((xy_len - self.radius_major).powi(2) + z * z).sqrt() - self.radius_minor
     }
 }
 
 // First derivatives
 pub struct TorusDu {
-    pub r: f32,
-    pub R: f32,
+    pub radius_minor: f32,
+    pub radius_major: f32,
 }
 
 impl Geometry for TorusDu {
@@ -76,28 +78,28 @@ impl Geometry for TorusDu {
         let sin_u = u.sin();
         let cos_v = v.cos();
         let sin_v = v.sin();
-        let d_ring = -self.r * sin_u;
+        let d_ring = -self.radius_minor * sin_u;
         Vec3::new(
             d_ring * cos_v, //
             d_ring * sin_v, //
-            self.r * cos_u, //
+            self.radius_minor * cos_u, //
         )
     }
 }
 
 impl DifferentiableGeometry for TorusDu {
     fn du(&self) -> impl DifferentiableGeometry {
-        TorusDuDu { r: self.r, R: self.R }
+        TorusDuDu { radius_minor: self.radius_minor, radius_major: self.radius_major }
     }
 
     fn dv(&self) -> impl DifferentiableGeometry {
-        TorusDuDv { r: self.r, R: self.R }
+        TorusDuDv { radius_minor: self.radius_minor, radius_major: self.radius_major }
     }
 }
 
 pub struct TorusDv {
-    pub r: f32,
-    pub R: f32,
+    pub radius_minor: f32,
+    pub radius_major: f32,
 }
 
 impl Geometry for TorusDv {
@@ -106,7 +108,7 @@ impl Geometry for TorusDv {
         let cos_u = u.cos();
         let cos_v = v.cos();
         let sin_v = v.sin();
-        let ring = self.R + self.r * cos_u;
+        let ring = self.radius_major + self.radius_minor * cos_u;
         Vec3::new(
             -ring * sin_v, //
             ring * cos_v,  //
@@ -117,17 +119,17 @@ impl Geometry for TorusDv {
 
 impl DifferentiableGeometry for TorusDv {
     fn du(&self) -> impl DifferentiableGeometry {
-        TorusDuDv { r: self.r, R: self.R }
+        TorusDuDv { radius_minor: self.radius_minor, radius_major: self.radius_major }
     }
     fn dv(&self) -> impl DifferentiableGeometry {
-        TorusDvDv { r: self.r, R: self.R }
+        TorusDvDv { radius_minor: self.radius_minor, radius_major: self.radius_major }
     }
 }
 
 // Second derivatives
 pub struct TorusDuDu {
-    pub r: f32,
-    pub R: f32,
+    pub radius_minor: f32,
+    pub radius_major: f32,
 }
 
 impl Geometry for TorusDuDu {
@@ -137,19 +139,19 @@ impl Geometry for TorusDuDu {
         let sin_u = u.sin();
         let cos_v = v.cos();
         let sin_v = v.sin();
-        let d2_ring = -self.r * cos_u;
+        let d2_ring = -self.radius_minor * cos_u;
         Vec3::new(
             d2_ring * cos_v, //
             d2_ring * sin_v, //
-            -self.r * sin_u, //
+            -self.radius_minor * sin_u, //
         )
     }
 }
 impl DifferentiableGeometry for TorusDuDu {}
 
 pub struct TorusDvDv {
-    pub r: f32,
-    pub R: f32,
+    pub radius_minor: f32,
+    pub radius_major: f32,
 }
 
 impl Geometry for TorusDvDv {
@@ -158,7 +160,7 @@ impl Geometry for TorusDvDv {
         let cos_u = u.cos();
         let cos_v = v.cos();
         let sin_v = v.sin();
-        let ring = self.R + self.r * cos_u;
+        let ring = self.radius_major + self.radius_minor * cos_u;
         Vec3::new(
             -ring * cos_v, //
             -ring * sin_v, //
@@ -169,18 +171,18 @@ impl Geometry for TorusDvDv {
 impl DifferentiableGeometry for TorusDvDv {}
 
 pub struct TorusDuDv {
-    pub r: f32,
-    pub R: f32,
+    pub radius_minor: f32,
+    pub radius_major: f32,
 }
 
 impl Geometry for TorusDuDv {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
         let (u, v) = (p.x, p.y);
         let sin_u = u.sin();
-        let cos_u = u.cos();
+        //let cos_u = u.cos();
         let cos_v = v.cos();
         let sin_v = v.sin();
-        let d_ring = -self.r * sin_u;
+        let d_ring = -self.radius_minor * sin_u;
         Vec3::new(
             -d_ring * sin_v, //
             d_ring * cos_v,  //
