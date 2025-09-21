@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 use nalgebra_glm::Vec3;
-use plotter::{field::Field, marching_squares::find_contours, polyline::Polyline2, resolution::Resolution, simplex::simplex3};
+use plotter::{field::Field, marching_squares::find_contours, polyline::Polyline2, resolution::Resolution, sdf_transform::sdf_from_pixmap, simplex::simplex3};
 use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 fn sample_at(resolution: &Resolution, z: f32) -> Field<f32> {
@@ -71,6 +71,14 @@ fn main() -> io::Result<()> {
         output.write_all(pixmap.data())?;
         output.flush()?;
     }
+
+    /*let mask = Pixmap::load_png("data/volumental.png")?;
+    let sdf = sdf_from_pixmap(&mask);
+    let polylines = find_contours(&sdf, 0.0);
+    for polyline in polylines {
+        draw_polyline(&mut pixmap, polyline, &paint, &stroke);
+    }
+    pixmap.save_png("output.png")?;*/
 
     Ok(())
 }

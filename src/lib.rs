@@ -26,6 +26,7 @@ pub mod netbm;
 pub mod paper;
 pub mod polyline;
 pub mod raytracer;
+pub mod sdf_transform;
 pub mod simplex;
 pub mod uv2xy;
 pub mod time_estimator;
