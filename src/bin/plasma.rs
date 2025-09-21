@@ -46,6 +46,7 @@ fn hann(t: f32) -> f32 {
 
 fn main() -> io::Result<()> {
     let mut output = io::stdout().lock();
+    let level_count = 8;
 
     // Load mask
     let pattern = Pixmap::load_png("data/volumental.png")?;
@@ -53,7 +54,7 @@ fn main() -> io::Result<()> {
     let lo = tmp.values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
     let hi = tmp.values.iter().fold(-f32::INFINITY, |a, &b| a.max(b));
     let scale = hi.abs().max(lo.abs());
-    let pattern_sdf = tmp * (1.0 / scale);
+    let pattern_sdf = tmp * (1.0 / scale / level_count as f32);
 
     let resolution = Resolution::new(720, 720);
     let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
@@ -67,7 +68,7 @@ fn main() -> io::Result<()> {
     let mut stroke = Stroke::default();
     stroke.width = 8.0;
 
-    let levels = linspace(-1.0, 1.0, 8);
+    let levels = linspace(-1.0, 1.0, level_count);
     let frames = 256;
     let speed = 4.0;
     for frame in 0..frames {
@@ -78,7 +79,7 @@ fn main() -> io::Result<()> {
         let simplex_sdf = sample_at(&pattern_resolution, z);
         // combine pattern sdf with field sdf
         let s = hann(t);
-        let field = simplex_sdf * (1.0 - s) + &(&pattern_sdf * s);
+        let field = simplex_sdf * (1.0 - s) + &pattern_sdf * s;
 
         pixmap.fill(Color::WHITE);
         for level in &levels {
