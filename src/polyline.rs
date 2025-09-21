@@ -28,9 +28,7 @@ impl<const N: usize> Polyline<N> {
 
 impl<const N: usize> FromIterator<TVec<f32, N>> for Polyline<N> {
     fn from_iter<T: IntoIterator<Item = TVec<f32, N>>>(iter: T) -> Self {
-        Polyline {
-            points: iter.into_iter().collect(),
-        }
+        Polyline { points: iter.into_iter().collect() }
     }
 }
 

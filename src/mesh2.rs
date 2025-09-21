@@ -1,6 +1,5 @@
 use nalgebra_glm::Vec2;
 
-
 pub struct Mesh2 {
     pub vertices: Vec<Vec2>,
     pub quads: Vec<[usize; 4]>,

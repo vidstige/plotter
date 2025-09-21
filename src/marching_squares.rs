@@ -4,12 +4,7 @@ use nalgebra_glm::Vec2;
 
 use crate::{field::Field, polyline::Polyline2};
 
-const POINTS: [[i32; 2]; 4] = [
-    [0, 0],
-    [1, 0],
-    [0, 1],
-    [1, 1],
-];
+const POINTS: [[i32; 2]; 4] = [[0, 0], [1, 0], [0, 1], [1, 1]];
 
 type Edge = (usize, usize);
 const EDGE_CASES: [[Option<(Edge, Edge)>; 2]; 16] = [
@@ -31,9 +26,15 @@ const EDGE_CASES: [[Option<(Edge, Edge)>; 2]; 16] = [
     [None, None],
 ];
 
-fn interpolate_edge(points: &[[i32; 2]], (x, y): (f32, f32), values: &[f32; 4], (i0, i1): Edge, level: f32) -> Vec2 {
+fn interpolate_edge(
+    points: &[[i32; 2]],
+    (x, y): (f32, f32),
+    values: &[f32; 4],
+    (i0, i1): Edge,
+    level: f32,
+) -> Vec2 {
     let (v0, v1) = (values[i0], values[i1]);
-    
+
     // compute parameter
     let t = (level - v0) / (v1 - v0);
     debug_assert!(t >= 0.0 && t < 1.0);
@@ -60,7 +61,7 @@ fn continuation(residual: &Vec<Vec<usize>>, vertex: Option<&usize>) -> Option<us
 fn find_chains(edges: &[Edge]) -> Vec<Vec<usize>> {
     // 1. Find top edge value and use a vector instead of hash table
     let Some(&top) = edges.iter().map(|(e0, e1)| e0.max(e1)).max() else { return Vec::new(); };
-    
+
     // 2. Create lookup table for edges left to process (todo)
     let mut residual: Vec<Vec<usize>> = vec![Vec::new(); top + 1];
     for (a, b) in edges {
@@ -125,39 +126,33 @@ pub fn find_contours(grid: &Field<f32>, level: f32) -> Vec<Polyline2> {
                 grid[(x, y)],
                 grid[(x + 1, y)],
                 grid[(x, y + 1)],
-                grid[(x + 1, y + 1)]
+                grid[(x + 1, y + 1)],
             ];
-            
+
             // find table index
-            let table_index: usize = values
-                .iter()
-                .enumerate()
-                .map(|(i, v)| (1 << i) * ((*v < level) as usize)).sum();
+            let table_index: usize =
+                values.iter().enumerate().map(|(i, v)| (1 << i) * ((*v < level) as usize)).sum();
             // loop over items that are not None
             for (e0, e1) in EDGE_CASES[table_index].iter().flatten() {
                 let id0 = vertex_id(x, y, *e0);
                 let id1 = vertex_id(x, y, *e1);
 
                 let position = (x as f32, y as f32);
-                let vertex0 = *lookup
-                    .entry(id0)
-                    .or_insert_with(|| {
-                        // interpolate
-                        let vertex = interpolate_edge(&POINTS, position, &values, *e0, level);
-                        // add and return index
-                        vertices.push(vertex);
-                        vertices.len() - 1
-                    });
-                let vertex1 = *lookup
-                    .entry(id1)
-                    .or_insert_with(|| {
-                        // interpolate
-                        let vertex = interpolate_edge(&POINTS, position, &values, *e1, level);
-                        // add and return index
-                        vertices.push(vertex);
-                        vertices.len() - 1
-                    });
-                
+                let vertex0 = *lookup.entry(id0).or_insert_with(|| {
+                    // interpolate
+                    let vertex = interpolate_edge(&POINTS, position, &values, *e0, level);
+                    // add and return index
+                    vertices.push(vertex);
+                    vertices.len() - 1
+                });
+                let vertex1 = *lookup.entry(id1).or_insert_with(|| {
+                    // interpolate
+                    let vertex = interpolate_edge(&POINTS, position, &values, *e1, level);
+                    // add and return index
+                    vertices.push(vertex);
+                    vertices.len() - 1
+                });
+
                 // add edge
                 lines.push((vertex0, vertex1));
             }

@@ -17,8 +17,8 @@ pub fn linesearch<F: Fn(f32) -> f32>(f: F, lo: f32, hi: f32, steps: usize) -> Op
 
 pub struct NewtonRaphsonOptions {
     epsilon: f32, // for numerical diffrentiation
-    atol: f32, // for considering roots
-    dtol: f32, // for bailing out on vanishing differentials
+    atol: f32,    // for considering roots
+    dtol: f32,    // for bailing out on vanishing differentials
     max_steps: usize,
 }
 
@@ -28,10 +28,14 @@ impl Default for NewtonRaphsonOptions {
     }
 }
 
-pub fn newton_raphson<F: Fn(f32) -> f32>(f: F, x0: f32, options: NewtonRaphsonOptions) -> Option<f32> {
+pub fn newton_raphson<F: Fn(f32) -> f32>(
+    f: F,
+    x0: f32,
+    options: NewtonRaphsonOptions,
+) -> Option<f32> {
     let epsilon = options.epsilon;
-    let mut x = x0; 
-    
+    let mut x = x0;
+
     for _ in 0..options.max_steps {
         // compute df/dt using forward diffrentiation
         let dfdt = (f(x + epsilon) - f(x - epsilon)) / (2.0 * epsilon);

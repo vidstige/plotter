@@ -23,10 +23,11 @@ pub fn pad(view_box: ViewBox, pad: i32) -> ViewBox {
 
 pub fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
     let (x, y, w, h) = view_box;
-    point.x > *x as f32 && point.y > *y as f32 && point.x < (x + w) as f32 && point.y < (y + h) as f32
+    point.x > *x as f32
+        && point.y > *y as f32
+        && point.x < (x + w) as f32
+        && point.y < (y + h) as f32
 }
-
-
 
 pub struct Paper {
     pub view_box: ViewBox,
@@ -35,7 +36,12 @@ pub struct Paper {
 }
 
 fn as_node(polyline: &Polyline2) -> String {
-    let points: Vec<_> = polyline.points.iter().map(|p| (p.x, p.y)).map(|(x, y)| format!("{x} {y}")).collect();
+    let points: Vec<_> = polyline
+        .points
+        .iter()
+        .map(|p| (p.x, p.y))
+        .map(|(x, y)| format!("{x} {y}"))
+        .collect();
     points.join(" ")
 }
 
@@ -92,10 +98,7 @@ impl Paper {
             current = *self.polylines[*index].points.last().unwrap_or(&current);
         }
 
-        self.polylines = path
-            .iter()
-            .map(|index| self.polylines[*index].clone())
-            .collect();
+        self.polylines = path.iter().map(|index| self.polylines[*index].clone()).collect();
     }
 
     pub fn save(&self, filename: &str) -> io::Result<()> {

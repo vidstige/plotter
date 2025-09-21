@@ -1,11 +1,13 @@
 use std::ops::{Add, Sub};
 
-use nalgebra_glm::{Mat4, Vec2, Vec3, Vec4};
 use nalgebra_glm::unproject;
+use nalgebra_glm::{Mat4, Vec2, Vec3, Vec4};
 
 use crate::eq::NewtonRaphsonOptions;
-use crate::{eq::{linesearch, newton_raphson}, sdf::SDF};
-
+use crate::{
+    eq::{linesearch, newton_raphson},
+    sdf::SDF,
+};
 
 pub struct Ray {
     origin: Vec3,
@@ -24,7 +26,7 @@ pub fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec
     let model_inverse = model.try_inverse().unwrap();
     let eye = model_inverse.column(3).xyz();
 
-    Ray{ origin: eye, direction: world.sub(eye).normalize() }
+    Ray { origin: eye, direction: world.sub(eye).normalize() }
 }
 
 pub fn trace<S: SDF>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
@@ -33,7 +35,7 @@ pub fn trace<S: SDF>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
     if let Some((lo, hi)) = linesearch(f, lo, hi, 200) {
         // fine tune with newton_raphson
         if let Some(t) = newton_raphson(f, 0.5 * (hi + lo), NewtonRaphsonOptions::default()) {
-        //if let Some(t) = newton_raphson(f, lo) {
+            //if let Some(t) = newton_raphson(f, lo) {
             return Some(ray.at(t));
         }
     }
