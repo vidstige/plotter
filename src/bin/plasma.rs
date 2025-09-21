@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use nalgebra_glm::Vec3;
 use plotter::{
     field::Field, marching_squares::find_contours, resolution::Resolution,
-    sdf_transform::sdf_from_pixmap, simplex::simplex3, skia_utils::draw_polyline,
+    sdf_transform::sdf_from_pixmap, simplex::simplex3, skia_utils::draw_polylines,
 };
 use tiny_skia::{Color, Paint, Pixmap, Stroke};
 
@@ -70,9 +70,7 @@ fn main() -> io::Result<()> {
         pixmap.fill(Color::WHITE);
         for level in &levels {
             let polylines = find_contours(&field, *level);
-            for polyline in polylines {
-                draw_polyline(&mut pixmap, polyline, &paint, &stroke);
-            }
+            draw_polylines(&mut pixmap, &polylines, &paint, &stroke);
         }
 
         output.write_all(pixmap.data())?;

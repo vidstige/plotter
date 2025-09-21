@@ -4,7 +4,7 @@ use std::{
     io::{self, Write},
 };
 
-use plotter::skia_utils::draw_polyline;
+use plotter::skia_utils::draw_polylines;
 use plotter::resolution::Resolution;
 use plotter::{
     camera::Camera,
@@ -137,9 +137,8 @@ fn main() -> io::Result<()> {
         }*/
         // render to pixmap
         let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
-        for polyline in polylines {
-            draw_polyline(&mut pixmap, polyline, &paint, &stroke);
-        }
+        draw_polylines(&mut pixmap, &polylines, &paint, &stroke);
+
         //pixmap.save_png("image.png")?;
         output.write_all(pixmap.data())?;
         output.flush()?;
