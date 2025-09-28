@@ -1,23 +1,20 @@
-use std::{
-    collections::VecDeque,
-    f32::consts::TAU,
-    io::{self, Write},
-};
+use std::
+    io::{self, Write}
+;
 
-use plotter::skia_utils::draw_polylines;
+use plotter::fields::Spiral;
+use plotter::polyline::Polyline2;
+use plotter::{geometries::hole::Hole, skia_utils::draw_polylines};
 use plotter::resolution::Resolution;
 use plotter::{
     camera::Camera,
-    geometries::{gaussian::Gaussian, pulse::Pulse},
-    gridlines::generate_grid,
-    integrate::implicit_euler,
     lerp::lerp,
     uv2xy::reproject,
 };
 
 use nalgebra_glm::{identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
 use rand::{distributions::Distribution, rngs::ThreadRng};
-use rand_distr::{StandardNormal, Uniform};
+use rand_distr::StandardNormal;
 use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
 
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> Vec2 {
@@ -38,35 +35,29 @@ fn initialize_camera(resolution: &Resolution) -> Camera {
 }
 
 fn camera_at(t: f32) -> Mat4x4 {
-    //let eye = Vec3::new(-2.6, -2.6, -1.5);
     let t_ = lerp(0.1, 0.2, t);
     let eye = Vec3::new(2.6 * t_.cos(), 2.6 * t_.sin(), -1.5);
     look_at(&eye, &Vec3::new(0.0, 0.0, 0.4), &Vec3::new(0.0, 0.0, 1.0))
 }
 
-fn main() -> io::Result<()> {
-    let resolution = Resolution::new(720, 720);
-    let mut camera = initialize_camera(&resolution);
+fn trace_field(field: &Spiral, position: &Vec2, n: usize, dt: f32) -> Polyline2 {
+    let mut points = Vec::new();
+    let mut p = position.clone();
+    for _ in 0..n {
+        points.push(p);
+        p += field.at(&p) * dt;
+    }
+    Polyline2 { points }
+}
 
-    let mut geometry = Pulse {
-        amplitude: 0.2,
-        sigma: 0.8,
-        c: 16.0,
-        cycles: 0.4,
-        lambda: 0.2,
-        t: 0.0,
-    };
+struct Theme<'a> {
+    paint: Paint<'a>,
+    stroke: Stroke,
+    background: Color,
+}
 
-    let near = 0.1;
-    let far = 10.0;
-
-    let mut output = io::stdout().lock();
-
-    let mut rng = rand::thread_rng();
-    let distribution = StandardNormal {};
-
-    // set up color
-    let color = Color::from_rgba8(255, 180, 220, 0xff);
+fn black_and_white<'a>() -> Theme<'a> {
+    let color = Color::BLACK;
     let mut paint = Paint::default();
     paint.set_color(color);
     paint.anti_alias = true;
@@ -74,47 +65,55 @@ fn main() -> io::Result<()> {
     let mut stroke = Stroke::default();
     stroke.width = 2.0;
 
+    let background = Color::WHITE;
+    Theme {paint, stroke, background}
+}
+
+fn main() -> io::Result<()> {
+    let mut output = io::stdout().lock();
+    let resolution = Resolution::new(720, 720);
+    
+    let mut camera = initialize_camera(&resolution);
+
+    /*let mut geometry = Pulse {
+        amplitude: 0.2,
+        sigma: 0.8,
+        c: 16.0,
+        cycles: 0.4,
+        lambda: 0.2,
+        t: 0.0,
+    };*/
+    let geometry = Hole::new();
+    let uv_field = Spiral::new(Vec2::new(0.0, 0.0));
+
+    let near = 0.1;
+    let far = 10.0;
+
+    let mut rng = rand::thread_rng();
+    let distribution = StandardNormal {};
+
+    // set up color
+    let theme = black_and_white();
+
     let positions: Vec<_> = (0..1024)
         .map(|_| 2.0 * sample_vec2(&distribution, &mut rng))
-        //.filter(|position| position.magnitude_squared() > 0.3*0.3)
+        .filter(|position| position.magnitude_squared() > 0.3*0.3)
         .collect();
-    //let semicircle = Uniform::new(0.0 + 0.2, TAU - 0.2);
-    //let positions: Vec<_> = (0..256).map(|_| sample_vec2(&semicircle, &mut rng)).collect();
-    let mut particles: Vec<_> = positions
-        .iter()
-        .map(|p| Particle {
-            position: Vec2::new(p.x, p.y),
-            velocity: Vec2::new(1.0, 0.0),
-            //velocity:  1.0 / field.at(p).magnitude_squared() * field.at(p),
-            //velocity: 0.1 * sample_vec2(&distribution, &mut rng),
-        })
-        .collect();
-    //let mut traces: Vec<VecDeque<Vec2>> = particles.iter().map(|_| VecDeque::new()).collect();
-    //let trace_length = 24;
-    let uv_polylines = generate_grid((-4.0, 4.0), (-4.0, 4.0), 32, 128);
+    let trace_length = 16;
+
+    let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
     let fps = 30.0;
     let dt = 0.4 / fps;
     for frame in 0..256 {
         let t = frame as f32 / 256 as f32;
-        // update camera & geometry
-        geometry.t = t;
-        camera.model = camera_at(t);
-        /*
-        // take integration step
-        for particle in particles.iter_mut() {
-            (particle.position, particle.velocity) = implicit_euler(&geometry, &particle.position, &particle.velocity, dt);
-        }
 
-        // remember particle traces
-        for (particle, trace) in particles.iter().zip(traces.iter_mut()) {
-            trace.push_back(particle.position);
-            if trace.len() > trace_length {
-                trace.pop_front();
-            }
-        }
-        if frame < trace_length {
-            continue;
-        }*/
+        camera.model = camera_at(t);
+
+        // uv_polylines
+        let uv_polylines: Vec<_> = positions
+            .iter()
+            .map(|p| trace_field(&uv_field, p, trace_length, 0.1))
+            .collect();
 
         // draw traces
         let mut polylines = Vec::new();
@@ -130,14 +129,9 @@ fn main() -> io::Result<()> {
             polylines.extend(polyline);
         }
 
-        /*for particle_trace in &traces {
-            let uv_polyline = Polyline2 { points: particle_trace.iter().step_by(2).copied().collect() };
-            let polyline = reproject(&uv_polyline, &geometry, &camera, (0, 0, resolution.width as i32, resolution.height as i32), near, far);
-            polylines.extend(polyline);
-        }*/
         // render to pixmap
-        let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
-        draw_polylines(&mut pixmap, &polylines, &paint, &stroke, Transform::identity());
+        pixmap.fill(theme.background);
+        draw_polylines(&mut pixmap, &polylines, &theme.paint, &theme.stroke, Transform::identity());
 
         //pixmap.save_png("image.png")?;
         output.write_all(pixmap.data())?;
