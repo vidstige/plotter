@@ -1,12 +1,7 @@
 use nalgebra_glm::{project, Vec2, Vec3};
 
 use crate::{
-    camera::Camera,
-    geometry::Geometry,
-    paper::ViewBox,
-    polyline::Polyline2,
-    raytracer::{backproject, trace},
-    sdf::SDF,
+    camera::Camera, eq::NewtonRaphsonOptions, geometry::Geometry, paper::ViewBox, polyline::Polyline2, raytracer::{backproject, Tracer}, sdf::SDF
 };
 
 fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
@@ -18,10 +13,10 @@ fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
 }
 
 // handle occlusions
-fn visible(screen: &Vec3, camera: &Camera, geometry: &impl SDF, near: f32, far: f32) -> bool {
+fn visible(screen: &Vec3, camera: &Camera, geometry: &impl SDF, tracer: &Tracer) -> bool {
     // back project and ray trace to find occlusions
     let ray = backproject(&screen.xy(), &camera.model, &camera.projection, camera.viewport);
-    if let Some(intersection) = trace(&ray, geometry, near, far) {
+    if let Some(intersection) = tracer.trace(&ray, geometry) {
         let traced_screen = project(
             &intersection,
             &camera.model,
@@ -49,6 +44,7 @@ pub fn reproject<G: Geometry + SDF>(
     near: f32,
     far: f32,
 ) -> Vec<Polyline2> {
+    let tracer = Tracer { near, far, steps: 200, newton_raphson: NewtonRaphsonOptions::default() };
     // TODO: When a point is occluded, start a new linesegment
     let points = polyline
         .points
@@ -60,7 +56,7 @@ pub fn reproject<G: Geometry + SDF>(
     let mut current = Polyline2::new();
     for screen in points {
         //current.add(screen.xy());
-        if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, near, far) {
+        if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, &tracer) {
             current.add(screen.xy());
         } else {
             polylines.push(current);

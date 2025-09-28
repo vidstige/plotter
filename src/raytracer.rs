@@ -20,6 +20,14 @@ impl Ray {
     }
 }
 
+pub struct Tracer {
+    // Line Search options
+    pub near: f32,
+    pub far: f32,
+    pub steps: usize,
+    pub newton_raphson: NewtonRaphsonOptions,
+}
+
 pub fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec4) -> Ray {
     let world = unproject(&Vec3::new(screen.x, screen.y, 1.0), &model, &projection, viewport);
     // recover eye position
@@ -29,15 +37,18 @@ pub fn backproject(screen: &Vec2, model: &Mat4, projection: &Mat4, viewport: Vec
     Ray { origin: eye, direction: world.sub(eye).normalize() }
 }
 
-pub fn trace<S: SDF>(ray: &Ray, surface: &S, lo: f32, hi: f32) -> Option<Vec3> {
-    // first linesearch to find rough estimate
-    let f = |t| surface.sdf(&ray.at(t));
-    if let Some((lo, hi)) = linesearch(f, lo, hi, 200) {
-        // fine tune with newton_raphson
-        if let Some(t) = newton_raphson(f, 0.5 * (hi + lo), NewtonRaphsonOptions::default()) {
-            //if let Some(t) = newton_raphson(f, lo) {
-            return Some(ray.at(t));
+impl Tracer {
+    pub fn trace<S: SDF>(&self, ray: &Ray, surface: &S) -> Option<Vec3> {
+        // first linesearch to find rough estimate
+        let f = |t| surface.sdf(&ray.at(t));
+        if let Some((lo, hi)) = linesearch(f, self.near, self.far, self.steps) {
+            // fine tune with newton_raphson
+            if let Some(t) = newton_raphson(f, 0.5 * (hi + lo), &self.newton_raphson) {
+                //if let Some(t) = newton_raphson(f, lo) {
+                return Some(ray.at(t));
+            }
         }
+        None
     }
-    None
 }
+

@@ -31,7 +31,7 @@ impl Default for NewtonRaphsonOptions {
 pub fn newton_raphson<F: Fn(f32) -> f32>(
     f: F,
     x0: f32,
-    options: NewtonRaphsonOptions,
+    options: &NewtonRaphsonOptions,
 ) -> Option<f32> {
     let epsilon = options.epsilon;
     let mut x = x0;
