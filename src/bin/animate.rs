@@ -2,6 +2,7 @@ use std::
     io::{self, Write}
 ;
 
+use plotter::audio_sync::AudioAnalysis;
 use plotter::fields::Spiral;
 use plotter::polyline::Polyline2;
 use plotter::{geometries::hole::Hole, skia_utils::draw_polylines};
@@ -19,11 +20,6 @@ use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
 
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut ThreadRng) -> Vec2 {
     Vec2::new(distribution.sample(rng), distribution.sample(rng))
-}
-
-struct Particle {
-    position: Vec2,
-    velocity: Vec2,
 }
 
 fn initialize_camera(resolution: &Resolution) -> Camera {
@@ -70,9 +66,11 @@ fn black_and_white<'a>() -> Theme<'a> {
 }
 
 fn main() -> io::Result<()> {
+    let audio = AudioAnalysis::load_dat_file("music/Thundatraxx - Every Breath You Take (Lyrics).dat")?;
+
     let mut output = io::stdout().lock();
     let resolution = Resolution::new(720, 720);
-    
+
     let mut camera = initialize_camera(&resolution);
 
     /*let mut geometry = Pulse {
@@ -95,7 +93,7 @@ fn main() -> io::Result<()> {
     // set up color
     let theme = black_and_white();
 
-    let positions: Vec<_> = (0..1024)
+    let positions: Vec<_> = (0..256)
         .map(|_| 2.0 * sample_vec2(&distribution, &mut rng))
         .filter(|position| position.magnitude_squared() > 0.3*0.3)
         .collect();
@@ -103,7 +101,6 @@ fn main() -> io::Result<()> {
 
     let mut pixmap = Pixmap::new(resolution.width, resolution.height).unwrap();
     let fps = 30.0;
-    let dt = 0.4 / fps;
     for frame in 0..256 {
         let t = frame as f32 / 256 as f32;
 

@@ -10,6 +10,7 @@ pub mod geometries {
     pub mod torus;
     mod zero;
 }
+pub mod audio_sync;
 pub mod buffer;
 pub mod camera;
 pub mod duration_extras;
