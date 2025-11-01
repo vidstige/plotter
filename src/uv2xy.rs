@@ -56,7 +56,8 @@ pub fn reproject<G: Geometry + SDF>(
     let mut current = Polyline2::new();
     for screen in points {
         //current.add(screen.xy());
-        if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, &tracer) {
+        //if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, &tracer) {
+        if visible(&screen, &camera, geometry, &tracer) {
             current.add(screen.xy());
         } else {
             polylines.push(current);
