@@ -31,9 +31,10 @@ fn initialize_camera(resolution: &Resolution) -> Camera {
 }
 
 fn camera_at(t: f32) -> Mat4x4 {
-    let t_ = lerp(0.1, 0.2, t);
+    let t_ = lerp(0.1, 0.3, t);
     let eye = Vec3::new(2.6 * t_.cos(), 2.6 * t_.sin(), -1.5);
-    look_at(&eye, &Vec3::new(0.0, 0.0, 0.4), &Vec3::new(0.0, 0.0, 1.0))
+    let target = Vec3::new(t_, 0.0, 0.4);
+    look_at(&eye, &target, &Vec3::new(0.0, 0.0, 1.0))
 }
 
 fn trace_field(field: &Spiral, position: &Vec2, n: usize, dt: f32) -> Polyline2 {
