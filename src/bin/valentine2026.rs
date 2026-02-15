@@ -1,6 +1,6 @@
 use std::io::{self, ErrorKind, Write};
 
-use nalgebra_glm::{dot, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
+use nalgebra_glm::{cross, dot, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
@@ -21,7 +21,7 @@ const CAMERA_SWITCH_SECONDS: f32 = 2.0;
 const TRACE_COUNT: usize = 240;
 const TRACE_LENGTH: usize = 18;
 const TRACE_STEP: f32 = 0.06;
-const FLOW_SPEED: f32 = 0.25;
+const FLOW_SPEED: f32 = 0.10;
 const NEAR: f32 = 0.1;
 const FAR: f32 = 10.0;
 
@@ -42,7 +42,7 @@ struct CameraSegment {
 #[derive(Copy, Clone)]
 enum CameraStyle {
     Edge,
-    FollowAlong,
+    Follow,
 }
 
 fn invalid_input(message: impl Into<String>) -> io::Error {
@@ -97,11 +97,6 @@ fn initialize_camera(resolution: &Resolution) -> Camera {
     }
 }
 
-fn smoothstep(t: f32) -> f32 {
-    let clamped = t.clamp(0.0, 1.0);
-    clamped * clamped * (3.0 - 2.0 * clamped)
-}
-
 fn lerp_vec3(from: Vec3, to: Vec3, t: f32) -> Vec3 {
     from * (1.0 - t) + to * t
 }
@@ -143,18 +138,15 @@ fn polar_to_vec3(radius: f32, angle: f32, z: f32) -> Vec3 {
 }
 
 fn choose_camera_style(scene_key: u64) -> CameraStyle {
-    let mut rng = seeded_rng(scene_key ^ 0x68F6_2B44_17C0_DA93);
-    if rng.gen_bool(0.5) {
-        CameraStyle::Edge
-    } else {
-        CameraStyle::FollowAlong
-    }
+    let _ = scene_key;
+    // CameraStyle::Edge
+    CameraStyle::Follow
 }
 
 fn random_edge_eye_point(key: u64) -> Vec3 {
     let mut rng = seeded_rng(key ^ 0xE61A_01F5_42D0_A117);
     let radius = rng.gen_range(2.4..3.2);
-    let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+    let angle = sample_circle_angle(&mut rng);
     let height = rng.gen_range(-2.2..-1.1);
     polar_to_vec3(radius, angle, height)
 }
@@ -162,61 +154,75 @@ fn random_edge_eye_point(key: u64) -> Vec3 {
 fn random_edge_target_point(key: u64) -> Vec3 {
     let mut rng = seeded_rng(key ^ 0xA9C7_2E11_D0E4_4D21);
     let radius = rng.gen_range(0.05..0.30);
-    let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+    let angle = sample_circle_angle(&mut rng);
     let height = rng.gen_range(1.0..1.5);
     polar_to_vec3(radius, angle, height)
 }
 
 fn edge_segment(scene_key: u64) -> CameraSegment {
     let mut rng = seeded_rng(scene_key ^ 0x47AA_BF0E_3E8C_91D3);
-
+    let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
     let eye_center = random_edge_eye_point(scene_key);
-    let eye_delta = Vec3::new(
-        rng.gen_range(-0.32..0.32),
-        rng.gen_range(-0.32..0.32),
-        rng.gen_range(-0.18..0.18),
-    );
+    let eye_radius = (eye_center.x * eye_center.x + eye_center.y * eye_center.y).sqrt();
+    let eye_angle0 = eye_center.y.atan2(eye_center.x);
+    let eye_angle_delta = direction * rng.gen_range(0.10..0.28);
+    let eye_z0 = eye_center.z;
+    let eye_z1 = eye_z0 + rng.gen_range(-0.08..0.08);
+    let eye_from = polar_to_vec3(eye_radius, eye_angle0, eye_z0);
+    let eye_to = polar_to_vec3(eye_radius, eye_angle0 + eye_angle_delta, eye_z1);
 
     let target_center = random_edge_target_point(scene_key);
-    let target_delta = Vec3::new(
-        rng.gen_range(-0.06..0.06),
-        rng.gen_range(-0.06..0.06),
-        rng.gen_range(-0.05..0.05),
+    let target_radius = (target_center.x * target_center.x + target_center.y * target_center.y).sqrt();
+    let target_angle_offset = rng.gen_range(-0.22..0.22);
+    let target_z0 = target_center.z;
+    let target_z1 = target_z0 + rng.gen_range(-0.05..0.05);
+    let target_from = polar_to_vec3(target_radius, eye_angle0 + target_angle_offset, target_z0);
+    let target_to = polar_to_vec3(
+        target_radius,
+        eye_angle0 + eye_angle_delta + target_angle_offset,
+        target_z1,
     );
 
     CameraSegment {
-        eye_from: eye_center - 0.5 * eye_delta,
-        eye_to: eye_center + 0.5 * eye_delta,
-        target_from: target_center - 0.5 * target_delta,
-        target_to: target_center + 0.5 * target_delta,
+        eye_from,
+        eye_to,
+        target_from,
+        target_to,
     }
 }
 
 fn follow_along_segment(scene_key: u64) -> CameraSegment {
     let mut rng = seeded_rng(scene_key ^ 0x9327_9A11_2B4F_E55C);
     let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+    const FOLLOW_ANGLE_DELTA_MIN: f32 = 0.24;
+    const FOLLOW_ANGLE_DELTA_MAX: f32 = 0.44;
+    const FOLLOW_EYE_RADIUS_MIN: f32 = 1.6;
+    const FOLLOW_EYE_RADIUS_MAX: f32 = 2.2;
+    const FOLLOW_EYE_Z: f32 = -0.15;
+    const FOLLOW_LOOK_DISTANCE_MIN: f32 = 1.8;
+    const FOLLOW_LOOK_DISTANCE_MAX: f32 = 2.5;
+    const FOLLOW_DOWNWARD_WEIGHT: f32 = 0.55;
 
-    let eye_radius = rng.gen_range(2.3..3.0);
-    let angle0 = rng.gen_range(0.0..std::f32::consts::TAU);
-    let angle_delta = direction * rng.gen_range(0.20..0.45);
-    let angle1 = angle0 + angle_delta;
+    let center = Vec2::new(0.0, 0.0);
+    let eye_dir0 = sample_on_circle(&mut rng);
+    let eye_angle_delta = direction * rng.gen_range(FOLLOW_ANGLE_DELTA_MIN..FOLLOW_ANGLE_DELTA_MAX);
+    let eye_dir1 = rotate_around_center(&eye_dir0, &center, eye_angle_delta);
 
-    let eye_z0 = rng.gen_range(-2.1..-1.2);
-    let eye_z1 = eye_z0 + rng.gen_range(-0.10..0.10);
-    let eye_from = polar_to_vec3(eye_radius, angle0, eye_z0);
-    let eye_to = polar_to_vec3(eye_radius, angle1, eye_z1);
+    let eye_radius = rng.gen_range(FOLLOW_EYE_RADIUS_MIN..FOLLOW_EYE_RADIUS_MAX);
+    let eye_z0 = FOLLOW_EYE_Z;
+    let eye_z1 = FOLLOW_EYE_Z;
+    let eye_from = Vec3::new(eye_radius * eye_dir0.x, eye_radius * eye_dir0.y, eye_z0);
+    let eye_to = Vec3::new(eye_radius * eye_dir1.x, eye_radius * eye_dir1.y, eye_z1);
 
-    let forward_dist = rng.gen_range(0.9..1.5);
-    let inward = rng.gen_range(0.15..0.45);
-    let up = rng.gen_range(1.7..2.5);
-
-    let tangent0 = direction * Vec3::new(-angle0.sin(), angle0.cos(), 0.0);
-    let radial0 = Vec3::new(angle0.cos(), angle0.sin(), 0.0);
-    let target_from = eye_from + forward_dist * tangent0 - inward * radial0 + Vec3::new(0.0, 0.0, up);
-
-    let tangent1 = direction * Vec3::new(-angle1.sin(), angle1.cos(), 0.0);
-    let radial1 = Vec3::new(angle1.cos(), angle1.sin(), 0.0);
-    let target_to = eye_to + forward_dist * tangent1 - inward * radial1 + Vec3::new(0.0, 0.0, up);
+    let look_distance = rng.gen_range(FOLLOW_LOOK_DISTANCE_MIN..FOLLOW_LOOK_DISTANCE_MAX);
+    let target_from = tangential_target_from_eye(
+        eye_from,
+        direction,
+        look_distance,
+        FOLLOW_DOWNWARD_WEIGHT,
+    );
+    let target_to =
+        tangential_target_from_eye(eye_to, direction, look_distance, FOLLOW_DOWNWARD_WEIGHT);
 
     CameraSegment {
         eye_from,
@@ -230,14 +236,14 @@ fn camera_segment(segment: usize) -> CameraSegment {
     let scene_key = segment as u64;
     match choose_camera_style(scene_key) {
         CameraStyle::Edge => edge_segment(scene_key),
-        CameraStyle::FollowAlong => follow_along_segment(scene_key),
+        CameraStyle::Follow => follow_along_segment(scene_key),
     }
 }
 
 fn camera_at(time: f32) -> Mat4x4 {
     let segment_time = (time / CAMERA_SWITCH_SECONDS).max(0.0);
     let segment = segment_time.floor() as usize;
-    let t = smoothstep(segment_time.fract());
+    let t = segment_time.fract();
     let path = camera_segment(segment);
     let eye = lerp_vec3(path.eye_from, path.eye_to, t);
     let target = slerp_vec3(path.target_from, path.target_to, t);
@@ -249,14 +255,47 @@ fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut StdRng) -> Vec2
     Vec2::new(distribution.sample(rng), distribution.sample(rng))
 }
 
+fn sample_on_circle(rng: &mut StdRng) -> Vec2 {
+    let distribution = StandardNormal {};
+    loop {
+        let p = sample_vec2(&distribution, rng);
+        if p.magnitude_squared() > 1.0e-6 {
+            return p.normalize();
+        }
+    }
+}
+
+fn sample_circle_angle(rng: &mut StdRng) -> f32 {
+    let p = sample_on_circle(rng);
+    p.y.atan2(p.x)
+}
+
+fn tangential_target_from_eye(
+    eye: Vec3,
+    direction: f32,
+    distance: f32,
+    downward_weight: f32,
+) -> Vec3 {
+    let up = Vec3::new(0.0, 0.0, 1.0);
+    let radial = Vec3::new(eye.x, eye.y, 0.0);
+    let tangent = direction * cross(&up, &radial);
+    if tangent.norm() > 1.0e-6 && radial.norm() > 1.0e-6 {
+        // In this scene setup, looking "down" toward the surface means +Z.
+        let forward = (tangent.normalize() + downward_weight * up).normalize();
+        eye + distance * forward
+    } else {
+        eye + distance * Vec3::new(1.0, 0.0, 0.2).normalize()
+    }
+}
+
 fn generate_start_positions() -> Vec<Vec2> {
     let mut rng = StdRng::seed_from_u64(20260214);
     let distribution = StandardNormal {};
     let mut positions = Vec::with_capacity(TRACE_COUNT);
     while positions.len() < TRACE_COUNT {
-        let p = 1.2 * sample_vec2(&distribution, &mut rng);
+        let p = 1.65 * sample_vec2(&distribution, &mut rng);
         let r2 = p.magnitude_squared();
-        if r2 > 0.55 * 0.55 && r2 < 2.4 * 2.4 {
+        if r2 > 0.55 * 0.55 && r2 < 3.2 * 3.2 {
             positions.push(p);
         }
     }
@@ -294,10 +333,12 @@ fn render_frame(
 ) {
     camera.model = camera_at(time);
 
-    let moved_positions: Vec<_> = base_positions
-        .iter()
-        .map(|p| rotate_around_center(p, &Vec2::new(0.0, 0.0), FLOW_SPEED * time))
-        .collect();
+    // Keep line seeds static for now (disable flow-based advection).
+    let moved_positions: Vec<_> = base_positions.to_vec();
+    // let moved_positions: Vec<_> = base_positions
+    //     .iter()
+    //     .map(|p| rotate_around_center(p, &Vec2::new(0.0, 0.0), FLOW_SPEED * time))
+    //     .collect();
     let uv_polylines: Vec<_> = moved_positions
         .iter()
         .map(|p| trace_field(field, p, TRACE_LENGTH, TRACE_STEP))
