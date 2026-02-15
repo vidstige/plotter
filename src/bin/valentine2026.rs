@@ -4,6 +4,7 @@ use nalgebra_glm::{cross, dot, identity, look_at, perspective, Mat4x4, Vec2, Vec
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
+use plotter::geometry::{DifferentiableGeometry, Geometry};
 use plotter::polyline::Polyline2;
 use plotter::resolution::Resolution;
 use plotter::skia_utils::draw_polylines;
@@ -240,15 +241,37 @@ fn camera_segment(segment: usize) -> CameraSegment {
     }
 }
 
-fn camera_at(time: f32) -> Mat4x4 {
+fn surface_normal(geometry: &impl DifferentiableGeometry, uv: &Vec2) -> Vec3 {
+    let du = geometry.du().evaluate(&uv);
+    let dv = geometry.dv().evaluate(&uv);
+    let normal = cross(&du, &dv);
+    if normal.magnitude_squared() < 1.0e-6 {
+        return Vec3::new(0.0, 0.0, 1.0);
+    }
+
+    let mut up = normal.normalize();
+    if up.z < 0.0 {
+        up = -up;
+    }
+    up
+}
+
+fn camera_at(time: f32, geometry: &impl DifferentiableGeometry) -> Mat4x4 {
     let segment_time = (time / CAMERA_SWITCH_SECONDS).max(0.0);
     let segment = segment_time.floor() as usize;
     let t = segment_time.fract();
     let path = camera_segment(segment);
     let eye = lerp_vec3(path.eye_from, path.eye_to, t);
     let target = slerp_vec3(path.target_from, path.target_to, t);
+    let mut uv = target.xy();
+    // Avoid the singularity exactly at the center of the hole.
+    let min_r = 0.12_f32;
+    if uv.magnitude_squared() < min_r * min_r {
+        uv = Vec2::new(min_r, 0.0);
+    }
+    let up = surface_normal(geometry, &uv);
 
-    look_at(&eye, &target, &Vec3::new(0.0, 0.0, 1.0))
+    look_at(&eye, &target, &up)
 }
 
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut StdRng) -> Vec2 {
@@ -331,7 +354,7 @@ fn render_frame(
     camera: &mut Camera,
     theme: &Theme<'_>,
 ) {
-    camera.model = camera_at(time);
+    camera.model = camera_at(time, geometry);
 
     // Keep line seeds static for now (disable flow-based advection).
     let moved_positions: Vec<_> = base_positions.to_vec();
