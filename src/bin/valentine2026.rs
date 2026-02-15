@@ -1,6 +1,6 @@
 use std::io::{self, ErrorKind, Write};
 
-use nalgebra_glm::{identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
+use nalgebra_glm::{dot, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
@@ -10,6 +10,7 @@ use plotter::skia_utils::draw_polylines;
 use plotter::uv2xy::reproject;
 use rand::distributions::Distribution;
 use rand::rngs::StdRng;
+use rand::Rng;
 use rand::SeedableRng;
 use rand_distr::StandardNormal;
 use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
@@ -31,16 +32,11 @@ struct Theme<'a> {
 }
 
 #[derive(Copy, Clone)]
-struct CameraPath {
-    radius: f32,
-    base_angle: f32,
-    angular_speed: f32,
-    z_base: f32,
-    z_amplitude: f32,
-    z_speed: f32,
-    target_radius: f32,
-    target_speed: f32,
-    target_z: f32,
+struct CameraSegment {
+    eye_from: Vec3,
+    eye_to: Vec3,
+    target_from: Vec3,
+    target_to: Vec3,
 }
 
 fn invalid_input(message: impl Into<String>) -> io::Error {
@@ -95,84 +91,96 @@ fn initialize_camera(resolution: &Resolution) -> Camera {
     }
 }
 
-fn camera_paths() -> [CameraPath; 5] {
-    [
-        CameraPath {
-            radius: 2.7,
-            base_angle: 0.2,
-            angular_speed: 0.10,
-            z_base: -1.8,
-            z_amplitude: 0.12,
-            z_speed: 0.60,
-            target_radius: 0.22,
-            target_speed: 0.22,
-            target_z: 1.25,
-        },
-        CameraPath {
-            radius: 2.4,
-            base_angle: 1.4,
-            angular_speed: 0.08,
-            z_base: -1.4,
-            z_amplitude: 0.15,
-            z_speed: 0.50,
-            target_radius: 0.16,
-            target_speed: 0.18,
-            target_z: 1.05,
-        },
-        CameraPath {
-            radius: 3.1,
-            base_angle: 2.7,
-            angular_speed: 0.07,
-            z_base: -2.1,
-            z_amplitude: 0.08,
-            z_speed: 0.42,
-            target_radius: 0.20,
-            target_speed: 0.14,
-            target_z: 1.45,
-        },
-        CameraPath {
-            radius: 2.2,
-            base_angle: 4.0,
-            angular_speed: 0.12,
-            z_base: -1.1,
-            z_amplitude: 0.10,
-            z_speed: 0.55,
-            target_radius: 0.10,
-            target_speed: 0.16,
-            target_z: 0.95,
-        },
-        CameraPath {
-            radius: 2.9,
-            base_angle: 5.1,
-            angular_speed: 0.09,
-            z_base: -1.9,
-            z_amplitude: 0.10,
-            z_speed: 0.48,
-            target_radius: 0.24,
-            target_speed: 0.20,
-            target_z: 1.30,
-        },
-    ]
+fn smoothstep(t: f32) -> f32 {
+    let clamped = t.clamp(0.0, 1.0);
+    clamped * clamped * (3.0 - 2.0 * clamped)
+}
+
+fn lerp_vec3(from: Vec3, to: Vec3, t: f32) -> Vec3 {
+    from * (1.0 - t) + to * t
+}
+
+fn slerp_vec3(from: Vec3, to: Vec3, t: f32) -> Vec3 {
+    let from_len = from.norm();
+    let to_len = to.norm();
+    if from_len < 1.0e-5 || to_len < 1.0e-5 {
+        return lerp_vec3(from, to, t);
+    }
+
+    let from_dir = from / from_len;
+    let to_dir = to / to_len;
+    let cos_theta = dot(&from_dir, &to_dir).clamp(-1.0, 1.0);
+
+    let direction = if cos_theta > 0.9995 || cos_theta < -0.9995 {
+        lerp_vec3(from_dir, to_dir, t).normalize()
+    } else {
+        let theta = cos_theta.acos();
+        let inv_sin_theta = 1.0 / theta.sin();
+        let w0 = ((1.0 - t) * theta).sin() * inv_sin_theta;
+        let w1 = (t * theta).sin() * inv_sin_theta;
+        from_dir * w0 + to_dir * w1
+    };
+
+    let radius = from_len * (1.0 - t) + to_len * t;
+    direction * radius
+}
+
+fn seeded_rng(key: u64) -> StdRng {
+    let seed = key
+        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        .wrapping_add(0xD1B5_4A32_D192_ED03);
+    StdRng::seed_from_u64(seed)
+}
+
+fn random_eye_point(key: u64) -> Vec3 {
+    let mut rng = seeded_rng(key ^ 0xE61A_01F5_42D0_A117);
+    let radius = rng.gen_range(2.4..3.2);
+    let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+    let height = rng.gen_range(-2.2..-1.1);
+    Vec3::new(radius * angle.cos(), radius * angle.sin(), height)
+}
+
+fn random_target_point(key: u64) -> Vec3 {
+    let mut rng = seeded_rng(key ^ 0xA9C7_2E11_D0E4_4D21);
+    let radius = rng.gen_range(0.05..0.30);
+    let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+    let height = rng.gen_range(1.0..1.5);
+    Vec3::new(radius * angle.cos(), radius * angle.sin(), height)
+}
+
+fn camera_segment(segment: usize) -> CameraSegment {
+    let scene_key = segment as u64;
+    let mut rng = seeded_rng(scene_key ^ 0x47AA_BF0E_3E8C_91D3);
+
+    let eye_center = random_eye_point(scene_key);
+    let eye_delta = Vec3::new(
+        rng.gen_range(-0.32..0.32),
+        rng.gen_range(-0.32..0.32),
+        rng.gen_range(-0.18..0.18),
+    );
+
+    let target_center = random_target_point(scene_key);
+    let target_delta = Vec3::new(
+        rng.gen_range(-0.06..0.06),
+        rng.gen_range(-0.06..0.06),
+        rng.gen_range(-0.05..0.05),
+    );
+
+    CameraSegment {
+        eye_from: eye_center - 0.5 * eye_delta,
+        eye_to: eye_center + 0.5 * eye_delta,
+        target_from: target_center - 0.5 * target_delta,
+        target_to: target_center + 0.5 * target_delta,
+    }
 }
 
 fn camera_at(time: f32) -> Mat4x4 {
-    let paths = camera_paths();
-    let segment = (time / CAMERA_SWITCH_SECONDS).floor().max(0.0) as usize;
-    let path = paths[segment % paths.len()];
-
-    let angle = path.base_angle + path.angular_speed * time;
-    let eye = Vec3::new(
-        path.radius * angle.cos(),
-        path.radius * angle.sin(),
-        path.z_base + path.z_amplitude * (path.z_speed * time).sin(),
-    );
-
-    let target_angle = path.base_angle * 0.7 + path.target_speed * time;
-    let target = Vec3::new(
-        path.target_radius * target_angle.cos(),
-        path.target_radius * target_angle.sin(),
-        path.target_z,
-    );
+    let segment_time = (time / CAMERA_SWITCH_SECONDS).max(0.0);
+    let segment = segment_time.floor() as usize;
+    let t = smoothstep(segment_time.fract());
+    let path = camera_segment(segment);
+    let eye = lerp_vec3(path.eye_from, path.eye_to, t);
+    let target = slerp_vec3(path.target_from, path.target_to, t);
 
     look_at(&eye, &target, &Vec3::new(0.0, 0.0, 1.0))
 }
