@@ -16,6 +16,10 @@ path = "src/bin/animate.rs"
 name = "plasma"
 path = "src/bin/plasma.rs"
 
+[[bin]]
+name = "valentine2026"
+path = "src/bin/valentine2026.rs"
+
 [dependencies]
 svg = "0.17.0"
 nalgebra-glm = "0.18.0"
