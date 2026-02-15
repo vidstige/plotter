@@ -39,6 +39,12 @@ struct CameraSegment {
     target_to: Vec3,
 }
 
+#[derive(Copy, Clone)]
+enum CameraStyle {
+    Edge,
+    FollowAlong,
+}
+
 fn invalid_input(message: impl Into<String>) -> io::Error {
     io::Error::new(ErrorKind::InvalidInput, message.into())
 }
@@ -132,34 +138,46 @@ fn seeded_rng(key: u64) -> StdRng {
     StdRng::seed_from_u64(seed)
 }
 
-fn random_eye_point(key: u64) -> Vec3 {
+fn polar_to_vec3(radius: f32, angle: f32, z: f32) -> Vec3 {
+    Vec3::new(radius * angle.cos(), radius * angle.sin(), z)
+}
+
+fn choose_camera_style(scene_key: u64) -> CameraStyle {
+    let mut rng = seeded_rng(scene_key ^ 0x68F6_2B44_17C0_DA93);
+    if rng.gen_bool(0.5) {
+        CameraStyle::Edge
+    } else {
+        CameraStyle::FollowAlong
+    }
+}
+
+fn random_edge_eye_point(key: u64) -> Vec3 {
     let mut rng = seeded_rng(key ^ 0xE61A_01F5_42D0_A117);
     let radius = rng.gen_range(2.4..3.2);
     let angle = rng.gen_range(0.0..std::f32::consts::TAU);
     let height = rng.gen_range(-2.2..-1.1);
-    Vec3::new(radius * angle.cos(), radius * angle.sin(), height)
+    polar_to_vec3(radius, angle, height)
 }
 
-fn random_target_point(key: u64) -> Vec3 {
+fn random_edge_target_point(key: u64) -> Vec3 {
     let mut rng = seeded_rng(key ^ 0xA9C7_2E11_D0E4_4D21);
     let radius = rng.gen_range(0.05..0.30);
     let angle = rng.gen_range(0.0..std::f32::consts::TAU);
     let height = rng.gen_range(1.0..1.5);
-    Vec3::new(radius * angle.cos(), radius * angle.sin(), height)
+    polar_to_vec3(radius, angle, height)
 }
 
-fn camera_segment(segment: usize) -> CameraSegment {
-    let scene_key = segment as u64;
+fn edge_segment(scene_key: u64) -> CameraSegment {
     let mut rng = seeded_rng(scene_key ^ 0x47AA_BF0E_3E8C_91D3);
 
-    let eye_center = random_eye_point(scene_key);
+    let eye_center = random_edge_eye_point(scene_key);
     let eye_delta = Vec3::new(
         rng.gen_range(-0.32..0.32),
         rng.gen_range(-0.32..0.32),
         rng.gen_range(-0.18..0.18),
     );
 
-    let target_center = random_target_point(scene_key);
+    let target_center = random_edge_target_point(scene_key);
     let target_delta = Vec3::new(
         rng.gen_range(-0.06..0.06),
         rng.gen_range(-0.06..0.06),
@@ -171,6 +189,48 @@ fn camera_segment(segment: usize) -> CameraSegment {
         eye_to: eye_center + 0.5 * eye_delta,
         target_from: target_center - 0.5 * target_delta,
         target_to: target_center + 0.5 * target_delta,
+    }
+}
+
+fn follow_along_segment(scene_key: u64) -> CameraSegment {
+    let mut rng = seeded_rng(scene_key ^ 0x9327_9A11_2B4F_E55C);
+    let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+
+    let eye_radius = rng.gen_range(2.3..3.0);
+    let angle0 = rng.gen_range(0.0..std::f32::consts::TAU);
+    let angle_delta = direction * rng.gen_range(0.20..0.45);
+    let angle1 = angle0 + angle_delta;
+
+    let eye_z0 = rng.gen_range(-2.1..-1.2);
+    let eye_z1 = eye_z0 + rng.gen_range(-0.10..0.10);
+    let eye_from = polar_to_vec3(eye_radius, angle0, eye_z0);
+    let eye_to = polar_to_vec3(eye_radius, angle1, eye_z1);
+
+    let forward_dist = rng.gen_range(0.9..1.5);
+    let inward = rng.gen_range(0.15..0.45);
+    let up = rng.gen_range(1.7..2.5);
+
+    let tangent0 = direction * Vec3::new(-angle0.sin(), angle0.cos(), 0.0);
+    let radial0 = Vec3::new(angle0.cos(), angle0.sin(), 0.0);
+    let target_from = eye_from + forward_dist * tangent0 - inward * radial0 + Vec3::new(0.0, 0.0, up);
+
+    let tangent1 = direction * Vec3::new(-angle1.sin(), angle1.cos(), 0.0);
+    let radial1 = Vec3::new(angle1.cos(), angle1.sin(), 0.0);
+    let target_to = eye_to + forward_dist * tangent1 - inward * radial1 + Vec3::new(0.0, 0.0, up);
+
+    CameraSegment {
+        eye_from,
+        eye_to,
+        target_from,
+        target_to,
+    }
+}
+
+fn camera_segment(segment: usize) -> CameraSegment {
+    let scene_key = segment as u64;
+    match choose_camera_style(scene_key) {
+        CameraStyle::Edge => edge_segment(scene_key),
+        CameraStyle::FollowAlong => follow_along_segment(scene_key),
     }
 }
 
