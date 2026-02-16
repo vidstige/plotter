@@ -17,9 +17,10 @@ use rand::SeedableRng;
 use rand_distr::StandardNormal;
 use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
 
-const FRAME_COUNT: usize = 1024;
+const FRAME_COUNT: usize = 2048;
 const FPS: f32 = 30.0;
 const CAMERA_SWITCH_BEATS: usize = 1;
+const MIN_BEAT_STRENGTH: f32 = 0.125;
 const TRACE_COUNT: usize = 240;
 const TRACE_LENGTH: usize = 18;
 const TRACE_STEP: f32 = 0.06;
@@ -377,13 +378,13 @@ fn render_frame(
     resolution: &Resolution,
     time: f32,
     geometry: &Hole,
-    audio: &AudioAnalysis,
+    beats: &[Beat],
     field: &Spiral,
     base_positions: &[Vec2],
     camera: &mut Camera,
     theme: &Theme<'_>,
 ) {
-    camera.model = camera_at(time, geometry, audio.beats());
+    camera.model = camera_at(time, geometry, beats);
 
     // Keep line seeds static for now (disable flow-based advection).
     let moved_positions: Vec<_> = base_positions.to_vec();
@@ -421,6 +422,12 @@ fn render_frame(
 fn main() -> io::Result<()> {
     let time = parse_args()?;
     let audio = AudioAnalysis::load_dat_file("every_breath_you_take.dat")?;
+    let beats: Vec<Beat> = audio
+        .beats()
+        .iter()
+        .copied()
+        .filter(|beat| beat.strength >= MIN_BEAT_STRENGTH)
+        .collect();
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
     let geometry = Hole::new();
@@ -436,7 +443,7 @@ fn main() -> io::Result<()> {
             &resolution,
             time,
             &geometry,
-            &audio,
+            &beats,
             &field,
             &base_positions,
             &mut camera,
@@ -454,7 +461,7 @@ fn main() -> io::Result<()> {
             &resolution,
             time,
             &geometry,
-            &audio,
+            &beats,
             &field,
             &base_positions,
             &mut camera,

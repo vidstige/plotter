@@ -96,8 +96,8 @@ impl AudioAnalysis {
     pub fn load_dat_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let mut sections = load_sections(path)?;
 
-        let beats = sections.remove("beats").ok_or_else(|| {
-            io::Error::new(io::ErrorKind::InvalidData, "Missing `beats` section")
+        let beats = sections.remove("percussion").ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "Missing `percussion` section")
         })?;
         let beats: io::Result<Vec<Beat>> = beats
             .into_iter()
@@ -133,14 +133,7 @@ impl AudioAnalysis {
             .collect();
         let beats = beats?;
 
-        let onsets = sections.remove("onsets").ok_or_else(|| {
-            io::Error::new(io::ErrorKind::InvalidData, "Missing `onsets` section")
-        })?;
-        let onsets: io::Result<Vec<f32>> = onsets
-            .into_iter()
-            .map(|value| parse_scalar_value(&value))
-            .collect();
-        let onsets = onsets?;
+        let onsets = Vec::new();
 
         Ok(Self { beats, onsets })
     }
