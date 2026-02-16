@@ -1,7 +1,7 @@
 use std::io::{self, ErrorKind, Write};
 
 use nalgebra_glm::{cross, dot, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
-use plotter::audio_sync::AudioAnalysis;
+use plotter::audio_sync::{AudioAnalysis, Beat};
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
@@ -260,28 +260,28 @@ fn surface_normal(geometry: &impl DifferentiableGeometry, uv: &Vec2) -> Vec3 {
     up
 }
 
-fn camera_segment_from_beats(time: f32, beats: &[f32]) -> usize {
-    let beat_count = beats.partition_point(|beat| *beat <= time);
+fn camera_segment_from_beats(time: f32, beats: &[Beat]) -> usize {
+    let beat_count = beats.partition_point(|beat| beat.time <= time);
     beat_count / CAMERA_SWITCH_BEATS
 }
 
-fn camera_segment_start_time(segment: usize, beats: &[f32]) -> f32 {
+fn camera_segment_start_time(segment: usize, beats: &[Beat]) -> f32 {
     if segment == 0 {
         return 0.0;
     }
     let index = segment * CAMERA_SWITCH_BEATS - 1;
     beats
         .get(index)
-        .copied()
-        .unwrap_or_else(|| beats.last().copied().unwrap_or(0.0))
+        .map(|beat| beat.time)
+        .unwrap_or_else(|| beats.last().map(|beat| beat.time).unwrap_or(0.0))
 }
 
-fn camera_segment_end_time(segment: usize, beats: &[f32], start: f32) -> f32 {
+fn camera_segment_end_time(segment: usize, beats: &[Beat], start: f32) -> f32 {
     let index = (segment + 1) * CAMERA_SWITCH_BEATS - 1;
-    beats.get(index).copied().unwrap_or(start + 2.0)
+    beats.get(index).map(|beat| beat.time).unwrap_or(start + 2.0)
 }
 
-fn camera_at(time: f32, geometry: &impl DifferentiableGeometry, beats: &[f32]) -> Mat4x4 {
+fn camera_at(time: f32, geometry: &impl DifferentiableGeometry, beats: &[Beat]) -> Mat4x4 {
     let time = time.max(0.0);
     let segment = camera_segment_from_beats(time, beats);
     let start = camera_segment_start_time(segment, beats);
