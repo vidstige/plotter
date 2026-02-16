@@ -1,6 +1,7 @@
 use std::io::{self, ErrorKind, Write};
 
 use nalgebra_glm::{cross, dot, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
+use plotter::audio_sync::AudioAnalysis;
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
@@ -16,9 +17,9 @@ use rand::SeedableRng;
 use rand_distr::StandardNormal;
 use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
 
-const FRAME_COUNT: usize = 256;
+const FRAME_COUNT: usize = 1024;
 const FPS: f32 = 30.0;
-const CAMERA_SWITCH_SECONDS: f32 = 2.0;
+const CAMERA_SWITCH_BEATS: usize = 1;
 const TRACE_COUNT: usize = 240;
 const TRACE_LENGTH: usize = 18;
 const TRACE_STEP: f32 = 0.06;
@@ -139,9 +140,12 @@ fn polar_to_vec3(radius: f32, angle: f32, z: f32) -> Vec3 {
 }
 
 fn choose_camera_style(scene_key: u64) -> CameraStyle {
-    let _ = scene_key;
-    // CameraStyle::Edge
-    CameraStyle::Follow
+    let mut rng = seeded_rng(scene_key ^ 0x68F6_2B44_17C0_DA93);
+    if rng.gen_bool(0.5) {
+        CameraStyle::Edge
+    } else {
+        CameraStyle::Follow
+    }
 }
 
 fn random_edge_eye_point(key: u64) -> Vec3 {
@@ -256,10 +260,34 @@ fn surface_normal(geometry: &impl DifferentiableGeometry, uv: &Vec2) -> Vec3 {
     up
 }
 
-fn camera_at(time: f32, geometry: &impl DifferentiableGeometry) -> Mat4x4 {
-    let segment_time = (time / CAMERA_SWITCH_SECONDS).max(0.0);
-    let segment = segment_time.floor() as usize;
-    let t = segment_time.fract();
+fn camera_segment_from_beats(time: f32, beats: &[f32]) -> usize {
+    let beat_count = beats.partition_point(|beat| *beat <= time);
+    beat_count / CAMERA_SWITCH_BEATS
+}
+
+fn camera_segment_start_time(segment: usize, beats: &[f32]) -> f32 {
+    if segment == 0 {
+        return 0.0;
+    }
+    let index = segment * CAMERA_SWITCH_BEATS - 1;
+    beats
+        .get(index)
+        .copied()
+        .unwrap_or_else(|| beats.last().copied().unwrap_or(0.0))
+}
+
+fn camera_segment_end_time(segment: usize, beats: &[f32], start: f32) -> f32 {
+    let index = (segment + 1) * CAMERA_SWITCH_BEATS - 1;
+    beats.get(index).copied().unwrap_or(start + 2.0)
+}
+
+fn camera_at(time: f32, geometry: &impl DifferentiableGeometry, beats: &[f32]) -> Mat4x4 {
+    let time = time.max(0.0);
+    let segment = camera_segment_from_beats(time, beats);
+    let start = camera_segment_start_time(segment, beats);
+    let end = camera_segment_end_time(segment, beats, start);
+    let duration = (end - start).max(1.0e-4);
+    let t = ((time - start) / duration).clamp(0.0, 1.0);
     let path = camera_segment(segment);
     let eye = lerp_vec3(path.eye_from, path.eye_to, t);
     let target = slerp_vec3(path.target_from, path.target_to, t);
@@ -349,12 +377,13 @@ fn render_frame(
     resolution: &Resolution,
     time: f32,
     geometry: &Hole,
+    audio: &AudioAnalysis,
     field: &Spiral,
     base_positions: &[Vec2],
     camera: &mut Camera,
     theme: &Theme<'_>,
 ) {
-    camera.model = camera_at(time, geometry);
+    camera.model = camera_at(time, geometry, audio.beats());
 
     // Keep line seeds static for now (disable flow-based advection).
     let moved_positions: Vec<_> = base_positions.to_vec();
@@ -391,6 +420,7 @@ fn render_frame(
 
 fn main() -> io::Result<()> {
     let time = parse_args()?;
+    let audio = AudioAnalysis::load_dat_file("every_breath_you_take.dat")?;
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
     let geometry = Hole::new();
@@ -406,6 +436,7 @@ fn main() -> io::Result<()> {
             &resolution,
             time,
             &geometry,
+            &audio,
             &field,
             &base_positions,
             &mut camera,
@@ -423,6 +454,7 @@ fn main() -> io::Result<()> {
             &resolution,
             time,
             &geometry,
+            &audio,
             &field,
             &base_positions,
             &mut camera,
