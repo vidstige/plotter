@@ -340,7 +340,7 @@ fn generate_start_positions() -> Vec<Vec2> {
     while positions.len() < TRACE_COUNT {
         let p = 1.65 * sample_vec2(&distribution, &mut rng);
         let r2 = p.magnitude_squared();
-        if r2 > 0.55 * 0.55 && r2 < 3.2 * 3.2 {
+        if r2 > 0.55 * 0.55 {
             positions.push(p);
         }
     }
