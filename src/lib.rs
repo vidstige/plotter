@@ -7,6 +7,7 @@ pub mod geometries {
     pub mod plane;
     pub mod pulse;
     pub mod sphere;
+    pub mod sum;
     pub mod torus;
     mod zero;
 }
