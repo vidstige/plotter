@@ -133,30 +133,30 @@ fn choose_camera_style(scene_key: u64, allow_follow: bool) -> CameraStyle {
 
 fn edge_segment(scene_key: u64, _duration: f32) -> CameraSegment {
     let mut rng = seeded_rng(scene_key ^ 0x47AA_BF0E_3E8C_91D3);
-    const EDGE_EYE_MIN_RADIUS: f32 = 1.6;
-    const EDGE_EYE_RADIUS_RANGE: f32 = 1.7;
-    const EDGE_EYE_STEP: f32 = 0.75;
+    const EYE_RADIUS_MIN: f32 = 2.0;
+    const EYE_RADIUS_MAX: f32 = 3.8;
+    const EDGE_EYE_STEP: f32 = 0.5;
 
     let eye_dir = sample_on_circle(&mut rng);
-    let eye_radius = EDGE_EYE_MIN_RADIUS + rng.gen_range(0.0..EDGE_EYE_RADIUS_RANGE);
+    let eye_radius = rng.gen_range(EYE_RADIUS_MIN..EYE_RADIUS_MAX);
     let eye_from = Vec3::new(
         eye_radius * eye_dir.x,
         eye_radius * eye_dir.y,
-        rng.gen_range(-1.9..-1.2),
+        rng.gen_range(-1.9..-0.2),
     );
 
     let eye_step_dir = sample_on_circle(&mut rng);
     let eye_to = eye_from + Vec3::new(EDGE_EYE_STEP * eye_step_dir.x, EDGE_EYE_STEP * eye_step_dir.y, 0.0);
 
     let target_from = Vec3::new(
-        rng.gen_range(-0.30..0.30),
-        rng.gen_range(-0.30..0.30),
-        rng.gen_range(0.80..1.15),
+        rng.gen_range(-0.10..0.10),
+        rng.gen_range(-0.10..0.10),
+        rng.gen_range(0.80..1.00),
     );
     let target_to = Vec3::new(
-        rng.gen_range(-0.30..0.30),
-        rng.gen_range(-0.30..0.30),
-        rng.gen_range(0.80..1.15),
+        rng.gen_range(-0.10..0.10),
+        rng.gen_range(-0.30..0.10),
+        rng.gen_range(0.80..1.00),
     );
 
     CameraSegment {
