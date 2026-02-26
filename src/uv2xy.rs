@@ -1,4 +1,4 @@
-use nalgebra_glm::{project, Vec2, Vec3};
+use nalgebra_glm::{distance, Vec2, Vec3};
 
 use crate::{
     camera::Camera, eq::NewtonRaphsonOptions, geometry::Geometry, paper::ViewBox, polyline::Polyline2, raytracer::{backproject, Tracer}, sdf::SDF
@@ -13,20 +13,12 @@ fn contains(view_box: &ViewBox, point: &Vec2) -> bool {
 }
 
 // handle occlusions
-fn visible(screen: &Vec3, camera: &Camera, geometry: &impl SDF, tracer: &Tracer) -> bool {
+fn visible(world: &Vec3, screen: &Vec3, camera: &Camera, geometry: &impl SDF, tracer: &Tracer) -> bool {
+    const HIT_EPSILON: f32 = 0.005;
     // back project and ray trace to find occlusions
     let ray = backproject(&screen.xy(), &camera.model, &camera.projection, camera.viewport);
     if let Some(intersection) = tracer.trace(&ray, geometry) {
-        let traced_screen = project(
-            &intersection,
-            &camera.model,
-            &camera.projection,
-            camera.viewport,
-        );
-        // handle occlusions
-        if screen.z - traced_screen.z < 0.00001 {
-            return true;
-        }
+        return distance(world, &intersection) < HIT_EPSILON;
     }
     false
 }
@@ -49,15 +41,18 @@ pub fn reproject<G: Geometry + SDF>(
     let points = polyline
         .points
         .iter()
-        .map(|uv| geometry.evaluate(uv)) // evaluate to 3D point
-        .map(|world| camera.project(world));
+        .map(|uv| {
+            let world = geometry.evaluate(uv); // evaluate to 3D point
+            let screen = camera.project(world);
+            (world, screen)
+        });
 
     let mut polylines = Vec::new();
     let mut current = Polyline2::new();
-    for screen in points {
+    for (world, screen) in points {
         //current.add(screen.xy());
         //if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, &tracer) {
-        if visible(&screen, &camera, geometry, &tracer) {
+        if visible(&world, &screen, &camera, geometry, &tracer) {
             current.add(screen.xy());
         } else {
             polylines.push(current);
