@@ -6,6 +6,8 @@ use plotter::audio_sync::{AudioAnalysis, Beat};
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
+use plotter::geometries::pulse::Pulse;
+use plotter::geometries::sum::Sum;
 use plotter::polyline::Polyline2;
 use plotter::resolution::Resolution;
 use plotter::skia_utils::draw_polylines;
@@ -27,6 +29,12 @@ const TRACE_STEP: f32 = 0.06;
 const FLOW_SPEED: f32 = 0.10;
 const NEAR: f32 = 0.1;
 const FAR: f32 = 10.0;
+const PULSE_AMPLITUDE: f32 = 0.2;
+const PULSE_SIGMA: f32 = 0.8;
+const PULSE_SPEED: f32 = 16.0;
+const PULSE_LAMBDA: f32 = 0.2;
+const PULSE_CYCLES: f32 = 0.4;
+const PULSE_BEAT_PHASE_OFFSET: f32 = 2.0 / (PULSE_SIGMA * PULSE_SPEED);
 
 struct Theme<'a> {
     paint: Paint<'a>,
@@ -253,6 +261,33 @@ fn build_camera_events(beats: &[Beat], claps: &[f32]) -> Vec<f32> {
     events
 }
 
+fn build_beat_times(beats: &[Beat]) -> Vec<f32> {
+    let mut times: Vec<f32> = beats
+        .iter()
+        .map(|beat| beat.time)
+        .filter(|time| time.is_finite())
+        .collect();
+    times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+    times.dedup_by(|a, b| (*a - *b).abs() < 1.0e-4);
+    times
+}
+
+fn pulse_time(time: f32, beat_times: &[f32]) -> f32 {
+    if beat_times.is_empty() {
+        return time + PULSE_BEAT_PHASE_OFFSET;
+    }
+
+    let beat_count = beat_times.partition_point(|beat_time| *beat_time <= time);
+    let time_since_beat = if beat_count == 0 {
+        // Allow negative local time before the first beat so pulse is pre-rolled into the hit.
+        time - beat_times[0]
+    } else {
+        time - beat_times[beat_count - 1]
+    };
+
+    time_since_beat + PULSE_BEAT_PHASE_OFFSET
+}
+
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut StdRng) -> Vec2 {
     Vec2::new(distribution.sample(rng), distribution.sample(rng))
 }
@@ -322,13 +357,25 @@ fn render_frame(
     pixmap: &mut Pixmap,
     resolution: &Resolution,
     time: f32,
-    geometry: &Hole,
+    beat_times: &[f32],
     events: &[f32],
     field: &Spiral,
     base_positions: &[Vec2],
     camera: &mut Camera,
     theme: &Theme<'_>,
 ) {
+    let geometry = Sum::new(
+        Hole::new(),
+        Pulse {
+            amplitude: PULSE_AMPLITUDE,
+            sigma: PULSE_SIGMA,
+            c: PULSE_SPEED,
+            lambda: PULSE_LAMBDA,
+            cycles: PULSE_CYCLES,
+            t: pulse_time(time, beat_times),
+        },
+    );
+
     camera.model = camera_at(time, events);
 
     // Keep line seeds static for now (disable flow-based advection).
@@ -346,7 +393,7 @@ fn render_frame(
     for uv_polyline in &uv_polylines {
         polylines.extend(reproject(
             uv_polyline,
-            geometry,
+            &geometry,
             camera,
             (0, 0, resolution.width as i32, resolution.height as i32),
             NEAR,
@@ -373,10 +420,10 @@ fn main() -> io::Result<()> {
         .copied()
         .filter(|beat| beat.strength >= MIN_BEAT_STRENGTH)
         .collect();
+    let beat_times = build_beat_times(&beats);
     let camera_events = build_camera_events(&beats, audio.onsets());
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
-    let geometry = Hole::new();
     let field = Spiral::new(Vec2::new(0.0, 0.0));
     let base_positions = generate_start_positions();
     let theme = black_and_white();
@@ -388,7 +435,7 @@ fn main() -> io::Result<()> {
             &mut pixmap,
             &resolution,
             time,
-            &geometry,
+            &beat_times,
             &camera_events,
             &field,
             &base_positions,
@@ -406,7 +453,7 @@ fn main() -> io::Result<()> {
             &mut pixmap,
             &resolution,
             time,
-            &geometry,
+            &beat_times,
             &camera_events,
             &field,
             &base_positions,
