@@ -22,6 +22,7 @@ use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
 const FRAME_COUNT: usize = 2048;
 const FPS: f32 = 30.0;
 const CAMERA_SWITCH_EVENTS: usize = 1;
+const BEATS_PER_CAMERA_SWITCH: usize = 4;
 const MIN_BEAT_STRENGTH: f32 = 0.125;
 const TRACE_COUNT: usize = 240;
 const TRACE_LENGTH: usize = 18;
@@ -119,7 +120,10 @@ fn seeded_rng(key: u64) -> StdRng {
     StdRng::seed_from_u64(seed)
 }
 
-fn choose_camera_style(scene_key: u64) -> CameraStyle {
+fn choose_camera_style(scene_key: u64, allow_follow: bool) -> CameraStyle {
+    if !allow_follow {
+        return CameraStyle::Edge;
+    }
     let mut rng = seeded_rng(scene_key ^ 0x68F6_2B44_17C0_DA93);
     if rng.gen_bool(0.5) {
         CameraStyle::Edge
@@ -205,9 +209,9 @@ fn follow_along_segment(scene_key: u64) -> CameraSegment {
     }
 }
 
-fn camera_segment(segment: usize, duration: f32) -> CameraSegment {
+fn camera_segment(segment: usize, duration: f32, allow_follow: bool) -> CameraSegment {
     let scene_key = segment as u64;
-    match choose_camera_style(scene_key) {
+    match choose_camera_style(scene_key, allow_follow) {
         CameraStyle::Edge => edge_segment(scene_key, duration),
         CameraStyle::Follow => follow_along_segment(scene_key),
     }
@@ -234,14 +238,22 @@ fn camera_segment_end_time(segment: usize, events: &[f32], start: f32) -> f32 {
     events.get(index).copied().unwrap_or(start + 2.0)
 }
 
-fn camera_at(time: f32, events: &[f32]) -> Mat4x4 {
+fn is_beat_time(time: f32, beat_times: &[f32]) -> bool {
+    beat_times
+        .iter()
+        .any(|beat_time| (*beat_time - time).abs() < 1.0e-4)
+}
+
+fn camera_at(time: f32, events: &[f32], beat_times: &[f32]) -> Mat4x4 {
     let time = time.max(0.0);
     let segment = camera_segment_from_events(time, events);
     let start = camera_segment_start_time(segment, events);
     let end = camera_segment_end_time(segment, events, start);
     let duration = (end - start).max(1.0e-4);
     let t = ((time - start) / duration).clamp(0.0, 1.0);
-    let path = camera_segment(segment, duration);
+    // If this segment starts on a beat event, don't use follow-along motion.
+    let allow_follow = !(segment > 0 && is_beat_time(start, beat_times));
+    let path = camera_segment(segment, duration, allow_follow);
     let eye = lerp_vec3(path.eye_from, path.eye_to, t);
     let target = lerp_vec3(path.target_from, path.target_to, t);
     let up = Vec3::new(0.0, 0.0, 1.0);
@@ -252,7 +264,9 @@ fn camera_at(time: f32, events: &[f32]) -> Mat4x4 {
 fn build_camera_events(beats: &[Beat], claps: &[f32]) -> Vec<f32> {
     let mut events: Vec<f32> = beats
         .iter()
-        .map(|beat| beat.time)
+        .enumerate()
+        .filter(|(index, _)| index % BEATS_PER_CAMERA_SWITCH == 0)
+        .map(|(_, beat)| beat.time)
         .filter(|time| time.is_finite())
         .collect();
     events.extend(claps.iter().copied().filter(|time| time.is_finite()));
@@ -376,7 +390,7 @@ fn render_frame(
         },
     );
 
-    camera.model = camera_at(time, events);
+    camera.model = camera_at(time, events, beat_times);
 
     // Keep line seeds static for now (disable flow-based advection).
     let moved_positions: Vec<_> = base_positions.to_vec();
