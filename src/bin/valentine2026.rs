@@ -111,10 +111,6 @@ fn seeded_rng(key: u64) -> StdRng {
     StdRng::seed_from_u64(seed)
 }
 
-fn polar_to_vec3(radius: f32, angle: f32, z: f32) -> Vec3 {
-    Vec3::new(radius * angle.cos(), radius * angle.sin(), z)
-}
-
 fn choose_camera_style(scene_key: u64) -> CameraStyle {
     let mut rng = seeded_rng(scene_key ^ 0x68F6_2B44_17C0_DA93);
     if rng.gen_bool(0.5) {
@@ -124,24 +120,33 @@ fn choose_camera_style(scene_key: u64) -> CameraStyle {
     }
 }
 
-fn edge_segment(scene_key: u64, duration: f32) -> CameraSegment {
+fn edge_segment(scene_key: u64, _duration: f32) -> CameraSegment {
     let mut rng = seeded_rng(scene_key ^ 0x47AA_BF0E_3E8C_91D3);
-    let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
-    const EDGE_ANGULAR_SPEED: f32 = 0.42;
-    const EDGE_LOOK_AHEAD_ANGLE: f32 = 0.25;
+    const EDGE_EYE_MIN_RADIUS: f32 = 1.6;
+    const EDGE_EYE_RADIUS_RANGE: f32 = 1.7;
+    const EDGE_EYE_STEP: f32 = 0.75;
 
-    let eye_radius = rng.gen_range(2.4..3.1);
-    let eye_angle0 = sample_circle_angle(&mut rng);
-    let eye_angle_delta = direction * EDGE_ANGULAR_SPEED * duration;
-    let eye_z = rng.gen_range(-1.9..-1.2);
-    let eye_from = polar_to_vec3(eye_radius, eye_angle0, eye_z);
-    let eye_to = polar_to_vec3(eye_radius, eye_angle0 + eye_angle_delta, eye_z);
+    let eye_dir = sample_on_circle(&mut rng);
+    let eye_radius = EDGE_EYE_MIN_RADIUS + rng.gen_range(0.0..EDGE_EYE_RADIUS_RANGE);
+    let eye_from = Vec3::new(
+        eye_radius * eye_dir.x,
+        eye_radius * eye_dir.y,
+        rng.gen_range(-1.9..-1.2),
+    );
 
-    let target_radius = rng.gen_range(0.35..0.75);
-    let target_z = rng.gen_range(0.8..1.2);
-    let lead = direction * EDGE_LOOK_AHEAD_ANGLE;
-    let target_from = polar_to_vec3(target_radius, eye_angle0 + lead, target_z);
-    let target_to = polar_to_vec3(target_radius, eye_angle0 + eye_angle_delta + lead, target_z);
+    let eye_step_dir = sample_on_circle(&mut rng);
+    let eye_to = eye_from + Vec3::new(EDGE_EYE_STEP * eye_step_dir.x, EDGE_EYE_STEP * eye_step_dir.y, 0.0);
+
+    let target_from = Vec3::new(
+        rng.gen_range(-0.30..0.30),
+        rng.gen_range(-0.30..0.30),
+        rng.gen_range(0.80..1.15),
+    );
+    let target_to = Vec3::new(
+        rng.gen_range(-0.30..0.30),
+        rng.gen_range(-0.30..0.30),
+        rng.gen_range(0.80..1.15),
+    );
 
     CameraSegment {
         eye_from,
@@ -260,11 +265,6 @@ fn sample_on_circle(rng: &mut StdRng) -> Vec2 {
             return p.normalize();
         }
     }
-}
-
-fn sample_circle_angle(rng: &mut StdRng) -> f32 {
-    let p = sample_on_circle(rng);
-    p.y.atan2(p.x)
 }
 
 fn tangential_target_from_eye(
