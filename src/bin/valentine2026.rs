@@ -371,10 +371,9 @@ fn render_frame(
     resolution: &Resolution,
     time: f32,
     beat_times: &[f32],
-    events: &[f32],
     field: &Spiral,
     base_positions: &[Vec2],
-    camera: &mut Camera,
+    camera: &Camera,
     theme: &Theme<'_>,
 ) {
     let geometry = Sum::new(
@@ -388,8 +387,6 @@ fn render_frame(
             t: pulse_time(time, beat_times),
         },
     );
-
-    camera.model = camera_at(time, events, beat_times);
 
     // Keep line seeds static for now (disable flow-based advection).
     let moved_positions: Vec<_> = base_positions.to_vec();
@@ -439,15 +436,15 @@ fn main() -> io::Result<()> {
     let mut output = io::stdout().lock();
 
     if let Some(time) = time {
+        camera.model = camera_at(time, &camera_events, &beat_times);
         render_frame(
             &mut pixmap,
             &resolution,
             time,
             &beat_times,
-            &camera_events,
             &field,
             &base_positions,
-            &mut camera,
+            &camera,
             &theme,
         );
         output.write_all(pixmap.data())?;
@@ -457,15 +454,15 @@ fn main() -> io::Result<()> {
 
     for frame in 0..FRAME_COUNT {
         let time = frame as f32 / FPS;
+        camera.model = camera_at(time, &camera_events, &beat_times);
         render_frame(
             &mut pixmap,
             &resolution,
             time,
             &beat_times,
-            &camera_events,
             &field,
             &base_positions,
-            &mut camera,
+            &camera,
             &theme,
         );
         output.write_all(pixmap.data())?;
