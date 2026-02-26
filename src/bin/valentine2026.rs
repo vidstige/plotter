@@ -1,11 +1,11 @@
+use std::cmp::Ordering;
 use std::io::{self, ErrorKind, Write};
 
-use nalgebra_glm::{cross, dot, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
+use nalgebra_glm::{cross, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
 use plotter::audio_sync::{AudioAnalysis, Beat};
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
-use plotter::geometry::{DifferentiableGeometry, Geometry};
 use plotter::polyline::Polyline2;
 use plotter::resolution::Resolution;
 use plotter::skia_utils::draw_polylines;
@@ -19,7 +19,7 @@ use tiny_skia::{Color, Paint, Pixmap, Stroke, Transform};
 
 const FRAME_COUNT: usize = 2048;
 const FPS: f32 = 30.0;
-const CAMERA_SWITCH_BEATS: usize = 1;
+const CAMERA_SWITCH_EVENTS: usize = 1;
 const MIN_BEAT_STRENGTH: f32 = 0.125;
 const TRACE_COUNT: usize = 240;
 const TRACE_LENGTH: usize = 18;
@@ -104,31 +104,6 @@ fn lerp_vec3(from: Vec3, to: Vec3, t: f32) -> Vec3 {
     from * (1.0 - t) + to * t
 }
 
-fn slerp_vec3(from: Vec3, to: Vec3, t: f32) -> Vec3 {
-    let from_len = from.norm();
-    let to_len = to.norm();
-    if from_len < 1.0e-5 || to_len < 1.0e-5 {
-        return lerp_vec3(from, to, t);
-    }
-
-    let from_dir = from / from_len;
-    let to_dir = to / to_len;
-    let cos_theta = dot(&from_dir, &to_dir).clamp(-1.0, 1.0);
-
-    let direction = if cos_theta > 0.9995 || cos_theta < -0.9995 {
-        lerp_vec3(from_dir, to_dir, t).normalize()
-    } else {
-        let theta = cos_theta.acos();
-        let inv_sin_theta = 1.0 / theta.sin();
-        let w0 = ((1.0 - t) * theta).sin() * inv_sin_theta;
-        let w1 = (t * theta).sin() * inv_sin_theta;
-        from_dir * w0 + to_dir * w1
-    };
-
-    let radius = from_len * (1.0 - t) + to_len * t;
-    direction * radius
-}
-
 fn seeded_rng(key: u64) -> StdRng {
     let seed = key
         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
@@ -149,45 +124,24 @@ fn choose_camera_style(scene_key: u64) -> CameraStyle {
     }
 }
 
-fn random_edge_eye_point(key: u64) -> Vec3 {
-    let mut rng = seeded_rng(key ^ 0xE61A_01F5_42D0_A117);
-    let radius = rng.gen_range(2.4..3.2);
-    let angle = sample_circle_angle(&mut rng);
-    let height = rng.gen_range(-2.2..-1.1);
-    polar_to_vec3(radius, angle, height)
-}
-
-fn random_edge_target_point(key: u64) -> Vec3 {
-    let mut rng = seeded_rng(key ^ 0xA9C7_2E11_D0E4_4D21);
-    let radius = rng.gen_range(0.05..0.30);
-    let angle = sample_circle_angle(&mut rng);
-    let height = rng.gen_range(1.0..1.5);
-    polar_to_vec3(radius, angle, height)
-}
-
-fn edge_segment(scene_key: u64) -> CameraSegment {
+fn edge_segment(scene_key: u64, duration: f32) -> CameraSegment {
     let mut rng = seeded_rng(scene_key ^ 0x47AA_BF0E_3E8C_91D3);
     let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
-    let eye_center = random_edge_eye_point(scene_key);
-    let eye_radius = (eye_center.x * eye_center.x + eye_center.y * eye_center.y).sqrt();
-    let eye_angle0 = eye_center.y.atan2(eye_center.x);
-    let eye_angle_delta = direction * rng.gen_range(0.10..0.28);
-    let eye_z0 = eye_center.z;
-    let eye_z1 = eye_z0 + rng.gen_range(-0.08..0.08);
-    let eye_from = polar_to_vec3(eye_radius, eye_angle0, eye_z0);
-    let eye_to = polar_to_vec3(eye_radius, eye_angle0 + eye_angle_delta, eye_z1);
+    const EDGE_ANGULAR_SPEED: f32 = 0.42;
+    const EDGE_LOOK_AHEAD_ANGLE: f32 = 0.25;
 
-    let target_center = random_edge_target_point(scene_key);
-    let target_radius = (target_center.x * target_center.x + target_center.y * target_center.y).sqrt();
-    let target_angle_offset = rng.gen_range(-0.22..0.22);
-    let target_z0 = target_center.z;
-    let target_z1 = target_z0 + rng.gen_range(-0.05..0.05);
-    let target_from = polar_to_vec3(target_radius, eye_angle0 + target_angle_offset, target_z0);
-    let target_to = polar_to_vec3(
-        target_radius,
-        eye_angle0 + eye_angle_delta + target_angle_offset,
-        target_z1,
-    );
+    let eye_radius = rng.gen_range(2.4..3.1);
+    let eye_angle0 = sample_circle_angle(&mut rng);
+    let eye_angle_delta = direction * EDGE_ANGULAR_SPEED * duration;
+    let eye_z = rng.gen_range(-1.9..-1.2);
+    let eye_from = polar_to_vec3(eye_radius, eye_angle0, eye_z);
+    let eye_to = polar_to_vec3(eye_radius, eye_angle0 + eye_angle_delta, eye_z);
+
+    let target_radius = rng.gen_range(0.35..0.75);
+    let target_z = rng.gen_range(0.8..1.2);
+    let lead = direction * EDGE_LOOK_AHEAD_ANGLE;
+    let target_from = polar_to_vec3(target_radius, eye_angle0 + lead, target_z);
+    let target_to = polar_to_vec3(target_radius, eye_angle0 + eye_angle_delta + lead, target_z);
 
     CameraSegment {
         eye_from,
@@ -238,69 +192,60 @@ fn follow_along_segment(scene_key: u64) -> CameraSegment {
     }
 }
 
-fn camera_segment(segment: usize) -> CameraSegment {
+fn camera_segment(segment: usize, duration: f32) -> CameraSegment {
     let scene_key = segment as u64;
     match choose_camera_style(scene_key) {
-        CameraStyle::Edge => edge_segment(scene_key),
+        CameraStyle::Edge => edge_segment(scene_key, duration),
         CameraStyle::Follow => follow_along_segment(scene_key),
     }
 }
 
-fn surface_normal(geometry: &impl DifferentiableGeometry, uv: &Vec2) -> Vec3 {
-    let du = geometry.du().evaluate(&uv);
-    let dv = geometry.dv().evaluate(&uv);
-    let normal = cross(&du, &dv);
-    if normal.magnitude_squared() < 1.0e-6 {
-        return Vec3::new(0.0, 0.0, 1.0);
-    }
-
-    let mut up = normal.normalize();
-    if up.z < 0.0 {
-        up = -up;
-    }
-    up
+fn camera_segment_from_events(time: f32, events: &[f32]) -> usize {
+    let event_count = events.partition_point(|event| *event <= time);
+    event_count / CAMERA_SWITCH_EVENTS
 }
 
-fn camera_segment_from_beats(time: f32, beats: &[Beat]) -> usize {
-    let beat_count = beats.partition_point(|beat| beat.time <= time);
-    beat_count / CAMERA_SWITCH_BEATS
-}
-
-fn camera_segment_start_time(segment: usize, beats: &[Beat]) -> f32 {
+fn camera_segment_start_time(segment: usize, events: &[f32]) -> f32 {
     if segment == 0 {
         return 0.0;
     }
-    let index = segment * CAMERA_SWITCH_BEATS - 1;
-    beats
+    let index = segment * CAMERA_SWITCH_EVENTS - 1;
+    events
         .get(index)
-        .map(|beat| beat.time)
-        .unwrap_or_else(|| beats.last().map(|beat| beat.time).unwrap_or(0.0))
+        .copied()
+        .unwrap_or_else(|| events.last().copied().unwrap_or(0.0))
 }
 
-fn camera_segment_end_time(segment: usize, beats: &[Beat], start: f32) -> f32 {
-    let index = (segment + 1) * CAMERA_SWITCH_BEATS - 1;
-    beats.get(index).map(|beat| beat.time).unwrap_or(start + 2.0)
+fn camera_segment_end_time(segment: usize, events: &[f32], start: f32) -> f32 {
+    let index = (segment + 1) * CAMERA_SWITCH_EVENTS - 1;
+    events.get(index).copied().unwrap_or(start + 2.0)
 }
 
-fn camera_at(time: f32, geometry: &impl DifferentiableGeometry, beats: &[Beat]) -> Mat4x4 {
+fn camera_at(time: f32, events: &[f32]) -> Mat4x4 {
     let time = time.max(0.0);
-    let segment = camera_segment_from_beats(time, beats);
-    let start = camera_segment_start_time(segment, beats);
-    let end = camera_segment_end_time(segment, beats, start);
+    let segment = camera_segment_from_events(time, events);
+    let start = camera_segment_start_time(segment, events);
+    let end = camera_segment_end_time(segment, events, start);
     let duration = (end - start).max(1.0e-4);
     let t = ((time - start) / duration).clamp(0.0, 1.0);
-    let path = camera_segment(segment);
+    let path = camera_segment(segment, duration);
     let eye = lerp_vec3(path.eye_from, path.eye_to, t);
-    let target = slerp_vec3(path.target_from, path.target_to, t);
-    let mut uv = target.xy();
-    // Avoid the singularity exactly at the center of the hole.
-    let min_r = 0.12_f32;
-    if uv.magnitude_squared() < min_r * min_r {
-        uv = Vec2::new(min_r, 0.0);
-    }
-    let up = surface_normal(geometry, &uv);
+    let target = lerp_vec3(path.target_from, path.target_to, t);
+    let up = Vec3::new(0.0, 0.0, 1.0);
 
     look_at(&eye, &target, &up)
+}
+
+fn build_camera_events(beats: &[Beat], claps: &[f32]) -> Vec<f32> {
+    let mut events: Vec<f32> = beats
+        .iter()
+        .map(|beat| beat.time)
+        .filter(|time| time.is_finite())
+        .collect();
+    events.extend(claps.iter().copied().filter(|time| time.is_finite()));
+    events.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+    events.dedup_by(|a, b| (*a - *b).abs() < 1.0e-4);
+    events
 }
 
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut StdRng) -> Vec2 {
@@ -378,13 +323,13 @@ fn render_frame(
     resolution: &Resolution,
     time: f32,
     geometry: &Hole,
-    beats: &[Beat],
+    events: &[f32],
     field: &Spiral,
     base_positions: &[Vec2],
     camera: &mut Camera,
     theme: &Theme<'_>,
 ) {
-    camera.model = camera_at(time, geometry, beats);
+    camera.model = camera_at(time, events);
 
     // Keep line seeds static for now (disable flow-based advection).
     let moved_positions: Vec<_> = base_positions.to_vec();
@@ -428,6 +373,7 @@ fn main() -> io::Result<()> {
         .copied()
         .filter(|beat| beat.strength >= MIN_BEAT_STRENGTH)
         .collect();
+    let camera_events = build_camera_events(&beats, audio.onsets());
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
     let geometry = Hole::new();
@@ -443,7 +389,7 @@ fn main() -> io::Result<()> {
             &resolution,
             time,
             &geometry,
-            &beats,
+            &camera_events,
             &field,
             &base_positions,
             &mut camera,
@@ -461,7 +407,7 @@ fn main() -> io::Result<()> {
             &resolution,
             time,
             &geometry,
-            &beats,
+            &camera_events,
             &field,
             &base_positions,
             &mut camera,
