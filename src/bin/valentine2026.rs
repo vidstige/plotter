@@ -301,6 +301,20 @@ fn pulse_time(time: f32, beat_times: &[f32]) -> f32 {
     time_since_beat + PULSE_BEAT_PHASE_OFFSET
 }
 
+fn geometry_at(time: f32, beat_times: &[f32]) -> Sum<Hole, Pulse> {
+    Sum::new(
+        Hole::new(),
+        Pulse {
+            amplitude: PULSE_AMPLITUDE,
+            sigma: PULSE_SIGMA,
+            c: PULSE_SPEED,
+            lambda: PULSE_LAMBDA,
+            cycles: PULSE_CYCLES,
+            t: pulse_time(time, beat_times),
+        },
+    )
+}
+
 fn sample_vec2<D: Distribution<f32>>(distribution: &D, rng: &mut StdRng) -> Vec2 {
     Vec2::new(distribution.sample(rng), distribution.sample(rng))
 }
@@ -369,25 +383,12 @@ fn trace_field(field: &Spiral, position: &Vec2, n: usize, dt: f32) -> Polyline2 
 fn render_frame(
     pixmap: &mut Pixmap,
     resolution: &Resolution,
-    time: f32,
-    beat_times: &[f32],
+    geometry: &Sum<Hole, Pulse>,
     field: &Spiral,
     base_positions: &[Vec2],
     camera: &Camera,
     theme: &Theme<'_>,
 ) {
-    let geometry = Sum::new(
-        Hole::new(),
-        Pulse {
-            amplitude: PULSE_AMPLITUDE,
-            sigma: PULSE_SIGMA,
-            c: PULSE_SPEED,
-            lambda: PULSE_LAMBDA,
-            cycles: PULSE_CYCLES,
-            t: pulse_time(time, beat_times),
-        },
-    );
-
     // Keep line seeds static for now (disable flow-based advection).
     let moved_positions: Vec<_> = base_positions.to_vec();
     // let moved_positions: Vec<_> = base_positions
@@ -403,7 +404,7 @@ fn render_frame(
     for uv_polyline in &uv_polylines {
         polylines.extend(reproject(
             uv_polyline,
-            &geometry,
+            geometry,
             camera,
             (0, 0, resolution.width as i32, resolution.height as i32),
             NEAR,
@@ -437,11 +438,11 @@ fn main() -> io::Result<()> {
 
     if let Some(time) = time {
         camera.model = camera_at(time, &camera_events, &beat_times);
+        let geometry = geometry_at(time, &beat_times);
         render_frame(
             &mut pixmap,
             &resolution,
-            time,
-            &beat_times,
+            &geometry,
             &field,
             &base_positions,
             &camera,
@@ -455,11 +456,11 @@ fn main() -> io::Result<()> {
     for frame in 0..FRAME_COUNT {
         let time = frame as f32 / FPS;
         camera.model = camera_at(time, &camera_events, &beat_times);
+        let geometry = geometry_at(time, &beat_times);
         render_frame(
             &mut pixmap,
             &resolution,
-            time,
-            &beat_times,
+            &geometry,
             &field,
             &base_positions,
             &camera,
