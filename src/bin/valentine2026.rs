@@ -23,7 +23,6 @@ const FRAME_COUNT: usize = 2048;
 const FPS: f32 = 30.0;
 const CAMERA_SWITCH_EVENTS: usize = 1;
 const BEATS_PER_CAMERA_SWITCH: usize = 4;
-const MIN_BEAT_STRENGTH: f32 = 0.125;
 const TRACE_COUNT: usize = 240;
 const TRACE_LENGTH: usize = 18;
 const TRACE_STEP: f32 = 0.06;
@@ -428,12 +427,7 @@ fn render_frame(
 fn main() -> io::Result<()> {
     let time = parse_args()?;
     let audio = AudioAnalysis::load_dat_file("every_breath_you_take.dat")?;
-    let beats: Vec<Beat> = audio
-        .beats()
-        .iter()
-        .copied()
-        .filter(|beat| beat.strength >= MIN_BEAT_STRENGTH)
-        .collect();
+    let beats: Vec<Beat> = audio.beats().iter().copied().collect();
     let beat_times = build_beat_times(&beats);
     let camera_events = build_camera_events(&beats, audio.onsets());
     let resolution = Resolution::new(720, 720);
