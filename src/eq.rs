@@ -2,8 +2,8 @@ pub fn linesearch<F: Fn(f32) -> f32>(f: F, lo: f32, hi: f32, steps: usize) -> Op
     let step_length = (hi - lo) / steps as f32;
     let mut x0 = lo;
     let mut f0 = f(x0);
-    for step in 0..steps {
-        let x = step as f32 * step_length;
+    for step in 1..=steps {
+        let x = lo + step as f32 * step_length;
         let fx = f(x);
         if (f0 < 0.0) != (fx < 0.0) {
             // root range found!
