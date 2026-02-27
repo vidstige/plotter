@@ -3,7 +3,7 @@ use std::f32::consts::TAU;
 use std::io::{self, ErrorKind, Write};
 
 use nalgebra_glm::{cross, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
-use plotter::audio_sync::{AudioAnalysis, Beat};
+use plotter::audio_sync::AudioAnalysis;
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
@@ -260,12 +260,12 @@ fn camera_at(time: f32, camera_segments: &[(f32, CameraSegment)]) -> Mat4x4 {
     camera_model_at(segment, segment_index as u64, local_time, duration)
 }
 
-fn build_camera_events(beats: &[Beat], claps: &[f32]) -> Vec<f32> {
-    let mut events: Vec<f32> = beats
+fn build_camera_events(beat_times: &[f32], claps: &[f32]) -> Vec<f32> {
+    let mut events: Vec<f32> = beat_times
         .iter()
         .enumerate()
         .filter(|(index, _)| index % BEATS_PER_CAMERA_SWITCH == 0)
-        .map(|(_, beat)| beat.time)
+        .map(|(_, beat_time)| *beat_time)
         .filter(|time| time.is_finite())
         .collect();
     events.extend(claps.iter().copied().filter(|time| time.is_finite()));
@@ -274,10 +274,10 @@ fn build_camera_events(beats: &[Beat], claps: &[f32]) -> Vec<f32> {
     events
 }
 
-fn build_beat_times(beats: &[Beat]) -> Vec<f32> {
-    let mut times: Vec<f32> = beats
+fn build_beat_times(raw_beat_times: &[f32]) -> Vec<f32> {
+    let mut times: Vec<f32> = raw_beat_times
         .iter()
-        .map(|beat| beat.time)
+        .copied()
         .filter(|time| time.is_finite())
         .collect();
     times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
@@ -490,9 +490,8 @@ fn render_frame(
 fn main() -> io::Result<()> {
     let time = parse_args()?;
     let audio = AudioAnalysis::load_dat_file("every_breath_you_take.dat")?;
-    let beats: Vec<Beat> = audio.beats().iter().copied().collect();
-    let beat_times = build_beat_times(&beats);
-    let camera_events = build_camera_events(&beats, audio.onsets());
+    let beat_times = build_beat_times(audio.beats());
+    let camera_events = build_camera_events(&beat_times, audio.onsets());
     let camera_segments = build_camera_segments(&camera_events, &beat_times);
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);

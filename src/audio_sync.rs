@@ -5,15 +5,9 @@ use std::{
     path::Path,
 };
 
-#[derive(Debug, Clone, Copy)]
-pub struct Beat {
-    pub time: f32,
-    pub strength: f32,
-}
-
 #[derive(Debug, Default)]
 pub struct AudioAnalysis {
-    beats: Vec<Beat>,
+    beats: Vec<f32>,
     onsets: Vec<f32>,
 }
 
@@ -99,39 +93,10 @@ impl AudioAnalysis {
         let beats = sections
             .remove("beat")
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Missing `beat` section"))?;
-        let beats: io::Result<Vec<Beat>> = beats
+        let beats: Vec<f32> = beats
             .into_iter()
-            .map(|value| {
-                let mut parts = value.split(',').map(str::trim);
-                let time = parts.next().ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::InvalidData, "Missing beat time")
-                })?;
-                let strength = parts.next().unwrap_or("1.0");
-
-                if parts.next().is_some() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Unexpected extra beat fields",
-                    ));
-                }
-
-                let time = time.parse::<f32>().map_err(|err| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("Failed to parse beat time `{}`: {}", time, err),
-                    )
-                })?;
-                let strength = strength.parse::<f32>().map_err(|err| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("Failed to parse beat strength `{}`: {}", strength, err),
-                    )
-                })?;
-
-                Ok(Beat { time, strength })
-            })
-            .collect();
-        let beats = beats?;
+            .map(|value| parse_scalar_value(&value))
+            .collect::<io::Result<Vec<f32>>>()?;
 
         let claps = sections
             .remove("claps")
@@ -145,7 +110,7 @@ impl AudioAnalysis {
         Ok(Self { beats, onsets })
     }
 
-    pub fn beats(&self) -> &[Beat] {
+    pub fn beats(&self) -> &[f32] {
         &self.beats
     }
 
