@@ -1,7 +1,7 @@
 use nalgebra_glm::{distance, Vec3};
 
 use crate::{
-    camera::Camera, eq::NewtonRaphsonOptions, geometry::Geometry, paper::ViewBox, polyline::Polyline2, raytracer::{backproject, Tracer}, sdf::SDF
+    camera::Camera, eq::NewtonRaphsonOptions, geometry::Geometry, paper::ViewBox, polyline::{Polyline2, Polyline3}, raytracer::{backproject, Tracer}, sdf::SDF
 };
 
 fn in_front_of_camera(screen: &Vec3) -> bool {
@@ -19,7 +19,7 @@ fn visible(world: &Vec3, screen: &Vec3, camera: &Camera, geometry: &impl SDF, tr
     false
 }
 
-// Takes uv-coordinates and returns xy-cordinates
+// Takes uv-coordinates and returns projected screen-space coordinates.
 // 1. Evaluates geometry
 // 2. Project using camera
 // 3. Drop points behind the camera
@@ -31,7 +31,7 @@ pub fn reproject<G: Geometry + SDF>(
     _area: ViewBox,
     near: f32,
     far: f32,
-) -> Vec<Polyline2> {
+) -> Vec<Polyline3> {
     let tracer = Tracer { near, far, steps: 200, newton_raphson: NewtonRaphsonOptions::default() };
     // TODO: When a point is occluded, start a new linesegment
     let points = polyline
@@ -44,15 +44,22 @@ pub fn reproject<G: Geometry + SDF>(
         });
 
     let mut polylines = Vec::new();
-    let mut current = Polyline2::new();
+    let mut current = Polyline3::new();
     for (world, screen) in points {
         if in_front_of_camera(&screen) && visible(&world, &screen, &camera, geometry, &tracer) {
-            current.add(screen.xy());
+            current.add(screen);
         } else {
             polylines.push(current);
-            current = Polyline2::new();
+            current = Polyline3::new();
         }
     }
     polylines.push(current);
     polylines
+}
+
+pub fn drop_z(polylines: Vec<Polyline3>) -> Vec<Polyline2> {
+    polylines
+        .into_iter()
+        .map(|polyline| polyline.points.into_iter().map(|screen| screen.xy()).collect())
+        .collect()
 }

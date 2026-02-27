@@ -2,7 +2,7 @@ use std::{f32::consts::TAU, io, time::Duration};
 
 use nalgebra_glm::{look_at, perspective, Vec2, Vec3, Vec4};
 use plotter::{
-    camera::Camera, duration_extras::format_duration, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator::Estimator, uv2xy::reproject
+    camera::Camera, duration_extras::format_duration, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator::Estimator, uv2xy::{drop_z, reproject}
 };
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
@@ -124,8 +124,8 @@ fn main() -> io::Result<()> {
     let (geometry, camera, uv_polylines) = setup_hole(paper.view_box, area);
 
     for uv_polyline in uv_polylines {
-        for polyline in reproject(&uv_polyline, &geometry, &camera, area, near, far) {
-            paper.add(polyline);
+        for xy_polyline in drop_z(reproject(&uv_polyline, &geometry, &camera, area, near, far)) {
+            paper.add(xy_polyline);
         }
     }
 

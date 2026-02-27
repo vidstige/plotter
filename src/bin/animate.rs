@@ -10,7 +10,7 @@ use plotter::resolution::Resolution;
 use plotter::{
     camera::Camera,
     lerp::lerp,
-    uv2xy::reproject,
+    uv2xy::{drop_z, reproject},
 };
 
 use nalgebra_glm::{identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
@@ -116,7 +116,7 @@ fn main() -> io::Result<()> {
         // draw traces
         let mut polylines = Vec::new();
         for uv_polyline in &uv_polylines {
-            let polyline = reproject(
+            let screen_polylines = reproject(
                 uv_polyline,
                 &geometry,
                 &camera,
@@ -124,7 +124,7 @@ fn main() -> io::Result<()> {
                 near,
                 far,
             );
-            polylines.extend(polyline);
+            polylines.extend(drop_z(screen_polylines));
         }
 
         // render to pixmap

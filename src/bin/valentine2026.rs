@@ -13,7 +13,7 @@ use plotter::lerp::lerp;
 use plotter::polyline::Polyline2;
 use plotter::resolution::Resolution;
 use plotter::skia_utils::draw_polylines;
-use plotter::uv2xy::reproject;
+use plotter::uv2xy::{drop_z, reproject};
 use rand::distributions::Distribution;
 use rand::rngs::StdRng;
 use rand::Rng;
@@ -492,14 +492,15 @@ fn render_frame(
 
     let mut polylines = Vec::new();
     for uv_polyline in &uv_polylines {
-        polylines.extend(reproject(
+        let screen_polylines = reproject(
             uv_polyline,
             geometry,
             camera,
             (0, 0, resolution.width as i32, resolution.height as i32),
             NEAR,
             FAR,
-        ));
+        );
+        polylines.extend(drop_z(screen_polylines));
     }
 
     pixmap.fill(theme.background);
