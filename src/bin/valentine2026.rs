@@ -220,7 +220,9 @@ fn is_beat_time(time: f32, beat_times: &[f32]) -> bool {
         .any(|beat_time| (*beat_time - time).abs() < 1.0e-4)
 }
 
-fn build_camera_segments(events: &[f32], beat_times: &[f32]) -> Vec<(f32, CameraSegment)> {
+fn build_camera_segments(audio: &AudioAnalysis) -> Vec<(f32, CameraSegment)> {
+    let beat_times = audio.beats();
+    let events = build_camera_events(audio);
     let mut segments = Vec::new();
     let mut start = 0.0;
     let mut segment_index = 0usize;
@@ -481,8 +483,7 @@ fn main() -> io::Result<()> {
     let time = parse_args()?;
     let audio = AudioAnalysis::load_dat_file("every_breath_you_take.dat")?;
     let beat_times = audio.beats();
-    let camera_events = build_camera_events(&audio);
-    let camera_segments = build_camera_segments(&camera_events, beat_times);
+    let camera_segments = build_camera_segments(&audio);
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
     let field = Spiral::new(Vec2::new(0.0, 0.0));
