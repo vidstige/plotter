@@ -51,6 +51,7 @@ struct Theme<'a> {
 enum CameraSegment {
     Edge,
     Follow,
+    Radial,
 }
 
 fn invalid_input(message: impl Into<String>) -> io::Error {
@@ -193,7 +194,59 @@ fn follow_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
     look_at(&eye, &target, &up)
 }
 
-fn camera_segment(segment: usize, allow_follow: bool) -> CameraSegment {
+fn radial_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
+    let mut rng = seeded_rng(scene_key ^ 0x6EA8_0C31_53B2_94D7);
+    const RADIAL_EYE_RADIUS_MIN: f32 = 1.6;
+    const RADIAL_EYE_RADIUS_MAX: f32 = 3.0;
+    const RADIAL_TRAVEL_MIN: f32 = 0.08;
+    const RADIAL_TRAVEL_MAX: f32 = 0.24;
+    const RADIAL_EYE_Z_MIN: f32 = -2.8;
+    const RADIAL_EYE_Z_MAX: f32 = -2.2;
+    const RADIAL_LOOK_DISTANCE_MIN: f32 = 3.0;
+    const RADIAL_LOOK_DISTANCE_MAX: f32 = 3.8;
+    const RADIAL_DOWNWARD_WEIGHT: f32 = 3.0;
+    const RADIAL_FORWARD_WEIGHT: f32 = 0.25;
+    let duration = duration.max(1.0e-4);
+    let t = (time / duration).clamp(0.0, 1.0);
+
+    let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+    let eye_dir = sample_on_circle(&mut rng);
+    let eye_radius_from = rng.gen_range(RADIAL_EYE_RADIUS_MIN..RADIAL_EYE_RADIUS_MAX);
+    let eye_radius_to = (eye_radius_from
+        + direction * rng.gen_range(RADIAL_TRAVEL_MIN..RADIAL_TRAVEL_MAX))
+    .clamp(1.2, 3.6);
+    let eye_z = rng.gen_range(RADIAL_EYE_Z_MIN..RADIAL_EYE_Z_MAX);
+
+    let eye_from = Vec3::new(eye_radius_from * eye_dir.x, eye_radius_from * eye_dir.y, eye_z);
+    let eye_to = Vec3::new(eye_radius_to * eye_dir.x, eye_radius_to * eye_dir.y, eye_z);
+
+    let look_distance = rng.gen_range(RADIAL_LOOK_DISTANCE_MIN..RADIAL_LOOK_DISTANCE_MAX);
+    let target_from = radial_target_from_eye(
+        eye_from,
+        eye_dir,
+        look_distance,
+        RADIAL_FORWARD_WEIGHT,
+        RADIAL_DOWNWARD_WEIGHT,
+    );
+    let target_to = radial_target_from_eye(
+        eye_to,
+        eye_dir,
+        look_distance,
+        RADIAL_FORWARD_WEIGHT,
+        RADIAL_DOWNWARD_WEIGHT,
+    );
+
+    let eye = lerp(eye_from, eye_to, t);
+    let target = lerp(target_from, target_to, t);
+    let up = Vec3::new(0.0, 0.0, 1.0);
+    look_at(&eye, &target, &up)
+}
+
+fn camera_segment(segment: usize, allow_follow: bool, before_first_clap: bool) -> CameraSegment {
+    if before_first_clap {
+        return CameraSegment::Radial;
+    }
+
     let scene_key = segment as u64;
     if !allow_follow {
         CameraSegment::Edge
@@ -211,6 +264,7 @@ fn camera_model_at(segment: CameraSegment, scene_key: u64, time: f32, duration: 
     match segment {
         CameraSegment::Edge => edge_camera_model_at(scene_key, time, duration),
         CameraSegment::Follow => follow_camera_model_at(scene_key, time, duration),
+        CameraSegment::Radial => radial_camera_model_at(scene_key, time, duration),
     }
 }
 
@@ -222,6 +276,12 @@ fn is_beat_time(time: f32, beat_times: &[f32]) -> bool {
 
 fn build_camera_segments(audio: &AudioAnalysis) -> Vec<(f32, CameraSegment)> {
     let beat_times = audio.beats();
+    let first_clap = audio
+        .claps()
+        .iter()
+        .copied()
+        .filter(|time| time.is_finite())
+        .min_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
     let events = build_camera_events(audio);
     let mut segments = Vec::new();
     let mut start = 0.0;
@@ -229,7 +289,8 @@ fn build_camera_segments(audio: &AudioAnalysis) -> Vec<(f32, CameraSegment)> {
 
     loop {
         let allow_follow = !(segment_index > 0 && is_beat_time(start, beat_times));
-        let segment = camera_segment(segment_index, allow_follow);
+        let before_first_clap = first_clap.map_or(false, |clap_time| start < clap_time);
+        let segment = camera_segment(segment_index, allow_follow, before_first_clap);
         segments.push((start, segment));
 
         let next_start_index = (segment_index + 1) * CAMERA_SWITCH_EVENTS - 1;
@@ -336,6 +397,24 @@ fn tangential_target_from_eye(
         eye + distance * forward
     } else {
         eye + distance * Vec3::new(1.0, 0.0, 0.2).normalize()
+    }
+}
+
+fn radial_target_from_eye(
+    eye: Vec3,
+    radial_dir: Vec2,
+    distance: f32,
+    forward_weight: f32,
+    downward_weight: f32,
+) -> Vec3 {
+    let up = Vec3::new(0.0, 0.0, 1.0);
+    let radial = Vec3::new(radial_dir.x, radial_dir.y, 0.0);
+    if radial.norm() > 1.0e-6 {
+        // Bias hard toward +Z so this reads as mostly top-down while still keeping a valid up vector.
+        let forward = (forward_weight * radial.normalize() + downward_weight * up).normalize();
+        eye + distance * forward
+    } else {
+        eye + distance * Vec3::new(0.05, 0.0, 1.0).normalize()
     }
 }
 
