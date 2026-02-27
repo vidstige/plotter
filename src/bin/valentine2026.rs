@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::f32::consts::TAU;
 use std::io::{self, ErrorKind, Write};
 
 use nalgebra_glm::{cross, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
@@ -27,6 +28,9 @@ const TRACE_COUNT: usize = 240;
 const TRACE_LENGTH: usize = 18;
 const TRACE_STEP: f32 = 0.06;
 const FLOW_SPEED: f32 = 0.10;
+const TRACE_INNER_RADIUS: f32 = 0.55;
+const TRACE_OUTER_RADIUS: f32 = 4.0;
+const TRACE_RADIAL_CDF_SAMPLES: usize = 8192;
 const NEAR: f32 = 0.1;
 const FAR: f32 = 10.0;
 const PULSE_AMPLITUDE: f32 = 0.2;
@@ -347,16 +351,81 @@ fn tangential_target_from_eye(
     }
 }
 
+fn hole_radial_weight(radius: f32) -> f32 {
+    radius * (1.0 + 4.0 / radius.powi(6)).sqrt()
+}
+
+fn build_hole_radial_cdf(inner_radius: f32, outer_radius: f32, samples: usize) -> (Vec<f32>, Vec<f32>) {
+    let sample_count = samples.max(2);
+    let mut radii = Vec::with_capacity(sample_count);
+    let mut cdf = Vec::with_capacity(sample_count);
+    let dr = (outer_radius - inner_radius) / (sample_count as f32 - 1.0);
+
+    for i in 0..sample_count {
+        let radius = inner_radius + i as f32 * dr;
+        radii.push(radius);
+    }
+
+    cdf.push(0.0);
+    for i in 1..sample_count {
+        let r0 = radii[i - 1];
+        let r1 = radii[i];
+        let w0 = hole_radial_weight(r0);
+        let w1 = hole_radial_weight(r1);
+        let area = 0.5 * (w0 + w1) * (r1 - r0);
+        cdf.push(cdf[i - 1] + area);
+    }
+
+    let total = *cdf.last().unwrap_or(&0.0);
+    if total > 0.0 {
+        for value in &mut cdf {
+            *value /= total;
+        }
+    } else {
+        for (i, value) in cdf.iter_mut().enumerate() {
+            *value = i as f32 / (sample_count as f32 - 1.0);
+        }
+    }
+
+    (radii, cdf)
+}
+
+fn sample_radius_from_cdf(u: f32, radii: &[f32], cdf: &[f32]) -> f32 {
+    if radii.is_empty() || cdf.is_empty() {
+        return TRACE_INNER_RADIUS;
+    }
+
+    let idx = cdf.partition_point(|value| *value < u);
+    if idx == 0 {
+        return radii[0];
+    }
+    if idx >= radii.len() {
+        return *radii.last().unwrap_or(&TRACE_OUTER_RADIUS);
+    }
+
+    let c0 = cdf[idx - 1];
+    let c1 = cdf[idx];
+    let r0 = radii[idx - 1];
+    let r1 = radii[idx];
+    if (c1 - c0).abs() <= 1.0e-8 {
+        return r0;
+    }
+    let t = (u - c0) / (c1 - c0);
+    r0 + t * (r1 - r0)
+}
+
 fn generate_start_positions() -> Vec<Vec2> {
     let mut rng = StdRng::seed_from_u64(20260214);
-    let distribution = StandardNormal {};
+    let (radii, cdf) = build_hole_radial_cdf(
+        TRACE_INNER_RADIUS,
+        TRACE_OUTER_RADIUS,
+        TRACE_RADIAL_CDF_SAMPLES,
+    );
     let mut positions = Vec::with_capacity(TRACE_COUNT);
-    while positions.len() < TRACE_COUNT {
-        let p = 1.65 * sample_vec2(&distribution, &mut rng);
-        let r2 = p.magnitude_squared();
-        if r2 > 0.55 * 0.55 {
-            positions.push(p);
-        }
+    for _ in 0..TRACE_COUNT {
+        let radius = sample_radius_from_cdf(rng.gen::<f32>(), &radii, &cdf);
+        let angle = rng.gen_range(0.0..TAU);
+        positions.push(Vec2::new(radius * angle.cos(), radius * angle.sin()));
     }
     positions
 }
