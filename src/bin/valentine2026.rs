@@ -156,8 +156,8 @@ fn edge_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
 fn follow_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
     let mut rng = seeded_rng(scene_key ^ 0x9327_9A11_2B4F_E55C);
     let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
-    const FOLLOW_ANGLE_DELTA_MIN: f32 = 0.24;
-    const FOLLOW_ANGLE_DELTA_MAX: f32 = 0.44;
+    const FOLLOW_ANGLE_DELTA_MIN: f32 = 0.10;
+    const FOLLOW_ANGLE_DELTA_MAX: f32 = 0.20;
     const FOLLOW_EYE_RADIUS_MIN: f32 = 1.6;
     const FOLLOW_EYE_RADIUS_MAX: f32 = 2.2;
     const FOLLOW_EYE_Z: f32 = -0.15;
