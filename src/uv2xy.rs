@@ -39,9 +39,12 @@ pub fn reproject<G: Geometry + SDF>(
         .iter()
         .map(|uv| {
             let world = geometry.evaluate(uv); // evaluate to 3D point
-            let screen = camera.project(world);
             let clip = camera.projection * camera.model * Vec4::new(world.x, world.y, world.z, 1.0);
-            let screen = Vec4::new(screen.x, screen.y, screen.z, clip.w);
+            let ndc = clip.xyz() / clip.w;
+            let screen_x = camera.viewport.x + camera.viewport.z * (ndc.x + 1.0) * 0.5;
+            let screen_y = camera.viewport.y + camera.viewport.w * (ndc.y + 1.0) * 0.5;
+            let screen_z = ndc.z * 0.5 + 0.5;
+            let screen = Vec4::new(screen_x, screen_y, screen_z, clip.w);
             (world, screen)
         });
 
