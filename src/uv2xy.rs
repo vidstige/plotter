@@ -1,7 +1,7 @@
-use nalgebra_glm::{distance, Vec3};
+use nalgebra_glm::{distance, Vec3, Vec4};
 
 use crate::{
-    camera::Camera, eq::NewtonRaphsonOptions, geometry::Geometry, paper::ViewBox, polyline::{Polyline2, Polyline3}, raytracer::{backproject, Tracer}, sdf::SDF
+    camera::Camera, eq::NewtonRaphsonOptions, geometry::Geometry, paper::ViewBox, polyline::{Polyline2, Polyline4}, raytracer::{backproject, Tracer}, sdf::SDF
 };
 
 fn in_front_of_camera(screen: &Vec3) -> bool {
@@ -31,7 +31,7 @@ pub fn reproject<G: Geometry + SDF>(
     _area: ViewBox,
     near: f32,
     far: f32,
-) -> Vec<Polyline3> {
+) -> Vec<Polyline4> {
     let tracer = Tracer { near, far, steps: 200, newton_raphson: NewtonRaphsonOptions::default() };
     // TODO: When a point is occluded, start a new linesegment
     let points = polyline
@@ -40,24 +40,27 @@ pub fn reproject<G: Geometry + SDF>(
         .map(|uv| {
             let world = geometry.evaluate(uv); // evaluate to 3D point
             let screen = camera.project(world);
+            let clip = camera.projection * camera.model * Vec4::new(world.x, world.y, world.z, 1.0);
+            let screen = Vec4::new(screen.x, screen.y, screen.z, clip.w);
             (world, screen)
         });
 
     let mut polylines = Vec::new();
-    let mut current = Polyline3::new();
+    let mut current = Polyline4::new();
     for (world, screen) in points {
-        if in_front_of_camera(&screen) && visible(&world, &screen, &camera, geometry, &tracer) {
+        let screen3 = screen.xyz();
+        if in_front_of_camera(&screen3) && visible(&world, &screen3, &camera, geometry, &tracer) {
             current.add(screen);
         } else {
             polylines.push(current);
-            current = Polyline3::new();
+            current = Polyline4::new();
         }
     }
     polylines.push(current);
     polylines
 }
 
-pub fn drop_z(polylines: Vec<Polyline3>) -> Vec<Polyline2> {
+pub fn keep_xy(polylines: Vec<Polyline4>) -> Vec<Polyline2> {
     polylines
         .into_iter()
         .map(|polyline| polyline.points.into_iter().map(|screen| screen.xy()).collect())

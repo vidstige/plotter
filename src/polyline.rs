@@ -34,3 +34,4 @@ impl<const N: usize> FromIterator<TVec<f32, N>> for Polyline<N> {
 
 pub type Polyline2 = Polyline<2>;
 pub type Polyline3 = Polyline<3>;
+pub type Polyline4 = Polyline<4>;

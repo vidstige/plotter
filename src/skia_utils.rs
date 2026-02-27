@@ -1,6 +1,6 @@
 use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 
-use crate::polyline::{Polyline2, Polyline3};
+use crate::polyline::{Polyline2, Polyline4};
 
 
 pub fn draw_polyline(pixmap: &mut Pixmap, polyline: &Polyline2, paint: &Paint, stroke: &Stroke, transform: Transform) {
@@ -25,26 +25,35 @@ pub fn draw_polylines(pixmap: &mut Pixmap, polylines: &[Polyline2], paint: &Pain
 
 pub fn draw_polylines_z(
     pixmap: &mut Pixmap,
-    polylines: &[Polyline3],
+    polylines: &[Polyline4],
     paint: &Paint,
     stroke: &Stroke,
     transform: Transform,
 ) {
+    let mut polylines_with_width = Vec::new();
     for screen_polyline in polylines {
         if screen_polyline.points.is_empty() {
             continue;
         }
 
-        let mut depth_sum = 0.0;
+        let mut w_sum = 0.0;
+        for screen in &screen_polyline.points {
+            w_sum += screen.w;
+        }
+
         let mut xy_polyline = Polyline2::new();
         for screen in &screen_polyline.points {
-            depth_sum += screen.z;
             xy_polyline.add(screen.xy());
         }
 
-        let mean_depth = depth_sum / xy_polyline.points.len() as f32;
+        let mean_w = w_sum / xy_polyline.points.len() as f32;
+        let width = stroke.width / mean_w.max(1.0e-3);
+        polylines_with_width.push((xy_polyline, width));
+    }
+
+    for (xy_polyline, width) in polylines_with_width {
         let mut stroke = stroke.clone();
-        stroke.width = stroke.width / mean_depth;
+        stroke.width = width;
         draw_polyline(pixmap, &xy_polyline, paint, &stroke, transform);
     }
 }

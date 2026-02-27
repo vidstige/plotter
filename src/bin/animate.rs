@@ -10,7 +10,7 @@ use plotter::resolution::Resolution;
 use plotter::{
     camera::Camera,
     lerp::lerp,
-    uv2xy::{drop_z, reproject},
+    uv2xy::{keep_xy, reproject},
 };
 
 use nalgebra_glm::{identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
@@ -124,7 +124,7 @@ fn main() -> io::Result<()> {
                 near,
                 far,
             );
-            polylines.extend(drop_z(screen_polylines));
+            polylines.extend(keep_xy(screen_polylines));
         }
 
         // render to pixmap
