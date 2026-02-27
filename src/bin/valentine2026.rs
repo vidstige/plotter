@@ -115,22 +115,6 @@ fn seeded_rng(key: u64) -> StdRng {
     StdRng::seed_from_u64(seed)
 }
 
-fn choose_follow_camera(scene_key: u64, allow_follow: bool) -> bool {
-    if !allow_follow {
-        return false;
-    }
-    let mut rng = seeded_rng(scene_key ^ 0x68F6_2B44_17C0_DA93);
-    rng.gen_bool(0.5)
-}
-
-fn edge_segment() -> CameraSegment {
-    CameraSegment::Edge
-}
-
-fn follow_along_segment() -> CameraSegment {
-    CameraSegment::Follow
-}
-
 fn edge_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
     let mut rng = seeded_rng(scene_key ^ 0x47AA_BF0E_3E8C_91D3);
     const EYE_RADIUS_MIN: f32 = 2.0;
@@ -214,10 +198,15 @@ fn follow_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
 
 fn camera_segment(segment: usize, allow_follow: bool) -> CameraSegment {
     let scene_key = segment as u64;
-    if choose_follow_camera(scene_key, allow_follow) {
-        follow_along_segment()
+    if !allow_follow {
+        CameraSegment::Edge
     } else {
-        edge_segment()
+        let mut rng = seeded_rng(scene_key ^ 0x68F6_2B44_17C0_DA93);
+        if rng.gen_bool(0.5) {
+            CameraSegment::Edge
+        } else {
+            CameraSegment::Follow
+        }
     }
 }
 
