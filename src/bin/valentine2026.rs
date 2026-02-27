@@ -47,17 +47,43 @@ struct Theme<'a> {
 }
 
 #[derive(Copy, Clone)]
-struct CameraSegment {
-    eye_from: Vec3,
-    eye_to: Vec3,
-    target_from: Vec3,
-    target_to: Vec3,
+enum CameraSegment {
+    Edge {
+        eye_from: Vec3,
+        eye_to: Vec3,
+        target_from: Vec3,
+        target_to: Vec3,
+    },
+    Follow {
+        eye_from: Vec3,
+        eye_to: Vec3,
+        target_from: Vec3,
+        target_to: Vec3,
+    },
 }
 
-#[derive(Copy, Clone)]
-enum CameraStyle {
-    Edge,
-    Follow,
+impl CameraSegment {
+    fn eye_at(&self, t: f32) -> Vec3 {
+        match self {
+            CameraSegment::Edge { eye_from, eye_to, .. }
+            | CameraSegment::Follow { eye_from, eye_to, .. } => lerp_vec3(*eye_from, *eye_to, t),
+        }
+    }
+
+    fn target_at(&self, t: f32) -> Vec3 {
+        match self {
+            CameraSegment::Edge {
+                target_from,
+                target_to,
+                ..
+            }
+            | CameraSegment::Follow {
+                target_from,
+                target_to,
+                ..
+            } => lerp_vec3(*target_from, *target_to, t),
+        }
+    }
 }
 
 fn invalid_input(message: impl Into<String>) -> io::Error {
@@ -123,16 +149,12 @@ fn seeded_rng(key: u64) -> StdRng {
     StdRng::seed_from_u64(seed)
 }
 
-fn choose_camera_style(scene_key: u64, allow_follow: bool) -> CameraStyle {
+fn choose_follow_camera(scene_key: u64, allow_follow: bool) -> bool {
     if !allow_follow {
-        return CameraStyle::Edge;
+        return false;
     }
     let mut rng = seeded_rng(scene_key ^ 0x68F6_2B44_17C0_DA93);
-    if rng.gen_bool(0.5) {
-        CameraStyle::Edge
-    } else {
-        CameraStyle::Follow
-    }
+    rng.gen_bool(0.5)
 }
 
 fn edge_segment(scene_key: u64, _duration: f32) -> CameraSegment {
@@ -163,7 +185,7 @@ fn edge_segment(scene_key: u64, _duration: f32) -> CameraSegment {
         rng.gen_range(0.80..1.00),
     );
 
-    CameraSegment {
+    CameraSegment::Edge {
         eye_from,
         eye_to,
         target_from,
@@ -204,7 +226,7 @@ fn follow_along_segment(scene_key: u64) -> CameraSegment {
     let target_to =
         tangential_target_from_eye(eye_to, direction, look_distance, FOLLOW_DOWNWARD_WEIGHT);
 
-    CameraSegment {
+    CameraSegment::Follow {
         eye_from,
         eye_to,
         target_from,
@@ -214,9 +236,10 @@ fn follow_along_segment(scene_key: u64) -> CameraSegment {
 
 fn camera_segment(segment: usize, duration: f32, allow_follow: bool) -> CameraSegment {
     let scene_key = segment as u64;
-    match choose_camera_style(scene_key, allow_follow) {
-        CameraStyle::Edge => edge_segment(scene_key, duration),
-        CameraStyle::Follow => follow_along_segment(scene_key),
+    if choose_follow_camera(scene_key, allow_follow) {
+        follow_along_segment(scene_key)
+    } else {
+        edge_segment(scene_key, duration)
     }
 }
 
@@ -257,8 +280,8 @@ fn camera_at(time: f32, events: &[f32], beat_times: &[f32]) -> Mat4x4 {
     // If this segment starts on a beat event, don't use follow-along motion.
     let allow_follow = !(segment > 0 && is_beat_time(start, beat_times));
     let path = camera_segment(segment, duration, allow_follow);
-    let eye = lerp_vec3(path.eye_from, path.eye_to, t);
-    let target = lerp_vec3(path.target_from, path.target_to, t);
+    let eye = path.eye_at(t);
+    let target = path.target_at(t);
     let up = Vec3::new(0.0, 0.0, 1.0);
 
     look_at(&eye, &target, &up)
