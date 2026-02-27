@@ -12,8 +12,8 @@ use plotter::geometries::sum::Sum;
 use plotter::lerp::lerp;
 use plotter::polyline::Polyline2;
 use plotter::resolution::Resolution;
-use plotter::skia_utils::draw_polylines;
-use plotter::uv2xy::{drop_z, reproject};
+use plotter::skia_utils::draw_polylines_z;
+use plotter::uv2xy::reproject;
 use rand::distributions::Distribution;
 use rand::rngs::StdRng;
 use rand::Rng;
@@ -500,11 +500,11 @@ fn render_frame(
             NEAR,
             FAR,
         );
-        polylines.extend(drop_z(screen_polylines));
+        polylines.extend(screen_polylines);
     }
 
     pixmap.fill(theme.background);
-    draw_polylines(
+    draw_polylines_z(
         pixmap,
         &polylines,
         &theme.paint,
