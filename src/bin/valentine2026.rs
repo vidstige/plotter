@@ -195,12 +195,15 @@ fn follow_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
 }
 
 fn radial_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
+    const HEIGHT: f32 = 0.4;  // height over 0-level
+    const DISTANCE: f32 = 2.0;  // starting distance from center
+    const SPEED: f32 = 0.01; // eye travel speed
     let t = (time / duration).clamp(0.0, 1.0);
     let mut rng = seeded_rng(scene_key ^ 0x6EA8_0C31_53B2_94D7);
     let angle = rng.gen_range(0.0..TAU);
     let direction = Vec3::new(angle.cos(), angle.sin(), 0.0);
-    let eye_start = direction * 2.0 + Vec3::new(0.0, 0.0, -0.4);
-    let eye_end = eye_start + direction * duration * 0.01;
+    let eye_start = direction * DISTANCE + Vec3::new(0.0, 0.0, -HEIGHT);
+    let eye_end = eye_start + direction * duration * SPEED;
     let target_start = eye_start + Vec3::new(0.0, 0.0, 1.0);
     let target_end = eye_end + Vec3::new(0.0, 0.0, 1.0);
     let up = &-direction;
