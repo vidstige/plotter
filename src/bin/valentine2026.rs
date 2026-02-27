@@ -482,7 +482,6 @@ fn render_frame(
 fn main() -> io::Result<()> {
     let time = parse_args()?;
     let audio = AudioAnalysis::load_dat_file("every_breath_you_take.dat")?;
-    let beat_times = audio.beats();
     let camera_segments = build_camera_segments(&audio);
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
@@ -494,7 +493,7 @@ fn main() -> io::Result<()> {
 
     if let Some(time) = time {
         camera.model = camera_at(time, &camera_segments);
-        let geometry = geometry_at(time, beat_times);
+        let geometry = geometry_at(time, audio.beats());
         render_frame(
             &mut pixmap,
             &resolution,
@@ -512,7 +511,7 @@ fn main() -> io::Result<()> {
     for frame in 0..FRAME_COUNT {
         let time = frame as f32 / FPS;
         camera.model = camera_at(time, &camera_segments);
-        let geometry = geometry_at(time, beat_times);
+        let geometry = geometry_at(time, audio.beats());
         render_frame(
             &mut pixmap,
             &resolution,
