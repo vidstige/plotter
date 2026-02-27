@@ -50,9 +50,7 @@ pub fn reproject<G: Geometry + SDF>(
     let mut polylines = Vec::new();
     let mut current = Polyline2::new();
     for (world, screen) in points {
-        //current.add(screen.xy());
-        //if contains(&area, &screen.xy()) && visible(&screen, &camera, geometry, &tracer) {
-        if visible(&world, &screen, &camera, geometry, &tracer) {
+        if contains(&area, &screen.xy()) && visible(&world, &screen, &camera, geometry, &tracer) {
             current.add(screen.xy());
         } else {
             polylines.push(current);
