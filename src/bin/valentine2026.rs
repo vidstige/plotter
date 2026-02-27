@@ -243,6 +243,15 @@ fn camera_segment(segment: usize, duration: f32, allow_follow: bool) -> CameraSe
     }
 }
 
+fn camera_model_at(segment: &CameraSegment, time: f32, duration: f32) -> Mat4x4 {
+    let duration = duration.max(1.0e-4);
+    let t = (time / duration).clamp(0.0, 1.0);
+    let eye = segment.eye_at(t);
+    let target = segment.target_at(t);
+    let up = Vec3::new(0.0, 0.0, 1.0);
+    look_at(&eye, &target, &up)
+}
+
 fn camera_segment_from_events(time: f32, events: &[f32]) -> usize {
     let event_count = events.partition_point(|event| *event <= time);
     event_count / CAMERA_SWITCH_EVENTS
@@ -276,15 +285,11 @@ fn camera_at(time: f32, events: &[f32], beat_times: &[f32]) -> Mat4x4 {
     let start = camera_segment_start_time(segment, events);
     let end = camera_segment_end_time(segment, events, start);
     let duration = (end - start).max(1.0e-4);
-    let t = ((time - start) / duration).clamp(0.0, 1.0);
+    let local_time = (time - start).max(0.0);
     // If this segment starts on a beat event, don't use follow-along motion.
     let allow_follow = !(segment > 0 && is_beat_time(start, beat_times));
     let path = camera_segment(segment, duration, allow_follow);
-    let eye = path.eye_at(t);
-    let target = path.target_at(t);
-    let up = Vec3::new(0.0, 0.0, 1.0);
-
-    look_at(&eye, &target, &up)
+    camera_model_at(&path, local_time, duration)
 }
 
 fn build_camera_events(beats: &[Beat], claps: &[f32]) -> Vec<f32> {
