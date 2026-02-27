@@ -8,7 +8,7 @@ use std::{
 #[derive(Debug, Default)]
 pub struct AudioAnalysis {
     beats: Vec<f32>,
-    onsets: Vec<f32>,
+    claps: Vec<f32>,
 }
 
 type SectionEntries = HashMap<String, Vec<String>>;
@@ -105,16 +105,14 @@ impl AudioAnalysis {
             .into_iter()
             .map(|value| parse_scalar_value(&value))
             .collect::<io::Result<Vec<f32>>>()?;
-        let onsets = claps;
-
-        Ok(Self { beats, onsets })
+        Ok(Self { beats, claps })
     }
 
     pub fn beats(&self) -> &[f32] {
         &self.beats
     }
 
-    pub fn onsets(&self) -> &[f32] {
-        &self.onsets
+    pub fn claps(&self) -> &[f32] {
+        &self.claps
     }
 }

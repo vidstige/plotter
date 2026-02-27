@@ -271,7 +271,7 @@ fn build_camera_events(audio: &AudioAnalysis) -> Vec<f32> {
         .map(|(_, beat_time)| *beat_time)
         .filter(|time| time.is_finite())
         .collect();
-    events.extend(audio.onsets().iter().copied().filter(|time| time.is_finite()));
+    events.extend(audio.claps().iter().copied().filter(|time| time.is_finite()));
     events.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
     events.dedup_by(|a, b| (*a - *b).abs() < 1.0e-4);
     events
