@@ -260,29 +260,19 @@ fn camera_at(time: f32, camera_segments: &[(f32, CameraSegment)]) -> Mat4x4 {
     camera_model_at(segment, segment_index as u64, local_time, duration)
 }
 
-fn build_camera_events(beat_times: &[f32], claps: &[f32]) -> Vec<f32> {
-    let mut events: Vec<f32> = beat_times
+fn build_camera_events(audio: &AudioAnalysis) -> Vec<f32> {
+    let mut events: Vec<f32> = audio
+        .beats()
         .iter()
         .enumerate()
         .filter(|(index, _)| index % BEATS_PER_CAMERA_SWITCH == 0)
         .map(|(_, beat_time)| *beat_time)
         .filter(|time| time.is_finite())
         .collect();
-    events.extend(claps.iter().copied().filter(|time| time.is_finite()));
+    events.extend(audio.onsets().iter().copied().filter(|time| time.is_finite()));
     events.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
     events.dedup_by(|a, b| (*a - *b).abs() < 1.0e-4);
     events
-}
-
-fn build_beat_times(raw_beat_times: &[f32]) -> Vec<f32> {
-    let mut times: Vec<f32> = raw_beat_times
-        .iter()
-        .copied()
-        .filter(|time| time.is_finite())
-        .collect();
-    times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
-    times.dedup_by(|a, b| (*a - *b).abs() < 1.0e-4);
-    times
 }
 
 fn pulse_time(time: f32, beat_times: &[f32]) -> f32 {
@@ -490,9 +480,9 @@ fn render_frame(
 fn main() -> io::Result<()> {
     let time = parse_args()?;
     let audio = AudioAnalysis::load_dat_file("every_breath_you_take.dat")?;
-    let beat_times = build_beat_times(audio.beats());
-    let camera_events = build_camera_events(&beat_times, audio.onsets());
-    let camera_segments = build_camera_segments(&camera_events, &beat_times);
+    let beat_times = audio.beats();
+    let camera_events = build_camera_events(&audio);
+    let camera_segments = build_camera_segments(&camera_events, beat_times);
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
     let field = Spiral::new(Vec2::new(0.0, 0.0));
@@ -503,7 +493,7 @@ fn main() -> io::Result<()> {
 
     if let Some(time) = time {
         camera.model = camera_at(time, &camera_segments);
-        let geometry = geometry_at(time, &beat_times);
+        let geometry = geometry_at(time, beat_times);
         render_frame(
             &mut pixmap,
             &resolution,
@@ -521,7 +511,7 @@ fn main() -> io::Result<()> {
     for frame in 0..FRAME_COUNT {
         let time = frame as f32 / FPS;
         camera.model = camera_at(time, &camera_segments);
-        let geometry = geometry_at(time, &beat_times);
+        let geometry = geometry_at(time, beat_times);
         render_frame(
             &mut pixmap,
             &resolution,
