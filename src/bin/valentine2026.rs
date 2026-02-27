@@ -48,42 +48,8 @@ struct Theme<'a> {
 
 #[derive(Copy, Clone)]
 enum CameraSegment {
-    Edge {
-        eye_from: Vec3,
-        eye_to: Vec3,
-        target_from: Vec3,
-        target_to: Vec3,
-    },
-    Follow {
-        eye_from: Vec3,
-        eye_to: Vec3,
-        target_from: Vec3,
-        target_to: Vec3,
-    },
-}
-
-impl CameraSegment {
-    fn eye_at(&self, t: f32) -> Vec3 {
-        match self {
-            CameraSegment::Edge { eye_from, eye_to, .. }
-            | CameraSegment::Follow { eye_from, eye_to, .. } => lerp_vec3(*eye_from, *eye_to, t),
-        }
-    }
-
-    fn target_at(&self, t: f32) -> Vec3 {
-        match self {
-            CameraSegment::Edge {
-                target_from,
-                target_to,
-                ..
-            }
-            | CameraSegment::Follow {
-                target_from,
-                target_to,
-                ..
-            } => lerp_vec3(*target_from, *target_to, t),
-        }
-    }
+    Edge,
+    Follow,
 }
 
 fn invalid_input(message: impl Into<String>) -> io::Error {
@@ -157,11 +123,21 @@ fn choose_follow_camera(scene_key: u64, allow_follow: bool) -> bool {
     rng.gen_bool(0.5)
 }
 
-fn edge_segment(scene_key: u64, _duration: f32) -> CameraSegment {
+fn edge_segment() -> CameraSegment {
+    CameraSegment::Edge
+}
+
+fn follow_along_segment() -> CameraSegment {
+    CameraSegment::Follow
+}
+
+fn edge_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
     let mut rng = seeded_rng(scene_key ^ 0x47AA_BF0E_3E8C_91D3);
     const EYE_RADIUS_MIN: f32 = 2.0;
     const EYE_RADIUS_MAX: f32 = 3.8;
     const EDGE_EYE_STEP: f32 = 0.5;
+    let duration = duration.max(1.0e-4);
+    let t = (time / duration).clamp(0.0, 1.0);
 
     let eye_dir = sample_on_circle(&mut rng);
     let eye_radius = rng.gen_range(EYE_RADIUS_MIN..EYE_RADIUS_MAX);
@@ -172,7 +148,11 @@ fn edge_segment(scene_key: u64, _duration: f32) -> CameraSegment {
     );
 
     let eye_step_dir = sample_on_circle(&mut rng);
-    let eye_to = eye_from + Vec3::new(EDGE_EYE_STEP * eye_step_dir.x, EDGE_EYE_STEP * eye_step_dir.y, 0.0);
+    let eye_to = eye_from + Vec3::new(
+        EDGE_EYE_STEP * eye_step_dir.x,
+        EDGE_EYE_STEP * eye_step_dir.y,
+        0.0,
+    );
 
     let target_from = Vec3::new(
         rng.gen_range(-0.10..0.10),
@@ -185,15 +165,13 @@ fn edge_segment(scene_key: u64, _duration: f32) -> CameraSegment {
         rng.gen_range(0.80..1.00),
     );
 
-    CameraSegment::Edge {
-        eye_from,
-        eye_to,
-        target_from,
-        target_to,
-    }
+    let eye = lerp_vec3(eye_from, eye_to, t);
+    let target = lerp_vec3(target_from, target_to, t);
+    let up = Vec3::new(0.0, 0.0, 1.0);
+    look_at(&eye, &target, &up)
 }
 
-fn follow_along_segment(scene_key: u64) -> CameraSegment {
+fn follow_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
     let mut rng = seeded_rng(scene_key ^ 0x9327_9A11_2B4F_E55C);
     let direction = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
     const FOLLOW_ANGLE_DELTA_MIN: f32 = 0.24;
@@ -204,6 +182,8 @@ fn follow_along_segment(scene_key: u64) -> CameraSegment {
     const FOLLOW_LOOK_DISTANCE_MIN: f32 = 1.8;
     const FOLLOW_LOOK_DISTANCE_MAX: f32 = 2.5;
     const FOLLOW_DOWNWARD_WEIGHT: f32 = 0.55;
+    let duration = duration.max(1.0e-4);
+    let t = (time / duration).clamp(0.0, 1.0);
 
     let center = Vec2::new(0.0, 0.0);
     let eye_dir0 = sample_on_circle(&mut rng);
@@ -226,30 +206,26 @@ fn follow_along_segment(scene_key: u64) -> CameraSegment {
     let target_to =
         tangential_target_from_eye(eye_to, direction, look_distance, FOLLOW_DOWNWARD_WEIGHT);
 
-    CameraSegment::Follow {
-        eye_from,
-        eye_to,
-        target_from,
-        target_to,
-    }
-}
-
-fn camera_segment(segment: usize, duration: f32, allow_follow: bool) -> CameraSegment {
-    let scene_key = segment as u64;
-    if choose_follow_camera(scene_key, allow_follow) {
-        follow_along_segment(scene_key)
-    } else {
-        edge_segment(scene_key, duration)
-    }
-}
-
-fn camera_model_at(segment: &CameraSegment, time: f32, duration: f32) -> Mat4x4 {
-    let duration = duration.max(1.0e-4);
-    let t = (time / duration).clamp(0.0, 1.0);
-    let eye = segment.eye_at(t);
-    let target = segment.target_at(t);
+    let eye = lerp_vec3(eye_from, eye_to, t);
+    let target = lerp_vec3(target_from, target_to, t);
     let up = Vec3::new(0.0, 0.0, 1.0);
     look_at(&eye, &target, &up)
+}
+
+fn camera_segment(segment: usize, allow_follow: bool) -> CameraSegment {
+    let scene_key = segment as u64;
+    if choose_follow_camera(scene_key, allow_follow) {
+        follow_along_segment()
+    } else {
+        edge_segment()
+    }
+}
+
+fn camera_model_at(segment: CameraSegment, scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
+    match segment {
+        CameraSegment::Edge => edge_camera_model_at(scene_key, time, duration),
+        CameraSegment::Follow => follow_camera_model_at(scene_key, time, duration),
+    }
 }
 
 fn camera_segment_from_events(time: f32, events: &[f32]) -> usize {
@@ -281,15 +257,15 @@ fn is_beat_time(time: f32, beat_times: &[f32]) -> bool {
 
 fn camera_at(time: f32, events: &[f32], beat_times: &[f32]) -> Mat4x4 {
     let time = time.max(0.0);
-    let segment = camera_segment_from_events(time, events);
-    let start = camera_segment_start_time(segment, events);
-    let end = camera_segment_end_time(segment, events, start);
+    let segment_index = camera_segment_from_events(time, events);
+    let start = camera_segment_start_time(segment_index, events);
+    let end = camera_segment_end_time(segment_index, events, start);
     let duration = (end - start).max(1.0e-4);
     let local_time = (time - start).max(0.0);
     // If this segment starts on a beat event, don't use follow-along motion.
-    let allow_follow = !(segment > 0 && is_beat_time(start, beat_times));
-    let path = camera_segment(segment, duration, allow_follow);
-    camera_model_at(&path, local_time, duration)
+    let allow_follow = !(segment_index > 0 && is_beat_time(start, beat_times));
+    let segment = camera_segment(segment_index, allow_follow);
+    camera_model_at(segment, segment_index as u64, local_time, duration)
 }
 
 fn build_camera_events(beats: &[Beat], claps: &[f32]) -> Vec<f32> {
