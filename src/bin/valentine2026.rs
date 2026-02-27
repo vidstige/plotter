@@ -214,43 +214,49 @@ fn camera_model_at(segment: CameraSegment, scene_key: u64, time: f32, duration: 
     }
 }
 
-fn camera_segment_from_events(time: f32, events: &[f32]) -> usize {
-    let event_count = events.partition_point(|event| *event <= time);
-    event_count / CAMERA_SWITCH_EVENTS
-}
-
-fn camera_segment_start_time(segment: usize, events: &[f32]) -> f32 {
-    if segment == 0 {
-        return 0.0;
-    }
-    let index = segment * CAMERA_SWITCH_EVENTS - 1;
-    events
-        .get(index)
-        .copied()
-        .unwrap_or_else(|| events.last().copied().unwrap_or(0.0))
-}
-
-fn camera_segment_end_time(segment: usize, events: &[f32], start: f32) -> f32 {
-    let index = (segment + 1) * CAMERA_SWITCH_EVENTS - 1;
-    events.get(index).copied().unwrap_or(start + 2.0)
-}
-
 fn is_beat_time(time: f32, beat_times: &[f32]) -> bool {
     beat_times
         .iter()
         .any(|beat_time| (*beat_time - time).abs() < 1.0e-4)
 }
 
-fn camera_at(time: f32, events: &[f32], beat_times: &[f32]) -> Mat4x4 {
+fn build_camera_segments(events: &[f32], beat_times: &[f32]) -> Vec<(f32, CameraSegment)> {
+    let mut segments = Vec::new();
+    let mut start = 0.0;
+    let mut segment_index = 0usize;
+
+    loop {
+        let allow_follow = !(segment_index > 0 && is_beat_time(start, beat_times));
+        let segment = camera_segment(segment_index, allow_follow);
+        segments.push((start, segment));
+
+        let next_start_index = (segment_index + 1) * CAMERA_SWITCH_EVENTS - 1;
+        let Some(next_start) = events.get(next_start_index).copied() else {
+            break;
+        };
+        start = next_start;
+        segment_index += 1;
+    }
+
+    segments
+}
+
+fn camera_at(time: f32, camera_segments: &[(f32, CameraSegment)]) -> Mat4x4 {
     let time = time.max(0.0);
-    let segment_index = camera_segment_from_events(time, events);
-    let start = camera_segment_start_time(segment_index, events);
-    let end = camera_segment_end_time(segment_index, events, start);
+    let segment_count = camera_segments.len();
+    if segment_count == 0 {
+        return camera_model_at(CameraSegment::Edge, 0, time, 2.0);
+    }
+
+    let active_segment = camera_segments.partition_point(|(start, _)| *start <= time);
+    let segment_index = active_segment.saturating_sub(1);
+    let (start, segment) = camera_segments[segment_index];
+    let end = camera_segments
+        .get(segment_index + 1)
+        .map(|(next_start, _)| *next_start)
+        .unwrap_or(start + 2.0);
     let duration = (end - start).max(1.0e-4);
     let local_time = (time - start).max(0.0);
-    // If this segment starts on a beat event, don't use follow-along motion.
-    let allow_follow = !(segment_index > 0 && is_beat_time(start, beat_times));
-    let segment = camera_segment(segment_index, allow_follow);
     camera_model_at(segment, segment_index as u64, local_time, duration)
 }
 
@@ -487,6 +493,7 @@ fn main() -> io::Result<()> {
     let beats: Vec<Beat> = audio.beats().iter().copied().collect();
     let beat_times = build_beat_times(&beats);
     let camera_events = build_camera_events(&beats, audio.onsets());
+    let camera_segments = build_camera_segments(&camera_events, &beat_times);
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
     let field = Spiral::new(Vec2::new(0.0, 0.0));
@@ -496,7 +503,7 @@ fn main() -> io::Result<()> {
     let mut output = io::stdout().lock();
 
     if let Some(time) = time {
-        camera.model = camera_at(time, &camera_events, &beat_times);
+        camera.model = camera_at(time, &camera_segments);
         let geometry = geometry_at(time, &beat_times);
         render_frame(
             &mut pixmap,
@@ -514,7 +521,7 @@ fn main() -> io::Result<()> {
 
     for frame in 0..FRAME_COUNT {
         let time = frame as f32 / FPS;
-        camera.model = camera_at(time, &camera_events, &beat_times);
+        camera.model = camera_at(time, &camera_segments);
         let geometry = geometry_at(time, &beat_times);
         render_frame(
             &mut pixmap,
