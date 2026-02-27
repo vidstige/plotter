@@ -9,6 +9,7 @@ use plotter::fields::Spiral;
 use plotter::geometries::hole::Hole;
 use plotter::geometries::pulse::Pulse;
 use plotter::geometries::sum::Sum;
+use plotter::lerp::lerp;
 use plotter::polyline::Polyline2;
 use plotter::resolution::Resolution;
 use plotter::skia_utils::draw_polylines;
@@ -104,10 +105,6 @@ fn initialize_camera(resolution: &Resolution) -> Camera {
     }
 }
 
-fn lerp_vec3(from: Vec3, to: Vec3, t: f32) -> Vec3 {
-    from * (1.0 - t) + to * t
-}
-
 fn seeded_rng(key: u64) -> StdRng {
     let seed = key
         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
@@ -149,8 +146,8 @@ fn edge_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
         rng.gen_range(0.80..1.00),
     );
 
-    let eye = lerp_vec3(eye_from, eye_to, t);
-    let target = lerp_vec3(target_from, target_to, t);
+    let eye = lerp(eye_from, eye_to, t);
+    let target = lerp(target_from, target_to, t);
     let up = Vec3::new(0.0, 0.0, 1.0);
     look_at(&eye, &target, &up)
 }
@@ -190,8 +187,8 @@ fn follow_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
     let target_to =
         tangential_target_from_eye(eye_to, direction, look_distance, FOLLOW_DOWNWARD_WEIGHT);
 
-    let eye = lerp_vec3(eye_from, eye_to, t);
-    let target = lerp_vec3(target_from, target_to, t);
+    let eye = lerp(eye_from, eye_to, t);
+    let target = lerp(target_from, target_to, t);
     let up = Vec3::new(0.0, 0.0, 1.0);
     look_at(&eye, &target, &up)
 }
