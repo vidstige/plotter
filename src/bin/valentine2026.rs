@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::f32::consts::TAU;
 use std::io::{self, ErrorKind, Write};
 
-use nalgebra_glm::{cross, identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
+use nalgebra_glm::{cross, identity, look_at, perspective, rotation, translation, Mat4x4, Vec2, Vec3, Vec4};
 use plotter::audio_sync::AudioAnalysis;
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
@@ -40,6 +40,10 @@ const PULSE_SPEED: f32 = 16.0;
 const PULSE_LAMBDA: f32 = 0.2;
 const PULSE_CYCLES: f32 = 0.4;
 const PULSE_BEAT_PHASE_OFFSET: f32 = 2.0 / (PULSE_SIGMA * PULSE_SPEED);
+const CAMERA_SHAKE_TRANSLATION: f32 = 0.0125;
+const CAMERA_SHAKE_ROLL: f32 = 0.020;
+const CAMERA_SHAKE_FREQUENCY: f32 = 16.0;
+const CAMERA_SHAKE_DECAY: f32 = 12.0;
 
 struct Theme<'a> {
     paint: Paint<'a>,
@@ -276,11 +280,41 @@ fn build_camera_segments(audio: &AudioAnalysis) -> Vec<(f32, CameraSegment)> {
     segments
 }
 
-fn camera_at(time: f32, camera_segments: &[(f32, CameraSegment)]) -> Mat4x4 {
+fn beat_index_at(time: f32, beat_times: &[f32]) -> usize {
+    let beat_count = beat_times.partition_point(|beat_time| *beat_time <= time);
+    beat_count.saturating_sub(1)
+}
+
+fn camera_shake_at(time: f32, beat_times: &[f32]) -> Mat4x4 {
+    if beat_times.is_empty() {
+        return identity();
+    }
+
+    let time_since_beat = pulse_time(time, beat_times) - PULSE_BEAT_PHASE_OFFSET;
+    if time_since_beat < 0.0 {
+        return identity();
+    }
+
+    let beat_index = beat_index_at(time, beat_times);
+    let mut rng = seeded_rng(beat_index as u64 ^ 0xA01D_7E8C_54F3_2B19);
+    let direction = sample_on_circle(&mut rng);
+    let envelope = (-CAMERA_SHAKE_DECAY * time_since_beat).exp();
+    let phase = TAU * CAMERA_SHAKE_FREQUENCY * time_since_beat;
+    let offset = Vec3::new(
+        CAMERA_SHAKE_TRANSLATION * envelope * phase.sin() * direction.x,
+        CAMERA_SHAKE_TRANSLATION * envelope * (phase + 0.5 * TAU).sin() * direction.y,
+        0.0 * envelope * (phase + 0.25 * TAU).sin(),
+    );
+    let roll = CAMERA_SHAKE_ROLL * envelope * phase.cos();
+
+    translation(&offset) * rotation(roll, &Vec3::new(0.0, 0.0, 1.0))
+}
+
+fn camera_at(time: f32, camera_segments: &[(f32, CameraSegment)], beat_times: &[f32]) -> Mat4x4 {
     let time = time.max(0.0);
     let segment_count = camera_segments.len();
     if segment_count == 0 {
-        return camera_model_at(CameraSegment::Edge, 0, time, 2.0);
+        return camera_shake_at(time, beat_times) * camera_model_at(CameraSegment::Edge, 0, time, 2.0);
     }
 
     let active_segment = camera_segments.partition_point(|(start, _)| *start <= time);
@@ -292,7 +326,8 @@ fn camera_at(time: f32, camera_segments: &[(f32, CameraSegment)]) -> Mat4x4 {
         .unwrap_or(start + 2.0);
     let duration = (end - start).max(1.0e-4);
     let local_time = (time - start).max(0.0);
-    camera_model_at(segment, segment_index as u64, local_time, duration)
+    let camera_model = camera_model_at(segment, segment_index as u64, local_time, duration);
+    camera_shake_at(time, beat_times) * camera_model
 }
 
 fn build_camera_events(audio: &AudioAnalysis) -> Vec<f32> {
@@ -526,7 +561,7 @@ fn main() -> io::Result<()> {
     let mut output = io::stdout().lock();
 
     if let Some(time) = time {
-        camera.model = camera_at(time, &camera_segments);
+        camera.model = camera_at(time, &camera_segments, audio.beats());
         let geometry = geometry_at(time, audio.beats());
         render_frame(
             &mut pixmap,
@@ -544,7 +579,7 @@ fn main() -> io::Result<()> {
 
     for frame in 0..FRAME_COUNT {
         let time = frame as f32 / FPS;
-        camera.model = camera_at(time, &camera_segments);
+        camera.model = camera_at(time, &camera_segments, audio.beats());
         let geometry = geometry_at(time, audio.beats());
         render_frame(
             &mut pixmap,
