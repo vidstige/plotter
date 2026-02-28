@@ -67,22 +67,31 @@ fn parse_time_arg(raw: &str) -> io::Result<f32> {
         .map_err(|_| invalid_input(format!("invalid time value: {raw}")))
 }
 
-fn parse_args() -> io::Result<Option<f32>> {
+fn parse_args() -> io::Result<(String, Option<f32>)> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.is_empty() {
-        return Ok(None);
+    let Some((dat_path, rest)) = args.split_first() else {
+        return Err(invalid_input("usage: valentine2026 <analysis.dat> [-t|--time <seconds>]"));
+    };
+
+    if !dat_path.ends_with(".dat") {
+        return Err(invalid_input(format!(
+            "expected first argument to be a .dat file, got: {dat_path}"
+        )));
     }
 
-    match args.as_slice() {
-        [flag, value] if flag == "-t" || flag == "--time" => parse_time_arg(value).map(Some),
+    let time = match rest {
+        [] => None,
+        [flag, value] if flag == "-t" || flag == "--time" => Some(parse_time_arg(value)?),
         [value] if value.starts_with("--time=") => {
             let Some(raw) = value.strip_prefix("--time=") else {
                 return Err(invalid_input("failed to parse --time argument"));
             };
-            parse_time_arg(raw).map(Some)
+            Some(parse_time_arg(raw)?)
         }
-        _ => Err(invalid_input("usage: valentine2026 [-t|--time <seconds>]")),
-    }
+        _ => return Err(invalid_input("usage: valentine2026 <analysis.dat> [-t|--time <seconds>]")),
+    };
+
+    Ok((dat_path.clone(), time))
 }
 
 fn black_and_white<'a>() -> Theme<'a> {
@@ -549,8 +558,8 @@ fn render_frame(
 }
 
 fn main() -> io::Result<()> {
-    let time = parse_args()?;
-    let audio = AudioAnalysis::load_dat_file("every_breath_you_take.dat")?;
+    let (dat_path, time) = parse_args()?;
+    let audio = AudioAnalysis::load_dat_file(dat_path)?;
     let camera_segments = build_camera_segments(&audio);
     let resolution = Resolution::new(720, 720);
     let mut camera = initialize_camera(&resolution);
