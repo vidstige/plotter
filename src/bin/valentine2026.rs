@@ -25,12 +25,12 @@ const FRAME_COUNT: usize = 2048;
 const FPS: f32 = 30.0;
 const CAMERA_SWITCH_EVENTS: usize = 1;
 const BEATS_PER_CAMERA_SWITCH: usize = 4;
-const TRACE_COUNT: usize = 240;
+const TRACE_COUNT: usize = 512;
 const TRACE_LENGTH: usize = 18;
 const TRACE_STEP: f32 = 0.06;
 const FLOW_SPEED: f32 = 0.10;
-const TRACE_INNER_RADIUS: f32 = 0.55;
-const TRACE_OUTER_RADIUS: f32 = 4.0;
+const TRACE_INNER_RADIUS: f32 = 0.25;
+const TRACE_OUTER_RADIUS: f32 = 8.0;
 const TRACE_RADIAL_CDF_SAMPLES: usize = 8192;
 const NEAR: f32 = 0.1;
 const FAR: f32 = 10.0;
@@ -87,7 +87,7 @@ fn black_and_white<'a>() -> Theme<'a> {
     paint.anti_alias = true;
 
     let mut stroke = Stroke::default();
-    stroke.width = 1.8;
+    stroke.width = 2.4;
 
     Theme {
         paint,
