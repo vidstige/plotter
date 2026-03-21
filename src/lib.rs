@@ -23,6 +23,8 @@ pub mod integrate;
 pub mod lerp;
 pub mod marching_squares;
 pub mod mesh2;
+pub mod mesh3;
+pub mod mesh3_io;
 pub mod netbm;
 pub mod paper;
 pub mod polyline;
