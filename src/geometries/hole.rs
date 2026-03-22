@@ -10,12 +10,18 @@ use super::heightmap::Heightmap;
 pub struct Hole;
 
 impl DifferentiableGeometry for Hole {
-    fn du(&self) -> impl DifferentiableGeometry { HoleDu }
-    fn dv(&self) -> impl DifferentiableGeometry { HoleDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        HoleDu
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        HoleDv
+    }
 }
 
 impl Hole {
-    pub fn new() -> Hole { Hole }
+    pub fn new() -> Hole {
+        Hole
+    }
 }
 
 impl Heightmap for Hole {
@@ -41,25 +47,29 @@ impl Geometry for HoleDu {
 }
 
 impl DifferentiableGeometry for HoleDu {
-    fn du(&self) -> impl DifferentiableGeometry { HoleDuDu }
-    fn dv(&self) -> impl DifferentiableGeometry { HoleDuDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        HoleDuDu
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        HoleDuDv
+    }
 }
 
 struct HoleDv;
 
 impl Geometry for HoleDv {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
-        Vec3::new(
-            0.0,
-            1.0,
-            -(2.0 * p.y) / (p.x * p.x + p.y * p.y).powi(2),
-        )
+        Vec3::new(0.0, 1.0, -(2.0 * p.y) / (p.x * p.x + p.y * p.y).powi(2))
     }
 }
 
 impl DifferentiableGeometry for HoleDv {
-    fn du(&self) -> impl DifferentiableGeometry { HoleDuDv } // order of diffrentiation does not matter
-    fn dv(&self) -> impl DifferentiableGeometry { HoleDvDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        HoleDuDv
+    } // order of diffrentiation does not matter
+    fn dv(&self) -> impl DifferentiableGeometry {
+        HoleDvDv
+    }
 }
 
 // second order partial derivatives
@@ -69,7 +79,8 @@ impl Geometry for HoleDuDu {
         Vec3::new(
             0.0,
             0.0,
-            (8.0 * p.x * p.x) / (p.x*p.x + p.y*p.y).powi(3) - 2.0 / (p.x*p.x + p.y*p.y).powi(2)
+            (8.0 * p.x * p.x) / (p.x * p.x + p.y * p.y).powi(3)
+                - 2.0 / (p.x * p.x + p.y * p.y).powi(2),
         )
     }
 }
@@ -81,7 +92,8 @@ impl Geometry for HoleDvDv {
         Vec3::new(
             0.0,
             0.0,
-            (8.0 * p.y * p.y) / (p.x*p.x + p.y*p.y).powi(3) - 2.0 / (p.x*p.x + p.y*p.y).powi(2)
+            (8.0 * p.y * p.y) / (p.x * p.x + p.y * p.y).powi(3)
+                - 2.0 / (p.x * p.x + p.y * p.y).powi(2),
         )
     }
 }
@@ -90,11 +102,7 @@ impl DifferentiableGeometry for HoleDvDv {}
 struct HoleDuDv;
 impl Geometry for HoleDuDv {
     fn evaluate(&self, p: &Vec2) -> Vec3 {
-        Vec3::new(
-            0.0,
-            0.0,
-            (8.0 * p.x * p.y) / (p.x*p.x + p.y*p.y).powi(3)
-        )
+        Vec3::new(0.0, 0.0, (8.0 * p.x * p.y) / (p.x * p.x + p.y * p.y).powi(3))
     }
 }
 impl DifferentiableGeometry for HoleDuDv {}

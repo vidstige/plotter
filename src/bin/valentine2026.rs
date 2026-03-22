@@ -2,7 +2,9 @@ use std::cmp::Ordering;
 use std::f32::consts::TAU;
 use std::io::{self, ErrorKind, Write};
 
-use nalgebra_glm::{cross, identity, look_at, perspective, rotation, translation, Mat4x4, Vec2, Vec3, Vec4};
+use nalgebra_glm::{
+    cross, identity, look_at, perspective, rotation, translation, Mat4x4, Vec2, Vec3, Vec4,
+};
 use plotter::audio_sync::AudioAnalysis;
 use plotter::camera::Camera;
 use plotter::fields::Spiral;
@@ -88,7 +90,9 @@ fn parse_args() -> io::Result<(String, Option<f32>)> {
             };
             Some(parse_time_arg(raw)?)
         }
-        _ => return Err(invalid_input("usage: valentine2026 <analysis.dat> [-t|--time <seconds>]")),
+        _ => {
+            return Err(invalid_input("usage: valentine2026 <analysis.dat> [-t|--time <seconds>]"))
+        }
     };
 
     Ok((dat_path.clone(), time))
@@ -102,27 +106,17 @@ fn black_and_white<'a>() -> Theme<'a> {
     let mut stroke = Stroke::default();
     stroke.width = 2.4;
 
-    Theme {
-        paint,
-        stroke,
-        background: Color::WHITE,
-    }
+    Theme { paint, stroke, background: Color::WHITE }
 }
 
 fn initialize_camera(resolution: &Resolution) -> Camera {
     let projection = perspective(resolution.aspect_ratio(), 45.0_f32.to_radians(), NEAR, FAR);
     let viewport = Vec4::new(0.0, 0.0, resolution.width as f32, resolution.height as f32);
-    Camera {
-        projection,
-        model: identity(),
-        viewport,
-    }
+    Camera { projection, model: identity(), viewport }
 }
 
 fn seeded_rng(key: u64) -> StdRng {
-    let seed = key
-        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
-        .wrapping_add(0xD1B5_4A32_D192_ED03);
+    let seed = key.wrapping_mul(0x9E37_79B9_7F4A_7C15).wrapping_add(0xD1B5_4A32_D192_ED03);
     StdRng::seed_from_u64(seed)
 }
 
@@ -136,18 +130,12 @@ fn edge_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
 
     let eye_dir = sample_on_circle(&mut rng);
     let eye_radius = rng.gen_range(EYE_RADIUS_MIN..EYE_RADIUS_MAX);
-    let eye_from = Vec3::new(
-        eye_radius * eye_dir.x,
-        eye_radius * eye_dir.y,
-        rng.gen_range(-1.9..-0.2),
-    );
+    let eye_from =
+        Vec3::new(eye_radius * eye_dir.x, eye_radius * eye_dir.y, rng.gen_range(-1.9..-0.2));
 
     let eye_step_dir = sample_on_circle(&mut rng);
-    let eye_to = eye_from + Vec3::new(
-        EDGE_EYE_STEP * eye_step_dir.x,
-        EDGE_EYE_STEP * eye_step_dir.y,
-        0.0,
-    );
+    let eye_to =
+        eye_from + Vec3::new(EDGE_EYE_STEP * eye_step_dir.x, EDGE_EYE_STEP * eye_step_dir.y, 0.0);
 
     let target_from = Vec3::new(
         rng.gen_range(-0.10..0.10),
@@ -192,12 +180,8 @@ fn follow_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
     let eye_to = Vec3::new(eye_radius * eye_dir1.x, eye_radius * eye_dir1.y, eye_z1);
 
     let look_distance = rng.gen_range(FOLLOW_LOOK_DISTANCE_MIN..FOLLOW_LOOK_DISTANCE_MAX);
-    let target_from = tangential_target_from_eye(
-        eye_from,
-        direction,
-        look_distance,
-        FOLLOW_DOWNWARD_WEIGHT,
-    );
+    let target_from =
+        tangential_target_from_eye(eye_from, direction, look_distance, FOLLOW_DOWNWARD_WEIGHT);
     let target_to =
         tangential_target_from_eye(eye_to, direction, look_distance, FOLLOW_DOWNWARD_WEIGHT);
 
@@ -208,8 +192,8 @@ fn follow_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
 }
 
 fn radial_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
-    const HEIGHT: f32 = 0.4;  // height over 0-level
-    const DISTANCE: f32 = 2.0;  // starting distance from center
+    const HEIGHT: f32 = 0.4; // height over 0-level
+    const DISTANCE: f32 = 2.0; // starting distance from center
     const SPEED: f32 = 0.01; // eye travel speed
     let t = (time / duration).clamp(0.0, 1.0);
     let mut rng = seeded_rng(scene_key ^ 0x6EA8_0C31_53B2_94D7);
@@ -220,11 +204,7 @@ fn radial_camera_model_at(scene_key: u64, time: f32, duration: f32) -> Mat4x4 {
     let target_start = eye_start + Vec3::new(0.0, 0.0, 1.0);
     let target_end = eye_end + Vec3::new(0.0, 0.0, 1.0);
     let up = &-direction;
-    look_at(
-        &lerp(eye_start, eye_end, t),
-        &lerp(target_start, target_end, t),
-        up,
-    )
+    look_at(&lerp(eye_start, eye_end, t), &lerp(target_start, target_end, t), up)
 }
 
 fn camera_segment(segment: usize, allow_follow: bool, before_first_clap: bool) -> CameraSegment {
@@ -254,9 +234,7 @@ fn camera_model_at(segment: CameraSegment, scene_key: u64, time: f32, duration: 
 }
 
 fn is_beat_time(time: f32, beat_times: &[f32]) -> bool {
-    beat_times
-        .iter()
-        .any(|beat_time| (*beat_time - time).abs() < 1.0e-4)
+    beat_times.iter().any(|beat_time| (*beat_time - time).abs() < 1.0e-4)
 }
 
 fn build_camera_segments(audio: &AudioAnalysis) -> Vec<(f32, CameraSegment)> {
@@ -323,7 +301,8 @@ fn camera_at(time: f32, camera_segments: &[(f32, CameraSegment)], beat_times: &[
     let time = time.max(0.0);
     let segment_count = camera_segments.len();
     if segment_count == 0 {
-        return camera_shake_at(time, beat_times) * camera_model_at(CameraSegment::Edge, 0, time, 2.0);
+        return camera_shake_at(time, beat_times)
+            * camera_model_at(CameraSegment::Edge, 0, time, 2.0);
     }
 
     let active_segment = camera_segments.partition_point(|(start, _)| *start <= time);
@@ -420,7 +399,11 @@ fn hole_radial_weight(radius: f32) -> f32 {
     radius * (1.0 + 4.0 / radius.powi(6)).sqrt()
 }
 
-fn build_hole_radial_cdf(inner_radius: f32, outer_radius: f32, samples: usize) -> (Vec<f32>, Vec<f32>) {
+fn build_hole_radial_cdf(
+    inner_radius: f32,
+    outer_radius: f32,
+    samples: usize,
+) -> (Vec<f32>, Vec<f32>) {
     let sample_count = samples.max(2);
     let mut radii = Vec::with_capacity(sample_count);
     let mut cdf = Vec::with_capacity(sample_count);
@@ -481,11 +464,8 @@ fn sample_radius_from_cdf(u: f32, radii: &[f32], cdf: &[f32]) -> f32 {
 
 fn generate_start_positions() -> Vec<Vec2> {
     let mut rng = StdRng::seed_from_u64(20260214);
-    let (radii, cdf) = build_hole_radial_cdf(
-        TRACE_INNER_RADIUS,
-        TRACE_OUTER_RADIUS,
-        TRACE_RADIAL_CDF_SAMPLES,
-    );
+    let (radii, cdf) =
+        build_hole_radial_cdf(TRACE_INNER_RADIUS, TRACE_OUTER_RADIUS, TRACE_RADIAL_CDF_SAMPLES);
     let mut positions = Vec::with_capacity(TRACE_COUNT);
     for _ in 0..TRACE_COUNT {
         let radius = sample_radius_from_cdf(rng.gen::<f32>(), &radii, &cdf);
@@ -548,13 +528,7 @@ fn render_frame(
     }
 
     pixmap.fill(theme.background);
-    draw_polylines_z(
-        pixmap,
-        &polylines,
-        &theme.paint,
-        &theme.stroke,
-        Transform::identity(),
-    );
+    draw_polylines_z(pixmap, &polylines, &theme.paint, &theme.stroke, Transform::identity());
 }
 
 fn main() -> io::Result<()> {
@@ -572,15 +546,7 @@ fn main() -> io::Result<()> {
     if let Some(time) = time {
         camera.model = camera_at(time, &camera_segments, audio.beats());
         let geometry = geometry_at(time, audio.beats());
-        render_frame(
-            &mut pixmap,
-            &resolution,
-            &geometry,
-            &field,
-            &base_positions,
-            &camera,
-            &theme,
-        );
+        render_frame(&mut pixmap, &resolution, &geometry, &field, &base_positions, &camera, &theme);
         output.write_all(pixmap.data())?;
         output.flush()?;
         return Ok(());
@@ -590,15 +556,7 @@ fn main() -> io::Result<()> {
         let time = frame as f32 / FPS;
         camera.model = camera_at(time, &camera_segments, audio.beats());
         let geometry = geometry_at(time, audio.beats());
-        render_frame(
-            &mut pixmap,
-            &resolution,
-            &geometry,
-            &field,
-            &base_positions,
-            &camera,
-            &theme,
-        );
+        render_frame(&mut pixmap, &resolution, &geometry, &field, &base_positions, &camera, &theme);
         output.write_all(pixmap.data())?;
         output.flush()?;
     }

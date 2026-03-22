@@ -1,16 +1,18 @@
-use nalgebra_glm::{Vec3, Vec2, Mat2x2};
+use nalgebra_glm::{Mat2x2, Vec2, Vec3};
 
-struct DerivativeNotImplemented {
-
-}
+struct DerivativeNotImplemented {}
 impl Geometry for DerivativeNotImplemented {
     fn evaluate(&self, _p: &Vec2) -> Vec3 {
         todo!()
     }
 }
 impl DifferentiableGeometry for DerivativeNotImplemented {
-    fn du(&self) -> impl DifferentiableGeometry { DerivativeNotImplemented {} }
-    fn dv(&self) -> impl DifferentiableGeometry { DerivativeNotImplemented {} }
+    fn du(&self) -> impl DifferentiableGeometry {
+        DerivativeNotImplemented {}
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        DerivativeNotImplemented {}
+    }
 }
 
 pub trait Geometry {
@@ -30,6 +32,7 @@ pub trait DifferentiableGeometry: Geometry {
 
     // evaluates metric tensor at p using derivatives dot product
     // can be overriden with analytic expression
+    #[rustfmt::skip]
     fn metric(&self, p: &Vec2) -> Mat2x2 {
         let du = self.du().evaluate(p);
         let dv = self.dv().evaluate(p);
@@ -41,6 +44,7 @@ pub trait DifferentiableGeometry: Geometry {
 }
 
 // return Christoffel symbols with index k, i, j
+#[rustfmt::skip]
 pub fn compute_gamma(geometry: &impl DifferentiableGeometry, p: &Vec2) -> [[[f32; 2]; 2]; 2] {
     let metric = geometry.metric(p);
     let maybe_inverse_metric = metric.try_inverse();
@@ -49,7 +53,7 @@ pub fn compute_gamma(geometry: &impl DifferentiableGeometry, p: &Vec2) -> [[[f32
     }
     let inverse_metric = maybe_inverse_metric.unwrap();
     // compute all second order partial derivatives
-    let d2: [[Vec3; 2]; 2] = [ 
+    let d2: [[Vec3; 2]; 2] = [
         [geometry.du().du().evaluate(p), geometry.du().dv().evaluate(p)],
         [geometry.dv().du().evaluate(p), geometry.dv().dv().evaluate(p)],
     ];
@@ -73,7 +77,11 @@ pub fn compute_gamma(geometry: &impl DifferentiableGeometry, p: &Vec2) -> [[[f32
 
 // Compute acceleration: a^k = Γ^k_ij v^i v^j
 // This is the solution to the geodesic equation
-pub fn acceleration(geometry: &impl DifferentiableGeometry, position: &Vec2, velocity: &Vec2) -> Vec2 {
+pub fn acceleration(
+    geometry: &impl DifferentiableGeometry,
+    position: &Vec2,
+    velocity: &Vec2,
+) -> Vec2 {
     let gamma = compute_gamma(geometry, position);
     let mut a = Vec2::zeros();
     // tensor sum

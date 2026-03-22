@@ -1,17 +1,15 @@
-use std::
-    io::{self, Write}
-;
+use std::io::{self, Write};
 
 use plotter::audio_sync::AudioAnalysis;
 use plotter::fields::Spiral;
 use plotter::polyline::Polyline2;
-use plotter::{geometries::hole::Hole, skia_utils::draw_polylines};
 use plotter::resolution::Resolution;
 use plotter::{
     camera::Camera,
     lerp::lerp,
     uv2xy::{keep_xy, reproject},
 };
+use plotter::{geometries::hole::Hole, skia_utils::draw_polylines};
 
 use nalgebra_glm::{identity, look_at, perspective, Mat4x4, Vec2, Vec3, Vec4};
 use rand::{distributions::Distribution, rngs::ThreadRng};
@@ -63,11 +61,12 @@ fn black_and_white<'a>() -> Theme<'a> {
     stroke.width = 2.0;
 
     let background = Color::WHITE;
-    Theme {paint, stroke, background}
+    Theme { paint, stroke, background }
 }
 
 fn main() -> io::Result<()> {
-    let audio = AudioAnalysis::load_dat_file("music/Thundatraxx - Every Breath You Take (Lyrics).dat")?;
+    let audio =
+        AudioAnalysis::load_dat_file("music/Thundatraxx - Every Breath You Take (Lyrics).dat")?;
 
     let mut output = io::stdout().lock();
     let resolution = Resolution::new(720, 720);
@@ -96,7 +95,7 @@ fn main() -> io::Result<()> {
 
     let positions: Vec<_> = (0..256)
         .map(|_| 2.0 * sample_vec2(&distribution, &mut rng))
-        .filter(|position| position.magnitude_squared() > 0.3*0.3)
+        .filter(|position| position.magnitude_squared() > 0.3 * 0.3)
         .collect();
     let trace_length = 16;
 
@@ -108,10 +107,8 @@ fn main() -> io::Result<()> {
         camera.model = camera_at(t);
 
         // uv_polylines
-        let uv_polylines: Vec<_> = positions
-            .iter()
-            .map(|p| trace_field(&uv_field, p, trace_length, 0.1))
-            .collect();
+        let uv_polylines: Vec<_> =
+            positions.iter().map(|p| trace_field(&uv_field, p, trace_length, 0.1)).collect();
 
         // draw traces
         let mut polylines = Vec::new();

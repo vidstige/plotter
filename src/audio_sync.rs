@@ -30,10 +30,7 @@ fn load_sections<P: AsRef<Path>>(path: P) -> io::Result<SectionEntries> {
         if let Some(stripped) = trimmed.strip_suffix(':') {
             let name = stripped.trim();
             if name.is_empty() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "Empty section name",
-                ));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "Empty section name"));
             }
             let name = name.to_string();
             sections.entry(name.clone()).or_default();
@@ -42,10 +39,7 @@ fn load_sections<P: AsRef<Path>>(path: P) -> io::Result<SectionEntries> {
         }
 
         let section = current_section.as_ref().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Value without section header",
-            )
+            io::Error::new(io::ErrorKind::InvalidData, "Value without section header")
         })?;
 
         if let Some(values) = sections.get_mut(section) {

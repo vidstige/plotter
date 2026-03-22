@@ -26,20 +26,26 @@ impl Geometry for Torus {
         let ring = self.radius_major + self.radius_minor * cos_u;
         let r = self.radius_minor;
         Vec3::new(
-            ring * cos_v,  //
-            ring * sin_v,  //
-            r * sin_u,     //
+            ring * cos_v, //
+            ring * sin_v, //
+            r * sin_u,    //
         )
     }
 }
 
 impl DifferentiableGeometry for Torus {
     fn du(&self) -> impl DifferentiableGeometry {
-        TorusDu { radius_minor: self.radius_minor, radius_major: self.radius_major }
+        TorusDu {
+            radius_minor: self.radius_minor,
+            radius_major: self.radius_major,
+        }
     }
 
     fn dv(&self) -> impl DifferentiableGeometry {
-        TorusDv { radius_minor: self.radius_minor, radius_major: self.radius_major }
+        TorusDv {
+            radius_minor: self.radius_minor,
+            radius_major: self.radius_major,
+        }
     }
 
     fn metric(&self, p: &Vec2) -> Mat2x2 {
@@ -49,7 +55,7 @@ impl DifferentiableGeometry for Torus {
         let ring = self.radius_major + self.radius_minor * cos_u;
         let r = self.radius_minor;
         Mat2x2::new(
-            r * r, 0.0,       // E, F
+            r * r, 0.0, // E, F
             0.0, ring * ring, // F, G
         )
     }
@@ -80,8 +86,8 @@ impl Geometry for TorusDu {
         let sin_v = v.sin();
         let d_ring = -self.radius_minor * sin_u;
         Vec3::new(
-            d_ring * cos_v, //
-            d_ring * sin_v, //
+            d_ring * cos_v,            //
+            d_ring * sin_v,            //
             self.radius_minor * cos_u, //
         )
     }
@@ -89,11 +95,17 @@ impl Geometry for TorusDu {
 
 impl DifferentiableGeometry for TorusDu {
     fn du(&self) -> impl DifferentiableGeometry {
-        TorusDuDu { radius_minor: self.radius_minor, radius_major: self.radius_major }
+        TorusDuDu {
+            radius_minor: self.radius_minor,
+            radius_major: self.radius_major,
+        }
     }
 
     fn dv(&self) -> impl DifferentiableGeometry {
-        TorusDuDv { radius_minor: self.radius_minor, radius_major: self.radius_major }
+        TorusDuDv {
+            radius_minor: self.radius_minor,
+            radius_major: self.radius_major,
+        }
     }
 }
 
@@ -119,10 +131,16 @@ impl Geometry for TorusDv {
 
 impl DifferentiableGeometry for TorusDv {
     fn du(&self) -> impl DifferentiableGeometry {
-        TorusDuDv { radius_minor: self.radius_minor, radius_major: self.radius_major }
+        TorusDuDv {
+            radius_minor: self.radius_minor,
+            radius_major: self.radius_major,
+        }
     }
     fn dv(&self) -> impl DifferentiableGeometry {
-        TorusDvDv { radius_minor: self.radius_minor, radius_major: self.radius_major }
+        TorusDvDv {
+            radius_minor: self.radius_minor,
+            radius_major: self.radius_major,
+        }
     }
 }
 
@@ -141,8 +159,8 @@ impl Geometry for TorusDuDu {
         let sin_v = v.sin();
         let d2_ring = -self.radius_minor * cos_u;
         Vec3::new(
-            d2_ring * cos_v, //
-            d2_ring * sin_v, //
+            d2_ring * cos_v,            //
+            d2_ring * sin_v,            //
             -self.radius_minor * sin_u, //
         )
     }

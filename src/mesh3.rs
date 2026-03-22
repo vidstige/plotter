@@ -21,10 +21,6 @@ impl Mesh3 {
 
 impl Default for Mesh3 {
     fn default() -> Self {
-        Self {
-            vertices: Vec::new(),
-            normals: Vec::new(),
-            faces: Vec::new(),
-        }
+        Self { vertices: Vec::new(), normals: Vec::new(), faces: Vec::new() }
     }
 }

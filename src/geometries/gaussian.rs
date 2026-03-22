@@ -8,7 +8,9 @@ use super::heightmap::Heightmap;
 
 pub struct Gaussian;
 impl Gaussian {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 impl Heightmap for Gaussian {
@@ -20,8 +22,12 @@ impl Heightmap for Gaussian {
 }
 
 impl DifferentiableGeometry for Gaussian {
-    fn du(&self) -> impl DifferentiableGeometry { GaussianDu }
-    fn dv(&self) -> impl DifferentiableGeometry { GaussianDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        GaussianDu
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        GaussianDv
+    }
 }
 
 impl SDF for Gaussian {
@@ -40,8 +46,12 @@ impl Geometry for GaussianDu {
     }
 }
 impl DifferentiableGeometry for GaussianDu {
-    fn du(&self) -> impl DifferentiableGeometry { GaussianDuDu }
-    fn dv(&self) -> impl DifferentiableGeometry { GaussianDuDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        GaussianDuDu
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        GaussianDuDv
+    }
 }
 
 struct GaussianDv;
@@ -55,8 +65,12 @@ impl Geometry for GaussianDv {
 }
 impl DifferentiableGeometry for GaussianDv {
     // Order of derivation does not matter, so just reuse (d/du)(d/dv)
-    fn du(&self) -> impl DifferentiableGeometry { GaussianDuDv }
-    fn dv(&self) -> impl DifferentiableGeometry { GaussianDvDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        GaussianDuDv
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        GaussianDvDv
+    }
 }
 
 struct GaussianDuDu;

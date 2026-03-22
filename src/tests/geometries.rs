@@ -3,6 +3,7 @@ use nalgebra_glm::Vec2;
 use crate::{geometries, geometry::compute_gamma};
 
 #[test]
+#[rustfmt::skip]
 fn test_plane_gamma() {
     let geom = geometries::plane::Plane;
     let p = Vec2::new(1.0, 2.0);

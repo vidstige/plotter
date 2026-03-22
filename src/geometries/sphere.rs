@@ -7,7 +7,9 @@ use crate::{
 
 pub struct Sphere;
 impl Sphere {
-    pub fn new() -> Sphere { Sphere }
+    pub fn new() -> Sphere {
+        Sphere
+    }
 }
 
 impl Geometry for Sphere {
@@ -22,13 +24,18 @@ impl Geometry for Sphere {
 }
 
 impl DifferentiableGeometry for Sphere {
-    fn du(&self) -> impl DifferentiableGeometry { SphereDu }
-    fn dv(&self) -> impl DifferentiableGeometry { SphereDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        SphereDu
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        SphereDv
+    }
+    #[rustfmt::skip]
     fn metric(&self, p: &Vec2) -> Mat2x2 {
         // override metric tensor with analytical expression
         Mat2x2::new(
-            1.0, 0.0,               //
-            0.0, p.x.sin().powi(2), //
+            1.0, 0.0,
+            0.0, p.x.sin().powi(2),
         )
     }
 }
@@ -53,8 +60,12 @@ impl Geometry for SphereDu {
 }
 
 impl DifferentiableGeometry for SphereDu {
-    fn du(&self) -> impl DifferentiableGeometry { SphereDuDu }
-    fn dv(&self) -> impl DifferentiableGeometry { SphereDuDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        SphereDuDu
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        SphereDuDv
+    }
 }
 
 struct SphereDv;
@@ -71,8 +82,12 @@ impl Geometry for SphereDv {
 
 impl DifferentiableGeometry for SphereDv {
     // Order of derivation does not matter, so just reuse (d/du)(d/dv)
-    fn du(&self) -> impl DifferentiableGeometry { SphereDuDv }
-    fn dv(&self) -> impl DifferentiableGeometry { SphereDvDv }
+    fn du(&self) -> impl DifferentiableGeometry {
+        SphereDuDv
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        SphereDvDv
+    }
 }
 
 // second derivatives of sphere

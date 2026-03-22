@@ -2,8 +2,13 @@ use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 use crate::polyline::{Polyline2, Polyline4};
 
-
-pub fn draw_polyline(pixmap: &mut Pixmap, polyline: &Polyline2, paint: &Paint, stroke: &Stroke, transform: Transform) {
+pub fn draw_polyline(
+    pixmap: &mut Pixmap,
+    polyline: &Polyline2,
+    paint: &Paint,
+    stroke: &Stroke,
+    transform: Transform,
+) {
     let mut pb = PathBuilder::new();
     for (index, point) in polyline.points.iter().enumerate() {
         if index == 0 {
@@ -17,7 +22,13 @@ pub fn draw_polyline(pixmap: &mut Pixmap, polyline: &Polyline2, paint: &Paint, s
     }
 }
 
-pub fn draw_polylines(pixmap: &mut Pixmap, polylines: &[Polyline2], paint: &Paint, stroke: &Stroke, transform: Transform) {
+pub fn draw_polylines(
+    pixmap: &mut Pixmap,
+    polylines: &[Polyline2],
+    paint: &Paint,
+    stroke: &Stroke,
+    transform: Transform,
+) {
     for polyline in polylines {
         draw_polyline(pixmap, polyline, paint, stroke, transform);
     }

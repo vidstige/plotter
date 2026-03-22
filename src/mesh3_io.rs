@@ -41,7 +41,8 @@ fn parse_index(token: &str, kind: &str, len: usize) -> io::Result<usize> {
     let index = if raw > 0 {
         raw as usize - 1
     } else {
-        len.checked_sub((-raw) as usize).ok_or_else(|| invalid_data(format!("{kind} index out of bounds")))?
+        len.checked_sub((-raw) as usize)
+            .ok_or_else(|| invalid_data(format!("{kind} index out of bounds")))?
     };
     if index >= len {
         return Err(invalid_data(format!("{kind} index out of bounds")));
@@ -92,9 +93,8 @@ pub fn read_obj(reader: impl BufRead) -> io::Result<Mesh3> {
             "v" => mesh.vertices.push(parse_vec3(&mut parts, "vertex")?),
             "vn" => mesh.normals.push(parse_vec3(&mut parts, "normal")?),
             "f" => {
-                let face: io::Result<Vec<_>> = parts
-                    .map(|part| parse_face_vertex(part, &mesh))
-                    .collect();
+                let face: io::Result<Vec<_>> =
+                    parts.map(|part| parse_face_vertex(part, &mesh)).collect();
                 let face = face?;
                 if face.len() < 3 {
                     return Err(invalid_data("face must have at least 3 vertices"));

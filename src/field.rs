@@ -8,8 +8,12 @@ pub struct Field<T> {
 }
 
 impl<T> Field<T> {
-    pub fn width(&self) -> usize { self.resolution.width as usize }
-    pub fn height(&self) -> usize { self.resolution.height as usize }
+    pub fn width(&self) -> usize {
+        self.resolution.width as usize
+    }
+    pub fn height(&self) -> usize {
+        self.resolution.height as usize
+    }
 }
 
 impl<T> Index<(usize, usize)> for Field<T> {
@@ -96,7 +100,10 @@ where
 {
     let lhs_iter = lhs.into_iter();
     let rhs_iter = rhs.into_iter();
-    Field { resolution, values: lhs_iter.zip(rhs_iter).map(|(l, r)| f(l, r)).collect() }
+    Field {
+        resolution,
+        values: lhs_iter.zip(rhs_iter).map(|(l, r)| f(l, r)).collect(),
+    }
 }
 
 fn scale_field<T, S, I>(resolution: Resolution, values: I, scalar: S) -> Field<T>
@@ -106,5 +113,8 @@ where
     T: Mul<S, Output = T>,
 {
     let iter = values.into_iter();
-    Field { resolution, values: iter.map(|value| value * scalar.clone()).collect() }
+    Field {
+        resolution,
+        values: iter.map(|value| value * scalar.clone()).collect(),
+    }
 }

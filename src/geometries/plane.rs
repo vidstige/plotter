@@ -49,8 +49,12 @@ impl Geometry for PlaneDu {
 }
 
 impl DifferentiableGeometry for PlaneDu {
-    fn du(&self) -> impl DifferentiableGeometry { Zero }
-    fn dv(&self) -> impl DifferentiableGeometry { Zero }
+    fn du(&self) -> impl DifferentiableGeometry {
+        Zero
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        Zero
+    }
 }
 
 struct PlaneDv;
@@ -60,6 +64,10 @@ impl Geometry for PlaneDv {
     }
 }
 impl DifferentiableGeometry for PlaneDv {
-    fn du(&self) -> impl DifferentiableGeometry { Zero }
-    fn dv(&self) -> impl DifferentiableGeometry { Zero }
+    fn du(&self) -> impl DifferentiableGeometry {
+        Zero
+    }
+    fn dv(&self) -> impl DifferentiableGeometry {
+        Zero
+    }
 }

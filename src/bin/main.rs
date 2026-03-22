@@ -2,7 +2,17 @@ use std::{f32::consts::TAU, io, time::Duration};
 
 use nalgebra_glm::{look_at, perspective, Vec2, Vec3, Vec4};
 use plotter::{
-    camera::Camera, duration_extras::format_duration, fields::cross2, geometries::{gaussian::Gaussian, hole::Hole, torus::Torus}, geometry::DifferentiableGeometry, gridlines::generate_grid, integrate::euler, paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE}, polyline::Polyline2, time_estimator::Estimator, uv2xy::{keep_xy, reproject}
+    camera::Camera,
+    duration_extras::format_duration,
+    fields::cross2,
+    geometries::{gaussian::Gaussian, hole::Hole, torus::Torus},
+    geometry::DifferentiableGeometry,
+    gridlines::generate_grid,
+    integrate::euler,
+    paper::{pad, viewbox_aspect, Paper, ViewBox, A4_LANDSCAPE},
+    polyline::Polyline2,
+    time_estimator::Estimator,
+    uv2xy::{keep_xy, reproject},
 };
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
