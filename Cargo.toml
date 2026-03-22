@@ -21,6 +21,10 @@ name = "valentine2026"
 path = "src/bin/valentine2026.rs"
 
 [[bin]]
+name = "mesh"
+path = "src/bin/mesh.rs"
+
+[[bin]]
 name = "geometry2mesh"
 path = "src/bin/geometry2mesh.rs"
 
