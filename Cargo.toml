@@ -20,6 +20,10 @@ path = "src/bin/plasma.rs"
 name = "valentine2026"
 path = "src/bin/valentine2026.rs"
 
+[[bin]]
+name = "geometry2mesh"
+path = "src/bin/geometry2mesh.rs"
+
 [dependencies]
 svg = "0.17.0"
 nalgebra-glm = "0.18.0"
