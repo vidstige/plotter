@@ -307,7 +307,9 @@ fn main() -> io::Result<()> {
     paper.optimize();
     let (dl, ml) = paper.length();
     println!("draw: {dl} mm, move: {ml} mm");
-    paper.save(args.output_path.to_str().unwrap())?;
+    let output_path = args.output_path.to_str().unwrap();
+    paper.save(output_path)?;
+    println!("wrote: {output_path}");
 
     let estimator = Estimator::best();
     let duration = estimator.estimate(&paper, 2000.0, 8000.0);

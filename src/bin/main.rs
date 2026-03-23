@@ -142,7 +142,9 @@ fn main() -> io::Result<()> {
     paper.optimize();
     let (dl, ml) = paper.length();
     println!("draw: {dl} mm, move: {ml} mm");
-    paper.save("output.svg")?;
+    let output_path = "output.svg";
+    paper.save(output_path)?;
+    println!("wrote: {output_path}");
 
     // estimate plotting time
     let estimator = Estimator::best();

@@ -80,6 +80,7 @@ fn main() -> io::Result<()> {
     let uv_mesh = build_annulus();
     let mesh = sample_heightmap(uv_mesh, &hole);
     write_obj(OUTPUT_PATH, &mesh)?;
+    println!("wrote: {OUTPUT_PATH}");
     println!("saved {OUTPUT_PATH} with {} vertices and {} faces", mesh.vertices.len(), mesh.faces.len());
     Ok(())
 }
