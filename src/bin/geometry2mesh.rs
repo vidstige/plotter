@@ -14,8 +14,8 @@ use plotter::{
 const OUTPUT_PATH: &str = "hole-heightmap.obj";
 const INNER_RADIUS: f32 = 0.35355338;
 const OUTER_RADIUS: f32 = 3.0;
-const RADIAL_STEPS: usize = 96;
-const ANGULAR_STEPS: usize = 256;
+const RADIAL_STEPS: usize = 32;
+const ANGULAR_STEPS: usize = 96;
 
 fn build_annulus() -> Mesh2 {
     let mut vertices = Vec::new();
